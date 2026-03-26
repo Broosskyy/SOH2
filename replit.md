@@ -94,6 +94,50 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - NPC-Mittel: scale 0.085, Kollisionsradius 22
 - NPC-Groß: scale 0.10, Kollisionsradius 26
 
+## Kill-Streak System
+
+- `_onEnemyKilled(npc)` in GameScene — verfolgt aufeinanderfolgende Kills innerhalb von 12 Sekunden
+- Combo-HUD erscheint mittig oben: `🔥 3× COMBO`, farbkodiert (gelb → orange → rot)
+- Milestones: 3× (+8 Gold, +15 XP), 5× (+20 Gold, RAGE MODUS!), 10× (+60 Gold, +80 XP)
+- **Rage Modus** (5+ Kill-Streak): +25% Speed, +20% Schaden, 8 Sekunden, rotes Overlay
+
+## Schwimmende Schadenszahlen
+
+- `showEnemyDamageFloat(x, y, damage, isCrit)` — weiß für Normal, rot für KRIT
+- Krit-Treffer zeigen zusätzlich "KRIT!" Badge rechts neben der Zahl
+- Phaser-Text-Objekte steigen auf und blenden aus (0.95s Tween)
+
+## Händler-NPC
+
+- Spawnt 1 Minute nach Spielstart, danach alle 3–5 Minuten automatisch
+- Grün getintetes Schiff nähert sich dem Spieler mit Label "🛒 Händler"
+- Bei Nähe < 260px öffnet sich der Händler-Shop: 3 zufällige Waren aus 6 Optionen
+- Waren: Rum, Reparaturset, Donnerpulver, Grog, Seekarte (+200 Gold), Glücksbringer
+- Verschwindet nach 60 Sekunden wenn nicht interagiert
+
+## Level-Up Belohnungen (verbessert)
+
+- `_getLevelUpRewards(level)` gibt Gold + Items + Labels zurück
+- Alle 3 Level: ein Konsumable-Item (Rum / Grog / Reparaturset rotierend)
+- Alle 5 Level (Meilenstein): +50 Bonus-Gold + spezielles Item
+  - Lv.5 → 2× Rum, Lv.10 → 2× Grog, Lv.15 → Reparaturset, Lv.20 → Donnerpulver
+
+## Klassen-basierte Schiffsgrößen (ShipDesignPanel)
+
+- Kutter: scale 0.082 — Brigantine: 0.095 — Fregatte: 0.10 — Linienschiff: 0.13
+- Schiffswahl persistiert via `ahc_ship_${username}` in localStorage
+- Aktives Schiff-Info-Banner im Werft-Panel mit ★-Wertung für Geschw./Panzer/Kanonen
+
+## Glücksbringer-Krit (Lucky Charm)
+
+- Wenn "Lucky Charm" aktiv: Zufalls-Crit-Check mit 15% Chance pro Schuss → doppelter Schaden
+- Integriert in den Angriffs-Loop, zeigt rote KRIT-Zahl
+
+## Auto-Save
+
+- Alle 5 Minuten automatisch gespeichert (via Update-Loop)
+- "💾 Gespeichert"-Banner erscheint unten mittig (2s, dann fade-out)
+
 ## Server
 
 - Statischer Dateiserver via `npx serve . -p 5000`

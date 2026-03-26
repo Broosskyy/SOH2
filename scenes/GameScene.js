@@ -78,6 +78,11 @@ export default class GameScene extends Phaser.Scene {
         this.activeChatTab = 'Global';
         this.chatScrollOffset = 0;
         this.chatMaxVisibleLines = 7;
+        this._killStreak = 0;
+        this._lastKillTime = 0;
+        this._rageModeActive = false;
+        this._streakHudEl = null;
+        this._merchantActive = false;
         this.maxChartIndex = 10;
         this.currentChartIndex = 1;
         this.currentChartConfig = null;
@@ -401,6 +406,11 @@ export default class GameScene extends Phaser.Scene {
              this.loginBonusPanel, this.achievementPanel, this.logbookPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
+            this._streakHudEl?.remove();    this._streakHudEl = null;
+            this._rageOverlay?.remove();    this._rageOverlay = null;
+            this._merchantShopEl?.remove(); this._merchantShopEl = null;
+            this._saveIndicatorEl?.remove(); this._saveIndicatorEl = null;
+            this._merchantCleanup?.();
         });
 
         this.events.on('damage-popup', this.showDamagePopup, this);
@@ -414,6 +424,7 @@ export default class GameScene extends Phaser.Scene {
             this.player.heal(npc.xpValue / 2);
             this.spawnLootFromDefeat(npc);
             this.missionPanel?.trackKill();
+            this._onEnemyKilled(npc);
             if (npc instanceof NPCShip) {
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
                 this._updateTrialProgress('npc_kills', 1);
@@ -489,9 +500,11 @@ export default class GameScene extends Phaser.Scene {
             this.refreshSeaGateUI();
             this.talentPanel?.addSkillPoint(1);
             const trialMsg = this._checkPirateTrial(level);
-            const rewards = [`Max HP +20`, `+1 Kanonenschlitz geöffnet`];
-            this.domNavBar?.showLevelUp(level, rewards, trialMsg ?? '');
+            const rewards = this._getLevelUpRewards(level);
+            this.domNavBar?.showLevelUp(level, rewards.labels, trialMsg ?? '');
             this._refreshPlayerInfoHUD();
+            this._applyLevelUpRewards(level, rewards);
+            this._achievementCheck?.();
         });
         this.events.on('player-upgraded', (type) => {
             this.attackInterval = this.player.reloadTime;
@@ -621,6 +634,401 @@ export default class GameScene extends Phaser.Scene {
             el.style.opacity = '0';
             setTimeout(() => { el?.remove(); this._saveIndicatorEl = null; }, 520);
         }, 1800);
+    }
+
+    /* ═══════════════════ LEVEL-UP REWARDS ═══════════════════ */
+
+    _getLevelUpRewards(level) {
+        const labels = ['Max HP +20', '+1 Skillpunkt'];
+        const items  = {};
+        let gold = 20 + level * 5;
+
+        if (level % 5 === 0) {
+            /* Milestone every 5 levels */
+            gold += 50;
+            labels.push(`🎖 Meilenstein Lv.${level}: +50 Bonus-Gold`);
+            const milestoneItem = level === 5  ? { id: 'rum', qty: 2 }
+                                : level === 10 ? { id: 'grog', qty: 2 }
+                                : level === 15 ? { id: 'repair_kit', qty: 1 }
+                                : level === 20 ? { id: 'thunder_powder', qty: 1 }
+                                : { id: 'rum', qty: 1 };
+            items[milestoneItem.id] = (items[milestoneItem.id] ?? 0) + milestoneItem.qty;
+            labels.push(`🎁 Freischalte: ${this._itemLabel(milestoneItem.id)} ×${milestoneItem.qty}`);
+        }
+
+        if (level % 3 === 0) {
+            const roll = ['rum', 'grog', 'repair_kit'][level % 3];
+            items[roll] = (items[roll] ?? 0) + 1;
+            labels.push(`+1 ${this._itemLabel(roll)} (alle 3 Level)`);
+        }
+
+        labels.push(`+${gold} Gold`);
+        return { labels, gold, items };
+    }
+
+    _itemLabel(id) {
+        return { rum: '🍺 Rum', grog: '🧉 Grog', repair_kit: '🔧 Reparaturset',
+                 thunder_powder: '⚡ Donnerpulver', lucky_charm: '🍀 Glücksbringer' }[id] ?? id;
+    }
+
+    _applyLevelUpRewards(level, rewards) {
+        const p = this.player;
+        if (!p) return;
+        p.gold = (p.gold ?? 0) + (rewards.gold ?? 0);
+        Object.entries(rewards.items ?? {}).forEach(([id, qty]) => {
+            if (!p.inventory) p.inventory = {};
+            p.inventory[id] = (p.inventory[id] ?? 0) + qty;
+        });
+        this._updateItemBar?.();
+    }
+
+    /* ═══════════════════ KILL STREAK ═══════════════════ */
+
+    _onEnemyKilled(npc) {
+        const now = Date.now();
+        const STREAK_WINDOW = 12000;
+        if (now - this._lastKillTime < STREAK_WINDOW) {
+            this._killStreak++;
+        } else {
+            this._killStreak = 1;
+        }
+        this._lastKillTime = now;
+        this._updateStreakHUD();
+
+        /* Milestone bonuses */
+        if (this._killStreak === 3) {
+            this.player.gold += 8; this.player.addXP(15);
+            this._showStreakToast('🔥 3er-Combo! +8 Gold +15 XP');
+        } else if (this._killStreak === 5) {
+            this.player.gold += 20; this.player.addXP(30);
+            this._showStreakToast('💀 5er-Combo! +20 Gold — RAGE MODUS!');
+            this._activateRageMode();
+        } else if (this._killStreak === 10) {
+            this.player.gold += 60; this.player.addXP(80);
+            this._showStreakToast('⚡ 10er-COMBO! +60 Gold +80 XP — LEGENDÄR!');
+        } else if (this._killStreak > 10 && this._killStreak % 5 === 0) {
+            this.player.gold += 30; this.player.addXP(40);
+            this._showStreakToast(`🌟 ${this._killStreak}er-Combo! +30 Gold +40 XP`);
+        }
+
+        /* Auto-reset streak if no kill in window */
+        this.time.delayedCall(STREAK_WINDOW + 200, () => {
+            if (Date.now() - this._lastKillTime >= STREAK_WINDOW) {
+                this._killStreak = 0;
+                this._updateStreakHUD();
+            }
+        });
+    }
+
+    _updateStreakHUD() {
+        if (!this._streakHudEl) {
+            const el = document.createElement('div');
+            el.id = 'streak-hud';
+            el.style.cssText = `
+                position:fixed;top:14px;left:50%;transform:translateX(-50%);
+                z-index:19000;pointer-events:none;
+                display:flex;align-items:center;gap:6px;
+                font-family:Arial,sans-serif;transition:opacity 0.4s;
+            `;
+            document.body.appendChild(el);
+            this._streakHudEl = el;
+        }
+        const el = this._streakHudEl;
+        if (this._killStreak < 2) {
+            el.style.opacity = '0';
+            return;
+        }
+        const color = this._killStreak >= 10 ? '#ff3300' : this._killStreak >= 5 ? '#ff7700' : '#ffdd33';
+        const size  = this._killStreak >= 10 ? '18px' : this._killStreak >= 5 ? '16px' : '14px';
+        el.style.opacity = '1';
+        el.innerHTML = `
+            <div style="
+                background:rgba(10,10,20,0.82);border:2px solid ${color};
+                border-radius:20px;padding:4px 14px;
+                font-size:${size};font-weight:bold;color:${color};
+                letter-spacing:2px;text-shadow:0 0 8px ${color}88;
+            ">${'🔥'.repeat(Math.min(this._killStreak, 5))} ${this._killStreak}× COMBO</div>
+        `;
+    }
+
+    _showStreakToast(msg) {
+        const el = document.createElement('div');
+        el.style.cssText = `
+            position:fixed;top:64px;left:50%;transform:translateX(-50%) scale(0.8);
+            z-index:19001;pointer-events:none;
+            background:rgba(10,10,20,0.9);border:2px solid rgba(255,150,0,0.7);
+            border-radius:12px;padding:8px 18px;
+            font-size:13px;font-weight:bold;color:#ffd060;
+            font-family:Arial,sans-serif;letter-spacing:1px;text-align:center;
+            white-space:nowrap;transition:transform 0.15s ease,opacity 0.4s;
+        `;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => { el.style.transform = 'translateX(-50%) scale(1)'; });
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 420); }, 2200);
+    }
+
+    _activateRageMode() {
+        if (this._rageModeActive) return;
+        this._rageModeActive = true;
+        const RAGE_DURATION = 8000;
+
+        /* Speed + damage boost */
+        const oldBase = this._playerBaseSpeed ?? this.player.speed;
+        this._playerBaseSpeed = oldBase;
+        this._rageSpeedBonus = Math.round(oldBase * 0.25);
+        this.player.speed = oldBase + this._rageSpeedBonus;
+        this.player.rageDamageBonus = 0.20;
+
+        /* Red overlay */
+        const overlay = document.createElement('div');
+        overlay.id = 'rage-overlay';
+        overlay.style.cssText = `
+            position:fixed;inset:0;z-index:18000;pointer-events:none;
+            background:rgba(220,20,20,0.10);border:4px solid rgba(220,30,0,0.4);
+            animation:repPulse 0.6s infinite alternate;
+        `;
+        document.body.appendChild(overlay);
+        this._rageOverlay = overlay;
+
+        this.showStatusMsg('🔥 RAGE MODUS! +25% Speed +20% Schaden für 8s!', 0xff4400);
+
+        this.time.delayedCall(RAGE_DURATION, () => {
+            this._rageModeActive = false;
+            this.player.speed = oldBase;
+            delete this.player.rageDamageBonus;
+            overlay.remove();
+            this._rageOverlay = null;
+            this.showStatusMsg('Rage Modus beendet', 0xff8844);
+        });
+    }
+
+    /* ═══════════════════ ENEMY DAMAGE FLOAT ═══════════════════ */
+
+    showEnemyDamageFloat(x, y, damage, isCrit) {
+        const wx = x; const wy = y - 30;
+        const cam = this.cameras.main;
+        const sx = (wx - cam.scrollX) * cam.zoom;
+        const sy = (wy - cam.scrollY) * cam.zoom;
+        const color = isCrit ? '#ff4444' : '#ffffff';
+        const size  = isCrit ? '30px' : '24px';
+        const text = this.add.text(wx, wy, `${damage}`, {
+            fontSize: size, fontFamily: 'Arial', fontStyle: 'bold',
+            fill: color, stroke: '#000', strokeThickness: 4,
+        }).setOrigin(0.5).setDepth(1700);
+        if (isCrit) {
+            const badge = this.add.text(wx + 36, wy - 8, 'KRIT!', {
+                fontSize: '14px', fontFamily: 'Arial', fontStyle: 'bold',
+                fill: '#ff2200', stroke: '#000', strokeThickness: 3,
+            }).setOrigin(0.5).setDepth(1700);
+            this.tweens.add({ targets: badge, y: wy - 50, alpha: 0, duration: 900, ease: 'Cubic.Out', onComplete: () => badge.destroy() });
+        }
+        this.tweens.add({
+            targets: text,
+            y: wy - 55,
+            scaleX: isCrit ? 1.3 : 1,
+            scaleY: isCrit ? 1.3 : 1,
+            alpha: 0,
+            duration: 950,
+            ease: 'Cubic.Out',
+            onComplete: () => text.destroy()
+        });
+    }
+
+    /* ═══════════════════ MERCHANT NPC ═══════════════════ */
+
+    _scheduleMerchant() {
+        const delay = Phaser.Math.Between(180000, 300000); /* 3-5 min */
+        this.time.delayedCall(delay, () => {
+            if (!this.player?.active || this._merchantActive) {
+                this._scheduleMerchant(); return;
+            }
+            this._spawnMerchant();
+        });
+    }
+
+    _spawnMerchant() {
+        if (this._merchantActive) return;
+        this._merchantActive = true;
+        const p = this.player;
+        const spawnEdge = Phaser.Math.Between(0, 3);
+        let mx, my;
+        if (spawnEdge === 0) { mx = p.x - 900; my = p.y + Phaser.Math.Between(-400, 400); }
+        else if (spawnEdge === 1) { mx = p.x + 900; my = p.y + Phaser.Math.Between(-400, 400); }
+        else if (spawnEdge === 2) { mx = p.x + Phaser.Math.Between(-400, 400); my = p.y - 900; }
+        else { mx = p.x + Phaser.Math.Between(-400, 400); my = p.y + 900; }
+        mx = Phaser.Math.Clamp(mx, 200, this.mapWidth - 200);
+        my = Phaser.Math.Clamp(my, 200, this.mapHeight - 200);
+
+        const ship = this.physics.add.image(mx, my, 'enemy-ship')
+            .setScale(0.10).setDepth(500).setTint(0x88ffcc);
+        ship.setVelocity(
+            (p.x - mx) * 0.06,
+            (p.y - my) * 0.06
+        );
+        ship._isMerchant = true;
+
+        /* Merchant label */
+        const label = this.add.text(mx, my - 60, '🛒 Händler', {
+            fontSize: '14px', fontFamily: 'Arial', fontStyle: 'bold',
+            fill: '#88ffcc', stroke: '#000', strokeThickness: 3, align: 'center'
+        }).setOrigin(0.5).setDepth(501);
+
+        /* Ping direction arrow on minimap / show direction message */
+        this.showStatusMsg('🛒 Händlerschiff nähert sich! (60s)', 0x88ffcc);
+
+        let alreadyTraded = false;
+        const CHECK_INTERVAL = 500;
+        const DESPAWN_TIME = 60000;
+        let elapsed = 0;
+
+        const checkTimer = this.time.addEvent({
+            delay: CHECK_INTERVAL,
+            loop: true,
+            callback: () => {
+                elapsed += CHECK_INTERVAL;
+                if (!ship.active || !p.active) { cleanupMerchant(); return; }
+                ship.x += (p.x - ship.x) * 0.012;
+                ship.y += (p.y - ship.y) * 0.012;
+                label.setPosition(ship.x, ship.y - 60);
+
+                const dist = Phaser.Math.Distance.Between(p.x, p.y, ship.x, ship.y);
+                if (dist < 260 && !alreadyTraded) {
+                    alreadyTraded = true;
+                    this._openMerchantShop(ship, label, cleanupMerchant);
+                    return;
+                }
+                if (elapsed >= DESPAWN_TIME) {
+                    this.showStatusMsg('Der Händler ist abgefahren.', 0x888888);
+                    cleanupMerchant();
+                }
+            }
+        });
+
+        const cleanupMerchant = () => {
+            checkTimer.remove(false);
+            ship.destroy();
+            label.destroy();
+            this._merchantActive = false;
+            this._scheduleMerchant();
+        };
+        this._merchantCleanup = cleanupMerchant;
+    }
+
+    _openMerchantShop(ship, label, onClose) {
+        if (this._merchantShopEl) return;
+        const WARES = [
+            { id: 'rum',        name: '🍺 Rum',           price: 30,  desc: '+50% Geschw. 20s' },
+            { id: 'repair_kit', name: '🔧 Reparaturset',  price: 50,  desc: '+80 HP sofort' },
+            { id: 'thunder_powder', name: '⚡ Donnerpulver', price: 80, desc: 'Nächster Schuss 3× Schaden' },
+            { id: 'grog',       name: '🧉 Grog',           price: 25,  desc: 'Schussrate +40% für 15s' },
+            { id: 'sea_chart',  name: '🗺️ Seekarte',       price: 120, desc: '+200 Gold sofort' },
+            { id: 'lucky_charm',name: '🍀 Glücksbringer',  price: 60,  desc: 'Crit-Chance +15% für 30s' },
+        ];
+        /* Pick 3 random wares */
+        const shuffled = [...WARES].sort(() => Math.random() - 0.5).slice(0, 3);
+
+        const el = document.createElement('div');
+        el.style.cssText = `
+            position:fixed;inset:0;z-index:22000;display:flex;align-items:center;justify-content:center;
+            background:rgba(0,0,0,0.65);font-family:Arial,sans-serif;
+        `;
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background:linear-gradient(160deg,#0b1e10,#071510);
+            border:2px solid #44cc88;border-radius:12px;padding:18px 20px;
+            max-width:340px;width:90%;box-shadow:0 0 40px rgba(68,204,136,0.2);
+        `;
+        box.innerHTML = `
+            <div style="font-size:15px;font-weight:bold;color:#44cc88;letter-spacing:2px;margin-bottom:4px;">🛒 HÄNDLER-SCHIFF</div>
+            <div style="font-size:10px;color:#668877;margin-bottom:14px;">Guten Wind, Kapitän! Was darf es sein?</div>
+        `;
+        shuffled.forEach(ware => {
+            const row = document.createElement('div');
+            row.style.cssText = `
+                display:flex;align-items:center;justify-content:space-between;
+                background:rgba(68,204,136,0.07);border:1px solid rgba(68,204,136,0.2);
+                border-radius:8px;padding:10px 12px;margin-bottom:8px;gap:10px;
+            `;
+            row.innerHTML = `
+                <div style="flex:1;">
+                    <div style="font-size:12px;font-weight:bold;color:#88ffcc;">${ware.name}</div>
+                    <div style="font-size:10px;color:#668877;margin-top:2px;">${ware.desc}</div>
+                </div>
+                <button data-ware="${ware.id}" data-price="${ware.price}" style="
+                    background:#0d3322;border:1px solid #44cc88;border-radius:6px;
+                    color:#44cc88;font-size:11px;font-weight:bold;padding:6px 10px;
+                    cursor:pointer;white-space:nowrap;touch-action:manipulation;
+                ">${ware.price} 🪙</button>
+            `;
+            box.appendChild(row);
+        });
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕ Schließen';
+        closeBtn.style.cssText = `
+            width:100%;margin-top:10px;padding:8px;background:rgba(255,255,255,0.06);
+            border:1px solid rgba(255,255,255,0.15);border-radius:8px;
+            color:#aaa;font-size:12px;cursor:pointer;touch-action:manipulation;
+        `;
+        closeBtn.addEventListener('click', () => { el.remove(); this._merchantShopEl = null; onClose(); });
+        box.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-ware]');
+            if (!btn) return;
+            const wareId = btn.dataset.ware;
+            const price  = parseInt(btn.dataset.price);
+            if ((this.player.gold ?? 0) < price) {
+                this.showStatusMsg('Nicht genug Gold!', 0xff5544); return;
+            }
+            this.player.gold -= price;
+            this._applyMerchantWare(wareId);
+            btn.textContent = '✓ Gekauft';
+            btn.style.background = '#0a4428';
+            btn.disabled = true;
+        });
+        box.appendChild(closeBtn);
+        el.appendChild(box);
+        document.body.appendChild(el);
+        this._merchantShopEl = el;
+    }
+
+    _applyMerchantWare(wareId) {
+        const p = this.player;
+        switch (wareId) {
+            case 'rum':
+                this._rumActive = true;
+                this._recalcPlayerSpeed?.();
+                this.showStatusMsg('🍺 Rum getrunken! +50% Geschwindigkeit für 20s', 0xffcc44);
+                this.time.delayedCall(20000, () => { this._rumActive = false; this._recalcPlayerSpeed?.(); });
+                break;
+            case 'repair_kit':
+                p.hp = Math.min(p.maxHP, (p.hp ?? 0) + 80);
+                p.updateHealthBar?.();
+                this.showStatusMsg('🔧 Repariert! +80 HP', 0x7fffb0);
+                break;
+            case 'thunder_powder':
+                this._blitzpulverActive = true;
+                if (!p.activeEffects) p.activeEffects = {};
+                p.activeEffects.blitzpulver = { label: '⚡ Blitz', endTime: Date.now() + 60000 };
+                this.showStatusMsg('⚡ Donnerpulver! Nächster Schuss: 3× Schaden', 0xffe84a);
+                break;
+            case 'grog': {
+                this._grogActive = true;
+                this._grogEndTime = (this._grogEndTime ?? 0) > Date.now()
+                    ? this._grogEndTime + 15000 : Date.now() + 15000;
+                this._recalcPlayerSpeed?.();
+                this.showStatusMsg('🧉 Grog! Schussrate +40% für 15s', 0x88aaff);
+                break;
+            }
+            case 'sea_chart':
+                p.gold = (p.gold ?? 0) + 200;
+                this.showStatusMsg('🗺️ Seekarte verkauft! +200 Gold', 0xffd36a);
+                break;
+            case 'lucky_charm':
+                if (!p.activeEffects) p.activeEffects = {};
+                p.activeEffects.luckyCharm = { label: '🍀 Glück', endTime: Date.now() + 30000, critBonus: 0.15 };
+                this.showStatusMsg('🍀 Glücksbringer! +15% Crit-Chance für 30s', 0x88ff88);
+                break;
+        }
     }
 
     createChartConfigs() {
@@ -3507,6 +3915,19 @@ handleResize(gameSize) {
             const xpBonus = Math.round(appliedDamage * 0.05);
             if (xpBonus > 0) this.dailyQuestPanel?.addProgress('xp_gained', xpBonus);
         }
+        /* Apply rage damage bonus */
+        if (this._rageModeActive && this.player.rageDamageBonus) {
+            appliedDamage = Math.round(appliedDamage * (1 + this.player.rageDamageBonus));
+        }
+        /* Apply lucky charm crit bonus */
+        const charm = this.player.activeEffects?.luckyCharm;
+        if (charm && Date.now() < charm.endTime && Math.random() < (charm.critBonus ?? 0)) {
+            appliedDamage = Math.round(appliedDamage * 2);
+            this.showEnemyDamageFloat(target.x, target.y, appliedDamage, true);
+        } else {
+            this.showEnemyDamageFloat(target.x, target.y, appliedDamage, false);
+        }
+
         target.takeDamage(appliedDamage);
         this.events.emit('damage-dealt', appliedDamage);
 
@@ -4026,6 +4447,7 @@ handleResize(gameSize) {
         this._initLogbook();
         this._initStormSystem();
         this._startTreasureChestTimer();
+        this.time.delayedCall(60000, () => this._scheduleMerchant()); /* Merchant: first spawn after 1 min */
     }
 
     _recalcPlayerSpeed() {
