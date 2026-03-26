@@ -541,11 +541,15 @@ export default class PlayerShip extends Ship {
         this.rightBadgeGfx = this.scene.add.graphics();
         this.shipInfoPanel.add([this.leftBadgeGfx, this.rightBadgeGfx]);
 
+        this.tagText = this.scene.add.text(0, -2, '', {
+            fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold',
+            color: '#ffd36a', stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0, 0.5);
         this.nameText = this.scene.add.text(0, -2, '', {
             fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold',
-            color: '#ffffff', stroke: '#000000', strokeThickness: 4, align: 'center'
-        }).setOrigin(0.5, 0.5);
-        this.shipInfoPanel.add(this.nameText);
+            color: '#ffffff', stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0, 0.5);
+        this.shipInfoPanel.add([this.tagText, this.nameText]);
 
         this.hpBar      = this.scene.add.graphics();
         this.voodooBar  = this.scene.add.graphics();
@@ -700,9 +704,20 @@ export default class PlayerShip extends Ship {
         this._drawLeftBadge(this.leftBadgeGfx, level);
         this._drawRightBadge(this.rightBadgeGfx, this.pvpMode);
 
-        const tag  = this.captainTag  ? `${this.captainTag} ` : '';
+        const tagStr  = this.captainTag ?? '';
         const pvpIcon = this.pvpMode ? ' ⚔' : '';
-        this.nameText.setText(`${tag}${this.captainName ?? 'Kapitän'}${pvpIcon}`);
+        const nameStr = `${this.captainName ?? 'Kapitän'}${pvpIcon}`;
+        this.tagText.setText(tagStr);
+        this.nameText.setText(nameStr);
+        if (tagStr) {
+            const gap = 4;
+            const totalW = this.tagText.displayWidth + gap + this.nameText.displayWidth;
+            this.tagText.setX(-totalW / 2).setY(-2);
+            this.nameText.setX(-totalW / 2 + this.tagText.displayWidth + gap).setY(-2);
+        } else {
+            this.tagText.setX(-9999);
+            this.nameText.setOrigin(0.5, 0.5).setX(0).setY(-2);
+        }
 
         const hpPercent = Phaser.Math.Clamp((this.hp ?? 0) / (this.maxHP ?? 1), 0, 1);
         const hpColor   = hpPercent > 0.5 ? 0x38f287 : hpPercent > 0.25 ? 0xffd45c : 0xff4444;

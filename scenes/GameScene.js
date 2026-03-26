@@ -1400,6 +1400,7 @@ handleResize(gameSize) {
         this.materialIcon = this.add.image(24, 50, 'gift-chest').setScale(0.04);
         this.goldContainer.add([this.goldBg, this.goldIcon, this.goldText, this.materialIcon, this.materialText]);
         this.topUiContainer.add(this.goldContainer);
+        this.goldContainer.setVisible(false);
 
         this.navBar = this.add.container(width / 2, 8);
         this.topUiContainer.add(this.navBar);
@@ -1832,6 +1833,7 @@ handleResize(gameSize) {
             this.chatSendBtn
         ]);
         this.topUiContainer.add(this.chatPanel);
+        this.chatPanel.setVisible(false);
 
         this.statusFeedPanel = this.add.container(22, height - 346).setScrollFactor(0).setDepth(4200);
         this.statusFeedDragHandle = this.createPanelDragHandle('statusFeed', 70, 20, 'MOVE');
@@ -2586,7 +2588,7 @@ handleResize(gameSize) {
         this.topHpBarFill.fillRoundedRect(48, 44, 160 * hpPercent, 10, 5);
         this.expValueText.setText(`${Math.floor(this.player.xp)}/${100 * this.player.level}`);
         this.hpTopValueText.setText(`${Math.ceil(this.player.hp)}/${this.player.maxHP}`);
-        this.domNavBar?.updateStats(this.player.xp, 100 * this.player.level, this.player.hp, this.player.maxHP, this.player.goldDeckSlots, this.player.pearlDeckSlots);
+        this.domNavBar?.updateStats(this.player.xp, 100 * this.player.level, this.player.hp, this.player.maxHP, this.player.goldDeckSlots, this.player.pearlDeckSlots, this.player.gold, this.player.materials);
         this.chartBadgeBg.clear();
         this.chartBadgeBg.fillStyle(0x0a1a2a, 0.78);
         this.chartBadgeBg.lineStyle(1, 0xe6cb79, 0.9);

@@ -106,38 +106,45 @@ export default class DomNavBar {
             position: fixed;
             top: 0;
             right: 0;
-            height: 52px;
+            height: 58px;
             z-index: 9001;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 4px;
-            padding: 0 12px 0 18px;
+            gap: 2px;
+            padding: 0 10px 0 14px;
             background: linear-gradient(270deg, rgba(4,14,30,0.98) 0%, rgba(4,14,30,0.90) 70%, transparent 100%);
             border-bottom: 2px solid rgba(74,200,255,0.4);
             border-left: 1px solid rgba(74,200,255,0.18);
-            min-width: 210px;
+            min-width: 240px;
             pointer-events: none;
             font-family: Arial, sans-serif;
             padding-top: env(safe-area-inset-top, 0px);
             box-sizing: border-box;
         `;
         stats.innerHTML = `
-            <div style="display:flex;align-items:center;gap:4px;">
-                <span style="font-size:9px;font-weight:bold;color:#ffd36a;width:22px;flex-shrink:0;letter-spacing:0.5px;">EXP</span>
-                <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:3px;">
+                <span style="font-size:9px;font-weight:bold;color:#8fd8ff;width:22px;flex-shrink:0;">EXP</span>
+                <div style="flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
                     <div id="nav-exp-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#3a9ff5,#63d6ff);border-radius:3px;transition:width 0.4s;"></div>
                 </div>
-                <span id="nav-exp-text" style="font-size:9px;color:#9fdcff;min-width:48px;text-align:right;white-space:nowrap;">0/100</span>
-                <span style="font-size:9px;color:#ffd36a;margin-left:4px;white-space:nowrap;" id="nav-gold-deck">🟠🟠🟠</span>
+                <span id="nav-exp-text" style="font-size:9px;color:#9fdcff;min-width:44px;text-align:right;white-space:nowrap;">0/100</span>
             </div>
-            <div style="display:flex;align-items:center;gap:4px;">
-                <span style="font-size:9px;font-weight:bold;color:#60ff90;width:22px;flex-shrink:0;letter-spacing:0.5px;">HP</span>
-                <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:3px;">
+                <span style="font-size:9px;font-weight:bold;color:#60ff90;width:22px;flex-shrink:0;">HP</span>
+                <div style="flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
                     <div id="nav-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#25d15e,#45ff85);border-radius:3px;transition:width 0.4s;"></div>
                 </div>
-                <span id="nav-hp-text" style="font-size:9px;color:#9fdcff;min-width:48px;text-align:right;white-space:nowrap;">0/0</span>
-                <span style="font-size:9px;color:#63b8ff;margin-left:4px;white-space:nowrap;" id="nav-pearl-deck">🔵🔵🔵</span>
+                <span id="nav-hp-text" style="font-size:9px;color:#9fdcff;min-width:44px;text-align:right;white-space:nowrap;">0/0</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:10px;">🪙</span>
+                <span id="nav-gold-val" style="font-size:10px;font-weight:bold;color:#ffd36a;min-width:40px;">0</span>
+                <span style="font-size:9px;color:#888;flex-shrink:0;">|</span>
+                <span style="font-size:10px;">🔧</span>
+                <span id="nav-mats-val" style="font-size:10px;color:#b8f0ff;min-width:30px;">0</span>
+                <span style="font-size:9px;color:#ffd36a;margin-left:2px;white-space:nowrap;" id="nav-gold-deck">🟠🟠🟠</span>
+                <span style="font-size:9px;color:#63b8ff;white-space:nowrap;" id="nav-pearl-deck">🔵🔵🔵</span>
             </div>
         `;
         document.addEventListener('keydown', (e) => {
@@ -150,7 +157,7 @@ export default class DomNavBar {
         this._statsEl = stats;
     }
 
-    updateStats(xp, maxXp, hp, maxHp, goldSlots, pearlSlots) {
+    updateStats(xp, maxXp, hp, maxHp, goldSlots, pearlSlots, gold, mats) {
         const xpBar  = document.getElementById('nav-exp-bar');
         const xpText = document.getElementById('nav-exp-text');
         const hpBar  = document.getElementById('nav-hp-bar');
@@ -175,14 +182,16 @@ export default class DomNavBar {
 
         const gEl = document.getElementById('nav-gold-deck');
         if (gEl && goldSlots !== undefined) {
-            const g = Math.max(0, Math.min(5, goldSlots ?? 3));
-            gEl.textContent = '🟠'.repeat(g) || '—';
+            gEl.textContent = '🟠'.repeat(Math.max(0, Math.min(5, goldSlots ?? 3))) || '—';
         }
         const pEl = document.getElementById('nav-pearl-deck');
         if (pEl && pearlSlots !== undefined) {
-            const p = Math.max(0, Math.min(5, pearlSlots ?? 3));
-            pEl.textContent = '🔵'.repeat(p) || '—';
+            pEl.textContent = '🔵'.repeat(Math.max(0, Math.min(5, pearlSlots ?? 3))) || '—';
         }
+        const gvEl = document.getElementById('nav-gold-val');
+        if (gvEl && gold !== undefined) gvEl.textContent = `${Math.floor(gold)}`;
+        const mvEl = document.getElementById('nav-mats-val');
+        if (mvEl && mats !== undefined) mvEl.textContent = `${Math.floor(mats)}`;
     }
 
     show() {
