@@ -191,6 +191,106 @@ export default class TalentPanel {
         this.hide(); this.show();
     }
 
+    /* Renders talent UI into any container element (used by ShipDesignPanel tab) */
+    buildContentInto(container) {
+        if (!container) return;
+        container.innerHTML = '';
+        container.style.gap = '10px';
+
+        /* SP header */
+        const spRow = document.createElement('div');
+        spRow.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:6px 4px 2px;border-bottom:1px solid rgba(212,170,64,0.2);margin-bottom:4px;`;
+        spRow.innerHTML = `
+            <span style="font-size:11px;color:#888;">Verfügbare Skillpunkte:
+                <span id="sdp-sp-val" style="color:#d4aa40;font-weight:bold;">${this._skillPoints}</span>
+            </span>
+            <span style="font-size:10px;color:#555;">+1 pro Level-Up</span>
+        `;
+        container.appendChild(spRow);
+
+        /* Trees */
+        Object.entries(TALENT_TREES).forEach(([key, tree]) => {
+            const treeEl = document.createElement('div');
+            treeEl.style.cssText = `background:rgba(255,255,255,0.03);border:1px solid ${tree.color}33;border-radius:8px;padding:10px;`;
+            treeEl.innerHTML = `
+                <div style="font-size:12px;font-weight:bold;color:${tree.color};letter-spacing:1px;margin-bottom:8px;">${tree.label}</div>
+            `;
+            tree.talents.forEach(t => {
+                const rank    = this._getRank(t.id);
+                const canBuy  = this._canUnlock(t);
+                const locked  = t.requires && !this._getRank(t.requires);
+                const maxed   = rank >= t.maxRank;
+                const row = document.createElement('div');
+                row.style.cssText = `display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;background:${rank>0?'rgba(255,255,255,0.04)':'transparent'};margin-bottom:4px;`;
+                const dots = Array.from({length: t.maxRank}, (_,i) =>
+                    `<div style="width:9px;height:9px;border-radius:50%;background:${i<rank?tree.color:'rgba(255,255,255,0.15)'};border:1px solid ${tree.color}55;"></div>`
+                ).join('');
+                row.innerHTML = `
+                    <div style="font-size:20px;min-width:26px;text-align:center;opacity:${locked?0.3:1};">${t.icon}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:11px;color:${locked?'#444':rank>0?tree.color:'#ddd'};font-weight:${rank>0?'bold':'normal'};">${t.name}</div>
+                        <div style="font-size:9px;color:#666;margin-top:1px;">${t.desc}</div>
+                        <div style="display:flex;gap:2px;margin-top:3px;">${dots}</div>
+                    </div>
+                    <button data-talent="${t.id}" style="
+                        padding:5px 9px;border-radius:5px;min-width:52px;
+                        cursor:${canBuy?'pointer':'default'};
+                        background:${maxed?'rgba(0,200,80,0.12)':canBuy?`rgba(99,214,255,0.1)`:'rgba(255,255,255,0.04)'};
+                        border:1px solid ${maxed?'#00c850':canBuy?tree.color:'rgba(255,255,255,0.1)'};
+                        color:${maxed?'#44ff88':canBuy?tree.color:'#444'};
+                        font-size:10px;font-family:Arial;touch-action:manipulation;
+                        pointer-events:${canBuy?'auto':'none'};
+                    ">${maxed?'✓ MAX':locked?'🔒':canBuy?`-${t.costPerRank} SP`:`${t.costPerRank} SP`}</button>
+                `;
+                treeEl.appendChild(row);
+            });
+            container.appendChild(treeEl);
+        });
+
+        /* Buttons row */
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = `display:flex;gap:8px;justify-content:center;margin-top:4px;flex-wrap:wrap;`;
+        btnRow.innerHTML = `
+            <button id="sdp-tp-add" style="padding:6px 14px;background:rgba(212,170,64,0.1);border:1px solid #d4aa40;color:#d4aa40;border-radius:6px;cursor:pointer;font-size:11px;touch-action:manipulation;">+5 SP (Test)</button>
+            <button id="sdp-tp-reset" style="padding:6px 14px;background:rgba(255,100,100,0.1);border:1px solid rgba(255,100,100,0.5);color:#ff8888;border-radius:6px;cursor:pointer;font-size:11px;touch-action:manipulation;">↺ Zurücksetzen</button>
+        `;
+        container.appendChild(btnRow);
+
+        /* Bind events */
+        container.querySelectorAll('[data-talent]').forEach(btn => {
+            const activate = (e) => { e.preventDefault(); this._buyTalentAndRefresh(btn.dataset.talent, container); };
+            btn.addEventListener('click', activate);
+            btn.addEventListener('touchend', activate, { passive: false });
+        });
+        container.querySelector('#sdp-tp-add')?.addEventListener('click', () => {
+            this._skillPoints += 5; this._saveSP();
+            this.buildContentInto(container);
+        });
+        container.querySelector('#sdp-tp-reset')?.addEventListener('click', () => {
+            if (!confirm('Alle Talente zurücksetzen?')) return;
+            const total = Object.entries(this._talents).reduce((s,[id,r])=>s+r*this._getCost(id),0);
+            this._skillPoints += total; this._talents = {};
+            this._saveTalents(); this._saveSP();
+            this.buildContentInto(container);
+        });
+    }
+
+    _buyTalentAndRefresh(talentId, container) {
+        let talent = null;
+        for (const tree of Object.values(TALENT_TREES)) {
+            talent = tree.talents.find(t => t.id === talentId);
+            if (talent) break;
+        }
+        if (!talent || !this._canUnlock(talent)) return;
+        this._skillPoints -= talent.costPerRank;
+        this._talents[talentId] = (this._talents[talentId] ?? 0) + 1;
+        this._saveTalents(); this._saveSP();
+        const p = this.scene?.player;
+        if (p) try { talent.effect(p, this._talents[talentId]); } catch {}
+        this.scene?.showStatusMsg?.(`✨ ${talent.name} Rang ${this._talents[talentId]}`, 0xd4aa40);
+        this.buildContentInto(container);
+    }
+
     applyAllToPlayer() {
         const p = this.scene?.player;
         if (!p) return;

@@ -24,7 +24,6 @@ export default class DomNavBar {
             { label: 'Quests',   icon: '📋', action: () => this.scene.handleMenuAction('quests') },
             { label: 'Shop',     icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
             { label: 'Rang',     icon: '♛',  action: () => this.scene.handleMenuAction('rank') },
-            { label: 'Talente',  icon: '🌟', action: () => this.scene.handleMenuAction('talent') },
             { label: 'Board',    icon: '🗺️', action: () => this.scene.handleMenuAction('board') },
             { label: 'Multi',    icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
         ];

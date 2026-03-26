@@ -87,12 +87,12 @@ export default class LoginScene extends Phaser.Scene {
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                                 <div style="flex:1;display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
                                     <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#b8952a;font-size:16px;">⚓</div>
-                                    <input id="login-user" type="text" placeholder="Benutzername" value="Kapitän" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:15px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
+                                    <input id="login-user" type="text" placeholder="Benutzername" value="" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:15px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
                                 </div>
                             </div>
                             <div style="display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
                                 <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#b8952a;font-size:16px;">🔒</div>
-                                <input id="login-pass" type="password" placeholder="Passwort" value="demo1234" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:15px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
+                                <input id="login-pass" type="password" placeholder="Passwort" value="" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:15px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
                             </div>
                         </div>
                         <div style="display:flex;gap:12px;margin-bottom:12px;">
@@ -207,9 +207,9 @@ export default class LoginScene extends Phaser.Scene {
             showOk(`✓ Konto "${user}" erstellt! Du kannst dich jetzt anmelden.`);
             setTimeout(() => {
                 document.getElementById('login-user').value = user;
-                document.getElementById('login-pass').value = '';
+                document.getElementById('login-pass').value = pass;
                 switchTab(true);
-            }, 1800);
+            }, 1200);
         };
 
         btnLogin.addEventListener('click', doLogin);

@@ -2460,7 +2460,7 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'talent') {
-            this.talentPanel?.toggle();
+            this.shipDesignPanel?.openOnTab('talent');
             return;
         }
         if (action === 'multiplayer') {
