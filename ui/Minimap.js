@@ -335,10 +335,19 @@ export default class Minimap extends Phaser.GameObjects.Container {
         }
 
         if (npcs) {
+            const pulse = Math.sin(Date.now() / 250) > 0;
             npcs.getChildren().forEach(npc => {
                 if (!npc.active) return;
                 const mapPos = this.worldToMap(npc.x, npc.y);
-                this.drawShipMarker(this.entityLayer, mapPos.x, mapPos.y, npc.targetAngle, 0xff5a5a, this.isMinimized ? 4 : 4.8);
+                if (npc._isEventShip) {
+                    const ecol = pulse ? 0xffd36a : 0xff8800;
+                    const er   = this.isMinimized ? 5.5 : 7;
+                    this.entityLayer.lineStyle(2, ecol, 1);
+                    this.entityLayer.strokeCircle(mapPos.x, mapPos.y, er + 2);
+                    this.drawShipMarker(this.entityLayer, mapPos.x, mapPos.y, npc.targetAngle, ecol, er);
+                } else {
+                    this.drawShipMarker(this.entityLayer, mapPos.x, mapPos.y, npc.targetAngle, 0xff5a5a, this.isMinimized ? 4 : 4.8);
+                }
             });
         }
 

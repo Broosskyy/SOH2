@@ -366,6 +366,7 @@ export default class GameScene extends Phaser.Scene {
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
              this.chartNav, this.domNavBar, this.shipDesignPanel]
                 .forEach(p => p?.destroy());
+            this._removeEventDirectionHUD?.();
         });
 
         this.events.on('damage-popup', this.showDamagePopup, this);
@@ -935,10 +936,19 @@ handleResize(gameSize) {
             'admiralsjagd': ['ship-event-flagship']
         };
         const textures = eventMap[eventId] ?? eventMap['konvoi'];
-        const cx = this.player.x + Phaser.Math.Between(600, 1000) * (Math.random() < 0.5 ? 1 : -1);
-        const cy = this.player.y + Phaser.Math.Between(300, 600) * (Math.random() < 0.5 ? 1 : -1);
+        const dx = Phaser.Math.Between(600, 1000) * (Math.random() < 0.5 ? 1 : -1);
+        const dy = Phaser.Math.Between(300, 600) * (Math.random() < 0.5 ? 1 : -1);
+        const cx = this.player.x + dx;
+        const cy = this.player.y + dy;
 
-        this.showStatusMsg(`⚔ EVENT: ${eventId === 'geisterschiff' ? 'Das Geisterschiff' : eventId === 'admiralsjagd' ? 'Admiralsjagd' : 'Schiffsdesign-Konvoi'} erscheint!`, 0xd4aa40);
+        const angleRad = Math.atan2(dy, dx);
+        const angleDeg = ((angleRad * 180 / Math.PI) + 360) % 360;
+        const dirs = ['→ Osten','↗ Nordost','↑ Norden','↖ Nordwest','← Westen','↙ Südwest','↓ Süden','↘ Südost'];
+        const dirStr = dirs[Math.round(angleDeg / 45) % 8];
+
+        const eventName = eventId === 'geisterschiff' ? 'Das Geisterschiff' : eventId === 'admiralsjagd' ? 'Admiralsjagd' : 'Schiffsdesign-Konvoi';
+        this.showStatusMsg(`⚔ EVENT: ${eventName} erscheint — ${dirStr}!`, 0xd4aa40);
+        this._showEventDirectionHUD(eventId, eventName, dirStr);
 
         textures.forEach((tex, i) => {
             const ex = Phaser.Math.Clamp(cx + i * 220 - textures.length * 110, 300, this.mapWidth - 300);
@@ -972,11 +982,53 @@ handleResize(gameSize) {
                 }
                 this.showStatusMsg(`🏆 EVENT gewonnen! +${goldReward} Gold +3 💎 +Schiffsplan!`, 0xd4aa40);
                 this.updateUIBars?.();
+                this._removeEventDirectionHUD();
                 clearInterval(doneCheck);
             }
         };
         const doneCheck = setInterval(checkDone, 2000);
         this.time.delayedCall(60000, () => clearInterval(doneCheck));
+    }
+
+    _showEventDirectionHUD(eventId, eventName, dirStr) {
+        this._removeEventDirectionHUD();
+        const icons = { konvoi: '⚓', geisterschiff: '👻', admiralsjagd: '👑' };
+        const colors = { konvoi: '#d4aa40', geisterschiff: '#88aaff', admiralsjagd: '#ff8844' };
+        const icon  = icons[eventId]  ?? '⚔';
+        const color = colors[eventId] ?? '#d4aa40';
+
+        const hud = document.createElement('div');
+        hud.id = 'event-direction-hud';
+        hud.style.cssText = `
+            position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+            z-index:19000; display:flex; align-items:center; gap:10px;
+            background:rgba(4,14,30,0.92); border:2px solid ${color};
+            border-radius:40px; padding:8px 18px 8px 12px;
+            box-shadow:0 0 20px ${color}55; cursor:pointer;
+            font-family:Arial,sans-serif; animation:eventPulse 1.8s ease-in-out infinite;
+            touch-action:manipulation;
+        `;
+        hud.innerHTML = `
+            <span style="font-size:22px;">${icon}</span>
+            <div style="display:flex;flex-direction:column;gap:1px;">
+                <div style="font-size:11px;font-weight:bold;color:${color};letter-spacing:1px;">⚔ EVENT AKTIV</div>
+                <div style="font-size:13px;color:#fff;font-weight:bold;">${eventName}</div>
+                <div style="font-size:11px;color:#aaa;">Richtung: <strong style="color:${color};">${dirStr}</strong></div>
+            </div>
+            <div style="font-size:20px;margin-left:4px;color:${color};">›</div>
+        `;
+        const style = document.createElement('style');
+        style.id = 'event-hud-style';
+        style.textContent = '@keyframes eventPulse{0%,100%{box-shadow:0 0 20px ' + color + '55}50%{box-shadow:0 0 35px ' + color + 'aa}}';
+        document.head.appendChild(style);
+        document.body.appendChild(hud);
+        this._eventHudEl = hud;
+    }
+
+    _removeEventDirectionHUD() {
+        document.getElementById('event-direction-hud')?.remove();
+        document.getElementById('event-hud-style')?.remove();
+        this._eventHudEl = null;
     }
 
     getNPCClusterCenter(index) {
