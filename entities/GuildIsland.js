@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 const TOWER_COUNT   = 6;
 const TOWER_MAX_HP  = 3000;
-const TOWER_RADIUS  = 110;
+const TOWER_RADIUS  = 80;
 
 export default class GuildIsland extends Phaser.GameObjects.Container {
     constructor(scene, x, y) {
@@ -12,7 +12,7 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
         this.capturedBy = null;
         this.captureColor = 0xdddddd;
 
-        this._islandImg = scene.add.image(0, 0, 'island-guild').setScale(1.6).setDepth(10);
+        this._islandImg = scene.add.image(0, 0, 'island-guild').setScale(0.42).setDepth(10);
         this.add(this._islandImg);
 
         this.towers = [];
@@ -29,7 +29,7 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
         scene.physics.add.existing(this, true);
         const body = this.body;
         if (body) {
-            const r = 130;
+            const r = 145;
             body.isCircle = true; body.radius = r;
             body.width = r * 2;   body.height = r * 2;
             body.halfWidth = r;   body.halfHeight = r;
@@ -48,14 +48,14 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
             const ty = Math.sin(angle) * TOWER_RADIUS;
 
             const towerImg = scene.add.image(tx + this.x, ty + this.y, 'guild-tower')
-                .setScale(0.14).setDepth(20).setInteractive({ useHandCursor: true });
+                .setScale(0.10).setDepth(20).setInteractive({ useHandCursor: true });
 
             this._towerImgs.push(towerImg);
 
-            const hpBg = scene.add.rectangle(tx + this.x, ty + this.y - 28, 48, 6, 0x222222, 0.85).setDepth(21);
-            const hpFill = scene.add.rectangle(tx + this.x - 23, ty + this.y - 28, 44, 4, 0x22cc55, 1).setDepth(22).setOrigin(0, 0.5);
-            const hpText = scene.add.text(tx + this.x, ty + this.y - 38, `${TOWER_MAX_HP}/${TOWER_MAX_HP}`, {
-                fontSize: '8px', fontFamily: 'Arial', fill: '#fff', stroke: '#000', strokeThickness: 2
+            const hpBg = scene.add.rectangle(tx + this.x, ty + this.y - 20, 36, 5, 0x222222, 0.85).setDepth(21);
+            const hpFill = scene.add.rectangle(tx + this.x - 17, ty + this.y - 20, 32, 3, 0x22cc55, 1).setDepth(22).setOrigin(0, 0.5);
+            const hpText = scene.add.text(tx + this.x, ty + this.y - 28, `${TOWER_MAX_HP}/${TOWER_MAX_HP}`, {
+                fontSize: '7px', fontFamily: 'Arial', fill: '#fff', stroke: '#000', strokeThickness: 2
             }).setOrigin(0.5).setDepth(23);
 
             this._towerHpBars.push({ bg: hpBg, fill: hpFill, text: hpText });
@@ -68,16 +68,16 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
     }
 
     _buildCaptureFlag(scene) {
-        this._flagPole = scene.add.rectangle(this.x, this.y - 20, 3, 42, 0x888888, 1).setDepth(24);
-        this._flagBanner = scene.add.rectangle(this.x + 12, this.y - 36, 24, 14, 0xdddddd, 1).setDepth(24);
-        this._flagText = scene.add.text(this.x + 12, this.y - 36, '?', {
-            fontSize: '8px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#fff', stroke: '#000', strokeThickness: 2
+        this._flagPole = scene.add.rectangle(this.x, this.y - 12, 2, 28, 0x888888, 1).setDepth(24);
+        this._flagBanner = scene.add.rectangle(this.x + 9, this.y - 22, 18, 10, 0xdddddd, 1).setDepth(24);
+        this._flagText = scene.add.text(this.x + 9, this.y - 22, '?', {
+            fontSize: '7px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#fff', stroke: '#000', strokeThickness: 2
         }).setOrigin(0.5).setDepth(25);
     }
 
     _buildConquestUI(scene) {
         this._conquestBar = scene.add.graphics().setDepth(26);
-        this._conquestLabel = scene.add.text(this.x, this.y + 155, 'Gildeninsel — Nicht beansprucht', {
+        this._conquestLabel = scene.add.text(this.x, this.y + 165, 'Gildeninsel — Nicht beansprucht', {
             fontSize: '11px', fontFamily: 'Arial', fontStyle: 'bold',
             fill: '#ffd36a', stroke: '#000', strokeThickness: 3
         }).setOrigin(0.5).setDepth(26);
@@ -100,7 +100,7 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
         const bar    = this._towerHpBars[i];
         const pct    = tower.hp / tower.maxHp;
         const color  = pct > 0.6 ? 0x22cc55 : pct > 0.3 ? 0xffaa22 : 0xff3333;
-        bar.fill.setFillStyle(color).setDisplaySize(Math.max(0, 44 * pct), 4);
+        bar.fill.setFillStyle(color).setDisplaySize(Math.max(0, 32 * pct), 3);
         bar.text.setText(`${tower.hp}/${tower.maxHp}`);
     }
 

@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 
 const ISLAND_CONFIG = {
-    'island-atoll':    { scale: 1.42, minimapRadius: 16, collisionRadius: 100 },
-    'island-reef':     { scale: 1.28, minimapRadius: 14, collisionRadius: 85  },
-    'island-tropical': { scale: 1.35, minimapRadius: 15, collisionRadius: 90  },
-    'island-volcanic': { scale: 1.20, minimapRadius: 13, collisionRadius: 78  },
-    'island-frozen':   { scale: 1.30, minimapRadius: 14, collisionRadius: 84  },
-    'island-ruins':    { scale: 1.25, minimapRadius: 12, collisionRadius: 72  },
-    'island-guild':    { scale: 1.60, minimapRadius: 22, collisionRadius: 130 }
+    'island-atoll':    { scale: 0.55, minimapRadius: 9,  collisionRadius: 105 },
+    'island-reef':     { scale: 0.48, minimapRadius: 9,  collisionRadius: 105 },
+    'island-tropical': { scale: 0.32, minimapRadius: 10, collisionRadius: 108 },
+    'island-volcanic': { scale: 0.28, minimapRadius: 8,  collisionRadius:  95 },
+    'island-frozen':   { scale: 0.30, minimapRadius: 9,  collisionRadius: 102 },
+    'island-ruins':    { scale: 0.24, minimapRadius: 7,  collisionRadius:  80 },
+    'island-guild':    { scale: 0.42, minimapRadius: 13, collisionRadius: 145 }
 };
 
 export default class Island extends Phaser.GameObjects.Image {
@@ -16,7 +16,7 @@ export default class Island extends Phaser.GameObjects.Image {
         scene.add.existing(this);
         scene.physics.add.existing(this, true);
 
-        const cfg = ISLAND_CONFIG[texture] ?? { scale: 1.12, minimapRadius: 12, collisionRadius: 80 };
+        const cfg = ISLAND_CONFIG[texture] ?? { scale: 0.30, minimapRadius: 8, collisionRadius: 90 };
         this.islandConfig = cfg;
         this.setScale(cfg.scale);
         this.setOrigin(0.5);
