@@ -1,0 +1,648 @@
+    createUI() {
+        this.uiContainer = this.add.container(0, 0).setScrollFactor(0).setDepth(2000);
+        this.topUiContainer = this.add.container(0, 0).setScrollFactor(0).setDepth(4000);
+        this.uiControls = [];
+        this.topMenuButtons = [];
+        this.ammoButtons = [];
+        this.statusFeedMessages = [];
+
+        const { width, height } = this.scale;
+
+        this.targetIndicator = this.add.graphics().setVisible(false).setScrollFactor(1).setDepth(1500);
+
+        this.topBar = this.add.container(0, 0).setScrollFactor(0).setDepth(4050);
+        this.topBarBg = this.add.graphics();
+        this.topBarEdge = this.add.graphics();
+
+        this.goldIcon = this.add.text(20, 16, '🪙', {
+            fontSize: '20px',
+            fontFamily: 'Arial'
+        });
+        this.goldText = this.add.text(48, 15, '0', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            fill: '#fbe5a0',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.materialIcon = this.add.text(20, 44, '💎', {
+            fontSize: '18px',
+            fontFamily: 'Arial'
+        });
+        this.materialText = this.add.text(48, 43, '0', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            fill: '#8de7ff',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+
+        this.navBar = this.add.container(width / 2, 10);
+        const menuItems = [
+            { label: 'Menü', action: 'menu', icon: '☰' },
+            { label: 'Werft', action: 'shipyard', icon: '⚓' },
+            { label: 'Mission', action: 'missions', icon: '✦' },
+            { label: 'Bonuskarten', action: 'bonus', icon: '🃏' },
+            { label: 'Geschäft', action: 'shop', icon: '🛒' },
+            { label: 'Veranstaltungen', action: 'events', icon: '★' },
+            { label: 'Ranglisten', action: 'rank', icon: '♛' },
+            { label: 'Board', action: 'board', icon: '☷' },
+            { label: 'Ausfahrt', action: 'sail', icon: '⛵' }
+        ];
+
+        menuItems.forEach((item) => {
+            const button = this.add.container(0, 0);
+            const bg = this.add.graphics();
+            const glow = this.add.graphics();
+            const label = this.add.text(0, 36, item.label, {
+                fontSize: '12px',
+                fontFamily: 'Arial',
+                fill: '#f5e5bd',
+                stroke: '#000000',
+                strokeThickness: 3,
+                align: 'center'
+            }).setOrigin(0.5);
+            const icon = this.add.text(0, 14, item.icon, {
+                fontSize: '18px',
+                fontFamily: 'Arial',
+                fill: '#ffd27a',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+            const hit = this.add.zone(0, 0, 92, 58)
+                .setOrigin(0.5)
+                .setInteractive({ useHandCursor: true })
+                .setData('uiControl', true);
+            hit.on('pointerdown', (pointer) => {
+                pointer?.event?.stopPropagation?.();
+                this.handleMenuAction(item.action);
+            });
+            button.add([glow, bg, icon, label, hit]);
+            this.navBar.add(button);
+            this.topMenuButtons.push({ button, bg, glow, label, icon, hit, action: item.action, labelText: item.label });
+        });
+
+        this.progressContainer = this.add.container(width - 302, 10);
+        this.progressBg = this.add.graphics();
+        this.expBarBg = this.add.graphics();
+        this.expBarFill = this.add.graphics();
+        this.topHpBarBg = this.add.graphics();
+        this.topHpBarFill = this.add.graphics();
+        this.expLabel = this.add.text(16, 11, 'EXP', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#8dd3ff',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.expValueText = this.add.text(238, 11, '0/0', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(1, 0);
+        this.hpLabel = this.add.text(16, 37, 'HP', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#9dffb3',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.hpTopValueText = this.add.text(238, 37, '0/0', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(1, 0);
+        this.chartBadgeText = this.add.text(128, 60, '', {
+            fontSize: '10px',
+            fontFamily: 'Arial',
+            fill: '#f4db9a',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5, 0);
+        this.combatStatsText = this.add.text(128, 74, '', {
+            fontSize: '10px',
+            fontFamily: 'Arial',
+            fill: '#d7edf8',
+            stroke: '#000000',
+            strokeThickness: 2
+        }).setOrigin(0.5, 0);
+        this.progressContainer.add([
+            this.progressBg,
+            this.expBarBg,
+            this.expBarFill,
+            this.topHpBarBg,
+            this.topHpBarFill,
+            this.expLabel,
+            this.expValueText,
+            this.hpLabel,
+            this.hpTopValueText,
+            this.chartBadgeText,
+            this.combatStatsText
+        ]);
+
+        this.topUiContainer.add([
+            this.topBar,
+            this.navBar,
+            this.progressContainer,
+            this.goldIcon,
+            this.goldText,
+            this.materialIcon,
+            this.materialText
+        ]);
+        this.topBar.add([this.topBarBg, this.topBarEdge]);
+
+        this.targetHUD = this.add.container(18, 118).setVisible(true).setScrollFactor(0).setDepth(4210);
+        this.targetCards = [];
+        for (let i = 0; i < 3; i++) {
+            const card = this.add.container(0, i * 88);
+            const bg = this.add.graphics();
+            const avatarRing = this.add.graphics();
+            const avatar = this.add.text(26, 28, i === 0 ? '☠' : '○', {
+                fontSize: '22px',
+                fontFamily: 'Arial',
+                fill: '#fff1cb',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+            const name = this.add.text(58, 10, 'No target', {
+                fontSize: '14px',
+                fontFamily: 'Arial',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 3
+            });
+            const hpBg = this.add.graphics();
+            const hpFill = this.add.graphics();
+            const hpText = this.add.text(178, 56, '0 / 0', {
+                fontSize: '11px',
+                fontFamily: 'Arial',
+                fill: '#d8f5ff',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(1, 0.5);
+            card.add([bg, avatarRing, avatar, name, hpBg, hpFill, hpText]);
+            card.setVisible(i === 0);
+            this.targetHUD.add(card);
+            this.targetCards.push({ card, bg, avatarRing, avatar, name, hpBg, hpFill, hpText });
+        }
+        this.topUiContainer.add(this.targetHUD);
+
+        this.minimapFrame = this.add.container(width - 196, 74).setScrollFactor(0).setDepth(4300);
+        this.minimapFrameBg = this.add.graphics();
+        this.minimapCoordText = this.add.text(82, -18, 'X: A Y: 1', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#f3ddb0',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5, 0);
+        this.minimapModeBtn = this.add.container(122, 142);
+        this.minimapModeBg = this.add.graphics();
+        this.minimapModeText = this.add.text(19, 15, '2D', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#fff7da',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.minimapToggleHit = this.add.zone(0, 0, 38, 30)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true)
+            .setDepth(4306)
+            .setScrollFactor(0);
+        this.minimapToggleHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.toggleMinimapSize();
+        });
+        this.minimapModeBtn.add([this.minimapModeBg, this.minimapModeText, this.minimapToggleHit]);
+        this.minimapFrame.add([this.minimapFrameBg, this.minimapCoordText, this.minimapModeBtn]);
+        this.topUiContainer.add(this.minimapFrame);
+
+        this.chatPanel = this.add.container(18, height - 258).setScrollFactor(0).setDepth(4210);
+        this.chatBg = this.add.graphics();
+        this.chatTitle = this.add.text(14, 10, 'Chat', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            fill: '#f1dfb0',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.chatTabButtons = [];
+        ['Global', 'DE', 'Gilden Raum'].forEach((tab, index) => {
+            const x = index === 0 ? 12 : index === 1 ? 84 : 132;
+            const w = index === 2 ? 108 : 56;
+            const container = this.add.container(x, 34);
+            const bg = this.add.graphics();
+            const label = this.add.text(w / 2, 11, tab, {
+                fontSize: '11px',
+                fontFamily: 'Arial',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+            const hit = this.add.zone(0, 0, w, 24)
+                .setOrigin(0, 0)
+                .setInteractive({ useHandCursor: true })
+                .setData('uiControl', true);
+            hit.on('pointerdown', (pointer) => {
+                pointer?.event?.stopPropagation?.();
+                this.activeChatTab = tab;
+                this.refreshChatPanel();
+                this.updateUIBars();
+            });
+            container.add([bg, label, hit]);
+            this.chatPanel.add(container);
+            this.chatTabButtons.push({ tab, container, bg, label, hit, width: w });
+        });
+        this.chatViewportBg = this.add.graphics();
+        this.chatLines = [];
+        for (let i = 0; i < this.chatMaxVisibleLines; i++) {
+            const line = this.add.text(14, 68 + (i * 20), '—', {
+                fontSize: '12px',
+                fontFamily: 'Arial',
+                fill: '#dff8ff',
+                stroke: '#000000',
+                strokeThickness: 3,
+                wordWrap: { width: 276 }
+            });
+            this.chatLines.push(line);
+        }
+        this.chatInputBg = this.add.graphics();
+        this.chatInputDom = this.add.dom(154, 228).createFromHTML(`
+            <input
+                class="captain-chat-input"
+                type="text"
+                maxlength="90"
+                placeholder="${this.chatInputPlaceholder}"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                enterkeyhint="send"
+                style="width: 248px; height: 30px; border-radius: 8px; border: 1px solid rgba(201,160,89,0.75); background: rgba(14,17,23,0.96); color: #f3f5f7; outline: none; padding: 0 10px; font-size: 13px; font-family: Arial, sans-serif; box-sizing: border-box;"
+            />
+        `).setScrollFactor(0).setDepth(4212);
+        this.chatInputElement = this.chatInputDom.node.querySelector('input');
+        if (this.chatInputElement) {
+            this.chatInputElement.addEventListener('input', (event) => {
+                this.chatInputValue = event.target.value;
+            });
+            this.chatInputElement.addEventListener('keydown', (event) => {
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    this.submitChatCommand();
+                }
+            });
+            this.chatInputElement.addEventListener('pointerdown', (event) => event.stopPropagation());
+            this.chatInputElement.addEventListener('mousedown', (event) => event.stopPropagation());
+            this.chatInputElement.addEventListener('touchstart', (event) => event.stopPropagation(), { passive: true });
+        }
+        this.chatSendBtn = this.add.container(14, 250);
+        this.chatSendBg = this.add.graphics();
+        this.chatSendLabel = this.add.text(55, 15, 'Send Chat', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            fill: '#fff4d0',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.chatSendHit = this.add.zone(0, 0, 110, 30)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true);
+        this.chatSendHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.submitChatCommand();
+        });
+        this.chatSendBtn.add([this.chatSendBg, this.chatSendLabel, this.chatSendHit]);
+
+        this.shipSendBtn = this.add.container(132, 250);
+        this.shipSendBg = this.add.graphics();
+        this.shipSendLabel = this.add.text(55, 15, 'Send Ship', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            fill: '#fff4d0',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.shipSendHit = this.add.zone(0, 0, 110, 30)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true);
+        this.shipSendHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.pushChatMessage('Ship message sent to nearby waters', '#ffd89c', this.activeChatTab);
+        });
+        this.shipSendBtn.add([this.shipSendBg, this.shipSendLabel, this.shipSendHit]);
+
+        this.chatPanel.add([
+            this.chatBg,
+            this.chatTitle,
+            this.chatViewportBg,
+            ...this.chatLines,
+            this.chatInputBg,
+            this.chatSendBtn,
+            this.shipSendBtn
+        ]);
+        this.topUiContainer.add(this.chatPanel);
+
+        this.statusFeedPanel = this.add.container(18, height - 368).setScrollFactor(0).setDepth(4200);
+        this.statusFeedBg = this.add.graphics();
+        this.statusFeedTitle = this.add.text(14, 8, 'Enemy Log', {
+            fontSize: '15px',
+            fontFamily: 'Arial',
+            fill: '#f0deaf',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.statusFeedLines = [];
+        for (let i = 0; i < 4; i++) {
+            const line = this.add.text(14, 34 + (i * 20), '—', {
+                fontSize: '12px',
+                fontFamily: 'Arial',
+                fill: '#dff8ff',
+                stroke: '#000000',
+                strokeThickness: 3,
+                wordWrap: { width: 252 }
+            });
+            this.statusFeedLines.push(line);
+        }
+        this.statusFeedPanel.add([this.statusFeedBg, this.statusFeedTitle, ...this.statusFeedLines]);
+        this.topUiContainer.add(this.statusFeedPanel);
+
+        this.actionsContainer = this.add.container(width - 210, height - 154).setDepth(5000);
+        this.skillGrid = [];
+        const skillDefs = [
+            { key: 'cannon', label: 'C', title: 'Cannons', color: 0xd95c52 },
+            { key: 'harpoon', label: 'H', title: 'Harpoon', color: 0x4f9fd8 },
+            { key: 'flare', label: 'F', title: 'Flare', color: 0xffa84c },
+            { key: 'storm', label: 'S', title: 'Storm', color: 0x7d66ff },
+            { key: 'repair', label: 'R', title: 'Repair', color: 0x44bb77 },
+            { key: 'focus', label: 'T', title: 'Target', color: 0xcf9b41 }
+        ];
+        skillDefs.forEach((skill, index) => {
+            const col = index % 3;
+            const row = Math.floor(index / 3);
+            const x = col * 82;
+            const y = row * 82;
+            const container = this.add.container(x, y);
+            const outer = this.add.graphics();
+            const inner = this.add.graphics();
+            const label = this.add.text(28, 24, skill.label, {
+                fontSize: '22px',
+                fontFamily: 'Arial',
+                fill: '#fff6d8',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+            const title = this.add.text(28, 54, skill.title, {
+                fontSize: '10px',
+                fontFamily: 'Arial',
+                fill: '#dfefff',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+            const cooldown = this.add.text(44, 12, '0', {
+                fontSize: '12px',
+                fontFamily: 'Arial',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+            const hit = this.add.zone(0, 0, 56, 56)
+                .setOrigin(0, 0)
+                .setInteractive({ useHandCursor: true })
+                .setData('uiControl', true)
+                .setData('skillKey', skill.key);
+            hit.on('pointerdown', (pointer) => {
+                pointer?.event?.stopPropagation?.();
+                if (skill.key === 'cannon') this.handleAttackButtonPressed();
+                else if (skill.key === 'harpoon') this.toggleAutoAttack('harpoon');
+                else if (skill.key === 'flare' || skill.key === 'storm') this.setAmmoType(skill.key === 'flare' ? 'flare' : 'storm');
+                else if (skill.key === 'repair') this.player.heal(20);
+                else if (skill.key === 'focus') this.handleReturnToShipPressed();
+            });
+            container.add([outer, inner, label, title, cooldown, hit]);
+            this.actionsContainer.add(container);
+            this.skillGrid.push({ ...skill, container, outer, inner, label, title, cooldown, hit });
+        });
+        this.topUiContainer.add(this.actionsContainer);
+
+        this.returnToShipBtn = this.add.container(width - 208, height - 44).setScrollFactor(0).setDepth(4250);
+        this.returnToShipBg = this.add.graphics();
+        this.returnToShipLabel = this.add.text(86, 18, 'Return to Ship', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#fff3d1',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.returnToShipHit = this.add.zone(0, 0, 172, 36)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true)
+            .setDepth(4251)
+            .setScrollFactor(0);
+        this.returnToShipHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.handleReturnToShipPressed();
+        });
+        this.returnToShipBtn.add([this.returnToShipBg, this.returnToShipLabel, this.returnToShipHit]);
+        this.topUiContainer.add(this.returnToShipBtn);
+
+        this.seaGateContainer = this.add.container(18, height - 474).setScrollFactor(0).setDepth(4252);
+        this.seaGateBg = this.add.graphics();
+        this.seaGateTitle = this.add.text(96, 10, 'Seekarten', {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            fill: '#f0deaf',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5, 0);
+        this.seaGateLeftBtn = this.add.container(12, 34);
+        this.seaGateLeftBg = this.add.graphics();
+        this.seaGateLeftLabel = this.add.text(42, 12, '◀ WEST', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            fill: '#dff8ff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.seaGateLeftBtn.add([this.seaGateLeftBg, this.seaGateLeftLabel]);
+        this.seaGateRightBtn = this.add.container(104, 34);
+        this.seaGateRightBg = this.add.graphics();
+        this.seaGateRightLabel = this.add.text(42, 12, 'EAST ▶', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            fill: '#dff8ff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.seaGateRightBtn.add([this.seaGateRightBg, this.seaGateRightLabel]);
+        this.seaGateHint = this.add.text(96, 64, '', {
+            fontSize: '10px',
+            fontFamily: 'Arial',
+            fill: '#cce8f7',
+            stroke: '#000000',
+            strokeThickness: 2,
+            wordWrap: { width: 176 },
+            align: 'center'
+        }).setOrigin(0.5, 0);
+        this.seaGateLeftHit = this.add.zone(12, 34, 84, 24)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true)
+            .setDepth(4253)
+            .setScrollFactor(0);
+        this.seaGateRightHit = this.add.zone(104, 34, 84, 24)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true)
+            .setDepth(4253)
+            .setScrollFactor(0);
+        this.seaGateLeftHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.transitionToChart(this.currentChartIndex - 1, 'west');
+        });
+        this.seaGateRightHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.transitionToChart(this.currentChartIndex + 1, 'east');
+        });
+        this.seaGateContainer.add([
+            this.seaGateBg,
+            this.seaGateTitle,
+            this.seaGateLeftBtn,
+            this.seaGateRightBtn,
+            this.seaGateHint,
+            this.seaGateLeftHit,
+            this.seaGateRightHit
+        ]);
+        this.topUiContainer.add(this.seaGateContainer);
+
+        this.upgradePanel = this.add.container(width - 404, 96).setScrollFactor(0).setDepth(4300).setVisible(false);
+        this.upgradePanelDragHandle = this.createPanelDragHandle('upgrade', 80, 22, 'MOVE');
+        this.upgradePanelBg = this.add.graphics();
+        this.upgradePanelTitle = this.add.text(18, 12, 'Dockyard Upgrades', {
+            fontSize: '20px',
+            fontFamily: 'Arial',
+            fill: '#dff8ff',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.upgradePanelHint = this.add.text(18, 42, 'Upgrade hull, speed, cannons, slots, decks and ammo.', {
+            fontSize: '13px',
+            fontFamily: 'Arial',
+            fill: '#9fdcff',
+            stroke: '#000000',
+            strokeThickness: 3,
+            wordWrap: { width: 336 }
+        });
+
+        this.hullUpgradeBtn = this.createUpgradeCard(18, 82, 'Hull Reinforcement', 'hull', 0x63d6ff);
+        this.sailsUpgradeBtn = this.createUpgradeCard(18, 162, 'Sail Engine', 'sails', 0x8bffba);
+        this.cannonUpgradeBtn = this.createUpgradeCard(18, 242, 'Cannon Battery', 'cannons', 0xffb347);
+        this.cannonSlotsUpgradeBtn = this.createUpgradeCard(18, 322, 'Cannon Slots', 'cannonSlots', 0xffd36a);
+        this.deckUpgradeBtn = this.createUpgradeCard(18, 402, 'Deck Capacity', 'decks', 0x6ae0d8);
+        this.ammoUpgradeBtn = this.createUpgradeCard(18, 482, 'Ammunition Lab', 'ammo', 0xc79fff);
+
+        this.specialAmmoSection = this.add.container(18, 562);
+        this.specialAmmoTitle = this.add.text(0, 0, 'Special Munitions', {
+            fontSize: '15px',
+            fontFamily: 'Arial',
+            fill: '#fef6d2',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.specialAmmoHint = this.add.text(0, 22, 'Unlock tactical salvos for rigging breaks and anti-crew pressure.', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            fill: '#9fdcff',
+            stroke: '#000000',
+            strokeThickness: 3,
+            wordWrap: { width: 332 }
+        });
+        this.chainshotUnlockBtn = this.createUpgradeCard(0, 56, 'Chain Shot License', 'ammo-unlock-chainshot', 0x65dfff, 58);
+        this.grapeshotUnlockBtn = this.createUpgradeCard(0, 124, 'Grape Shot License', 'ammo-unlock-grapeshot', 0xffc56f, 58);
+        this.specialAmmoSection.add([
+            this.specialAmmoTitle,
+            this.specialAmmoHint,
+            this.chainshotUnlockBtn.container,
+            this.grapeshotUnlockBtn.container
+        ]);
+
+        this.upgradeCloseText = this.add.text(346, 18, '×', {
+            fontSize: '26px',
+            fontFamily: 'Arial',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.upgradeCloseHit = this.add.zone(330, 4, 36, 32)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true })
+            .setData('uiControl', true);
+        this.upgradeCloseHit.on('pointerdown', (pointer) => {
+            pointer?.event?.stopPropagation?.();
+            this.toggleUpgradePanel();
+        });
+
+        this.upgradePanel.add([
+            this.upgradePanelBg,
+            this.upgradePanelDragHandle.container,
+            this.upgradePanelTitle,
+            this.upgradePanelHint,
+            this.hullUpgradeBtn.container,
+            this.sailsUpgradeBtn.container,
+            this.cannonUpgradeBtn.container,
+            this.cannonSlotsUpgradeBtn.container,
+            this.deckUpgradeBtn.container,
+            this.ammoUpgradeBtn.container,
+            this.specialAmmoSection,
+            this.upgradeCloseText,
+            this.upgradeCloseHit
+        ]);
+        this.topUiContainer.add(this.upgradePanel);
+
+        this.uiControls.push(
+            this.minimapToggleHit,
+            this.returnToShipHit,
+            this.chatSendHit,
+            this.shipSendHit,
+            this.seaGateLeftHit,
+            this.seaGateRightHit,
+            this.upgradeCloseHit,
+            this.inventoryHit,
+            this.shopHit,
+            this.mapHit,
+            this.hullUpgradeBtn.hit,
+            this.sailsUpgradeBtn.hit,
+            this.cannonUpgradeBtn.hit,
+            this.cannonSlotsUpgradeBtn.hit,
+            this.deckUpgradeBtn.hit,
+            this.ammoUpgradeBtn.hit,
+            this.chainshotUnlockBtn.hit,
+            this.grapeshotUnlockBtn.hit,
+            ...this.topMenuButtons.map(item => item.hit),
+            ...this.chatTabButtons.map(item => item.hit),
+            ...this.skillGrid.map(item => item.hit)
+        );
+
+        this.inventoryHit = this.skillGrid[5]?.hit ?? null;
+        this.shopHit = this.topMenuButtons.find(item => item.action === 'shop')?.hit ?? null;
+        this.mapHit = this.minimapToggleHit;
+
+        this.updateUIBars();
+        this.setCameraZoom(this.cameraDefaultZoom);
+        this.refreshStatusFeed();
+        this.refreshChatPanel();
+        this.pushChatMessage('Willkommen auf hoher See', '#9fe7ff', 'Global');
+        this.pushChatMessage('DE-Kanal bereit', '#b7d8e8', 'DE');
+        this.pushChatMessage('Gilden Raum wartet auf Befehle', '#d7c3ff', 'Gilden Raum');
+        this.refreshAmmoButtons();
+    }

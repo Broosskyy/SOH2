@@ -1,0 +1,11 @@
+{
+  "name": "Azure Horizon Captain",
+  "revisionLabel": "Add skill bar with cooldown-based combat abilities",
+  "description": "",
+  "mode": "Universal",
+  "exportDate": "2026-03-25T21:37:33.205Z",
+  "assetCount": 44,
+  "assetTypes": [
+    "image"
+  ]
+}
