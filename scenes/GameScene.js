@@ -197,6 +197,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.player = new PlayerShip(this, this.playerSpawnX, this.playerSpawnY);
         this.createPlayerVisualEffects();
+        this._loadProgress();
         this.time.delayedCall(200, () => { this.talentPanel?.applyAllToPlayer(); });
 
         this.playerReturnHighlight = this.add.circle(this.player.x, this.player.y, 54, 0x7fd3ff, 0.12)
@@ -463,6 +464,71 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.finalizeChartEntryPosition();
+
+        this.events.on('shutdown', () => this._saveProgress());
+        const _saveFn = () => this._saveProgress();
+        window.addEventListener('beforeunload', _saveFn);
+        window.addEventListener('pagehide', _saveFn);
+        window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this._saveProgress(); });
+        this.events.once('destroy', () => {
+            window.removeEventListener('beforeunload', _saveFn);
+            window.removeEventListener('pagehide', _saveFn);
+        });
+    }
+
+    _saveProgress() {
+        if (!this.player?.active) return;
+        const p = this.player;
+        const key = `ahc_save_${window._loginUsername ?? 'player'}`;
+        try {
+            const data = {
+                gold:          p.gold          ?? 0,
+                gems:          p.gems          ?? 0,
+                materials:     p.materials     ?? 0,
+                level:         p.stats?.level  ?? p.level ?? 1,
+                xp:            p.xp            ?? 0,
+                hpFraction:    Phaser.Math.Clamp((p.hp ?? p.maxHP) / (p.maxHP || 1), 0, 1),
+                ammo:          { ...(p.ammo ?? {}) },
+                goldDeckSlots: p.goldDeckSlots  ?? 3,
+                pearlDeckSlots:p.pearlDeckSlots ?? 3,
+                mojoDeck:      p.mojoDeck       ?? false,
+                cannonSlotCount: p.cannonSlotCount ?? 8,
+                voodooPoints:  p.voodooPoints   ?? 0,
+                pvpMode:       p.pvpMode        ?? false,
+                selectedShip:  p._selectedShipKey ?? null,
+                chartIndex:    this.currentChartIndex ?? 1,
+                savedAt:       Date.now()
+            };
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {}
+    }
+
+    _loadProgress() {
+        if (!this.player) return;
+        const p = this.player;
+        const key = `ahc_save_${window._loginUsername ?? 'player'}`;
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return;
+            const d = JSON.parse(raw);
+            if (d.gold          !== undefined) p.gold           = d.gold;
+            if (d.gems          !== undefined) p.gems           = d.gems;
+            if (d.materials     !== undefined) p.materials      = d.materials;
+            if (d.level         !== undefined) { p.level = d.level; if (p.stats) p.stats.level = d.level; }
+            if (d.xp            !== undefined) p.xp             = d.xp;
+            if (d.hpFraction    !== undefined) p.hp             = Math.round((p.maxHP ?? 200) * d.hpFraction);
+            if (d.ammo          !== undefined) p.ammo           = { ...p.ammo, ...d.ammo };
+            if (d.goldDeckSlots !== undefined) p.goldDeckSlots  = d.goldDeckSlots;
+            if (d.pearlDeckSlots!== undefined) p.pearlDeckSlots = d.pearlDeckSlots;
+            if (d.mojoDeck      !== undefined) p.mojoDeck       = d.mojoDeck;
+            if (d.cannonSlotCount!==undefined) p.cannonSlotCount= d.cannonSlotCount;
+            if (d.voodooPoints  !== undefined) p.voodooPoints   = d.voodooPoints;
+            if (d.pvpMode       !== undefined) p.pvpMode        = d.pvpMode;
+            if (d.selectedShip  !== undefined) p._selectedShipKey = d.selectedShip;
+            p.updateHealthBar?.();
+            p.refreshShipInfoPanel?.(true);
+            this.showStatusMsg(`⚓ Spielstand geladen (Lvl ${d.level ?? 1})`, 0x63d6ff);
+        } catch (e) {}
     }
 
     createChartConfigs() {

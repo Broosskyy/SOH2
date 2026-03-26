@@ -66,6 +66,9 @@ export default class AdminPanel {
 
     _sectionPlayerStats() {
         return this._section('⚔ Spieler-Stats', '#cc88ff', `
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
+                ${this._btn('adm-save','💾 Spielstand speichern','#63d6ff')}
+            </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
                 ${this._input('adm-gold','Gold','1000','90px')} ${this._btn('adm-set-gold','+ Gold setzen','#ffd36a')}
                 ${this._input('adm-gems','Gems','10','70px')} ${this._btn('adm-set-gems','+ Gems setzen','#88ffdd')}
@@ -174,6 +177,11 @@ export default class AdminPanel {
             el?.addEventListener('touchend', (e) => { e.preventDefault(); fn(); }, { passive: false });
         };
 
+        setBtnHandler('adm-save', () => {
+            s?._saveProgress?.();
+            this._log('💾 Spielstand gespeichert', '#63d6ff');
+            s?.showStatusMsg?.('💾 Gespeichert!', 0x63d6ff);
+        });
         setBtnHandler('adm-set-gold', () => {
             const n = parseInt(document.getElementById('adm-gold')?.value) || 1000;
             if (p()) { p().gold = (p().gold ?? 0) + n; s.updateUIBars?.(); }

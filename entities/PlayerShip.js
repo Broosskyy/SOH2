@@ -702,7 +702,7 @@ export default class PlayerShip extends Ship {
 
         const tag  = this.captainTag  ? `${this.captainTag} ` : '';
         const pvpIcon = this.pvpMode ? ' ⚔' : '';
-        this.nameText.setText(`☠ ${tag}${this.captainName ?? 'Kapitän'}${pvpIcon}`);
+        this.nameText.setText(`${tag}${this.captainName ?? 'Kapitän'}${pvpIcon}`);
 
         const hpPercent = Phaser.Math.Clamp((this.hp ?? 0) / (this.maxHP ?? 1), 0, 1);
         const hpColor   = hpPercent > 0.5 ? 0x38f287 : hpPercent > 0.25 ? 0xffd45c : 0xff4444;

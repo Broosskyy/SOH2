@@ -111,16 +111,17 @@ export default class ChatPanel {
             case 'hilfe':
             case 'help': {
                 const cmds = [
-                    '/gold <n>     — Gold hinzufügen',
-                    '/gems <n>     — Edelsteine hinzufügen',
-                    '/hp           — HP vollständig heilen',
-                    '/2x           — 2× Belohnungen (60 Sek.)',
-                    '/5x           — 5× Belohnungen (30 Sek.)',
-                    '/event <id>   — Event starten (konvoi/geist/admiral)',
-                    '/lvl <n>      — Level setzen',
-                    '/speed <n>    — Schiffsgeschwindigkeit setzen',
-                    '/clear        — Chat leeren',
-                    '/spawn npc    — 5 neue NPCs spawnen',
+                    '/gold <n>      — Gold hinzufügen',
+                    '/gems <n>      — Edelsteine hinzufügen',
+                    '/hp            — HP vollständig heilen',
+                    '/2x            — 2× Belohnungen (60 Sek.)',
+                    '/5x            — 5× Belohnungen (30 Sek.)',
+                    '/event <id>    — Event starten (konvoi/geist/admiral)',
+                    '/lvl <n>       — Level setzen',
+                    '/speed <n>     — Schiffsgeschwindigkeit setzen',
+                    '/speichern     — Spielstand manuell speichern',
+                    '/clear         — Chat leeren',
+                    '/spawn npc     — 5 neue NPCs spawnen',
                 ];
                 cmds.forEach(c => this._addSystemMsg(c));
                 break;
@@ -186,6 +187,13 @@ export default class ChatPanel {
                     }
                     this._addSystemMsg('✅ 5 NPCs gespawnt.');
                 }
+                break;
+            }
+            case 'speichern':
+            case 'save': {
+                this.scene?._saveProgress?.();
+                this._addSystemMsg('💾 Spielstand gespeichert!');
+                this.scene?.showStatusMsg?.('💾 Gespeichert!', 0x63d6ff);
                 break;
             }
             case 'clear': {
