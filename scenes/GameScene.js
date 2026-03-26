@@ -8,6 +8,7 @@ import PremiumShopPanel from '../ui/PremiumShopPanel.js';
 import GuildPanel from '../ui/GuildPanel.js';
 import ShipEventPanel from '../ui/ShipEventPanel.js';
 import GuildIsland from '../entities/GuildIsland.js';
+import IslandTower from '../entities/IslandTower.js';
 import MissionPanel from '../ui/MissionPanel.js';
 import BonusPanel from '../ui/BonusPanel.js';
 import EventsPanel from '../ui/EventsPanel.js';
@@ -208,6 +209,7 @@ export default class GameScene extends Phaser.Scene {
         this.syncOceanBackground();
 
         this.islands = this.add.group({ runChildUpdate: false });
+        this.islandTowerGroup = this.add.group({ runChildUpdate: false });
         this.buildIslandSpawnPoints(this.currentChartConfig.islandCount, worldWidth, worldHeight);
         this.spawnIslands();
         this._spawnGuildIsland(worldWidth, worldHeight);
@@ -421,6 +423,9 @@ export default class GameScene extends Phaser.Scene {
         this.logbookPanel     = new LogbookPanel(this);
         this.hafenPanel       = new HafenPanel(this);
 
+        /* --- Floating Repair Button (HUD, bottom-right) --- */
+        this._buildRepairButton();
+
         this.navBar.setVisible(false);
 
         this.scale.on('resize', this.handleResize, this);
@@ -434,6 +439,7 @@ export default class GameScene extends Phaser.Scene {
              this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
+            this._repairBtn?.remove();      this._repairBtn = null;
             this._streakHudEl?.remove();    this._streakHudEl = null;
             this._rageOverlay?.remove();    this._rageOverlay = null;
             this._merchantShopEl?.remove(); this._merchantShopEl = null;
@@ -1289,7 +1295,8 @@ handleResize(gameSize) {
     getTargetAtWorldPoint(worldX, worldY) {
         const candidates = [
             ...(this.npcGroup ? this.npcGroup.getChildren() : []),
-            ...(this.monsterGroup ? this.monsterGroup.getChildren() : [])
+            ...(this.monsterGroup ? this.monsterGroup.getChildren() : []),
+            ...(this.islandTowerGroup ? this.islandTowerGroup.getChildren() : [])
         ].filter(entity => entity && entity.active);
 
         let closestTarget = null;
@@ -1569,10 +1576,44 @@ handleResize(gameSize) {
     spawnIslands() {
         if (!this.islands) return;
         this.islands.clear(true, true);
+        /* clear old towers from previous chart */
+        this.islandTowerGroup?.clear(true, true);
+
+        const ISLAND_RADII = {
+            'island-atoll':    105, 'island-reef':     105, 'island-tropical': 108,
+            'island-volcanic':  95, 'island-frozen':   102, 'island-ruins':     80
+        };
+
         this.islandSpawnPoints.forEach((point) => {
             const island = new Island(this, point.x, point.y, point.texture);
             this.islands.add(island);
             island.setInteractive({ useHandCursor: true });
+            island.attachedTowers = [];
+            island.capturedBy = null;
+            island._conquestObjects = [];
+
+            /* --- Spawn 2–3 defensive towers around the island --- */
+            const colR = ISLAND_RADII[point.texture] ?? 95;
+            const towerRing = colR + 42;
+            const towerCount = point.texture === 'island-ruins' ? 2 : 3;
+            for (let i = 0; i < towerCount; i++) {
+                const ang = (i / towerCount) * Math.PI * 2 - Math.PI / 2;
+                const tx = point.x + Math.cos(ang) * towerRing;
+                const ty = point.y + Math.sin(ang) * towerRing;
+                const tower = new IslandTower(this, tx, ty);
+                tower.parentIsland = island;
+                island.attachedTowers.push(tower);
+                this.islandTowerGroup.add(tower);
+
+                /* clicking a tower selects it as combat target */
+                tower.on('pointerdown', () => {
+                    if (!tower.active) { this.showStatusMsg('💥 Turm bereits zerstört!', 0x888888); return; }
+                    this.TargetEnemy = tower;
+                    this.selectedTarget = tower;
+                    this.showStatusMsg(`🏰 Turm anvisiert — ${tower.hp}/${tower.maxHp} HP`, 0xffaa44);
+                });
+            }
+
             island.on('pointerdown', (ptr) => {
                 this._islandDownPtr = { x: ptr.x, y: ptr.y };
             });
@@ -1582,6 +1623,138 @@ handleResize(gameSize) {
                 this._islandDownPtr = null;
             });
         });
+    }
+
+    _checkIslandConquest(island) {
+        if (!island || island.capturedBy) return;
+        if (!island.attachedTowers?.every(t => !t.active)) return;
+
+        const guild = this.player?.guildName ?? window._loginUsername ?? 'Spieler';
+        island.capturedBy = guild;
+
+        /* Visual: conquest flag + label */
+        const fp = this.add.rectangle(island.x, island.y - 38, 2, 32, 0x998855, 1).setDepth(28);
+        const fb = this.add.rectangle(island.x + 10, island.y - 50, 22, 12, 0xd4aa40, 1).setDepth(28);
+        const ft = this.add.text(island.x + 10, island.y - 50,
+            guild.substring(0, 3).toUpperCase(),
+            { fontSize: '7px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#fff', stroke: '#000', strokeThickness: 2 }
+        ).setOrigin(0.5).setDepth(29);
+        const lbl = this.add.text(island.x, island.y + 90,
+            `⚑ ${guild}`,
+            { fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffd36a', stroke: '#000', strokeThickness: 3 }
+        ).setOrigin(0.5).setDepth(29);
+        island._conquestObjects = [fp, fb, ft, lbl];
+
+        this.showStatusMsg(`⚑ Insel für ${guild} erobert! +80 Gold alle 30s`, 0xd4aa40);
+        this.events.emit('island-conquered', { island, guild });
+
+        /* Gold bonus every 30s */
+        this.time.addEvent({
+            delay: 30000,
+            callback: () => {
+                if (!this.player?.active || island.capturedBy !== guild) return;
+                this.player.gold += 80;
+                this.updateUIBars?.();
+                this.showStatusMsg('⚑ Insel-Gold: +80', 0xd4aa40);
+            },
+            loop: true
+        });
+    }
+
+    _fireTowerProjectile(tower) {
+        if (!this.player?.active) return;
+        const proj  = this.add.circle(tower.x, tower.y, 7, 0xff5500, 1)
+            .setBlendMode(Phaser.BlendModes.ADD).setDepth(1200);
+        const trail = this.add.circle(tower.x, tower.y, 5, 0xff2200, 0.5)
+            .setBlendMode(Phaser.BlendModes.ADD).setDepth(1199);
+        const px = this.player.x, py = this.player.y;
+        this.tweens.add({
+            targets: [proj, trail], x: px, y: py, duration: 320, ease: 'Linear',
+            onUpdate: () => trail.setPosition(proj.x, proj.y),
+            onComplete: () => {
+                proj.destroy(); trail.destroy();
+                if (!this.player?.active) return;
+                const dmg = 12 + Phaser.Math.Between(0, 18);
+                this.player.takeDamage(dmg);
+                this.updateUIBars?.();
+                this._spawnImpact(px, py, { impactColor: 0xff6600, impactR: 22, impactParticles: 4, particleColor: 0xff9900 }, false);
+                this.showStatusMsg(`🏰 Turm: -${dmg} HP`, 0xff6644);
+            }
+        });
+    }
+
+    _buildRepairButton() {
+        const btn = document.createElement('button');
+        btn.id = 'repair-hud-btn';
+        btn.innerHTML = '🔧<br><span style="font-size:8px;font-family:Arial;letter-spacing:0.4px;">REPAIR</span>';
+        btn.style.cssText = `
+            position: fixed;
+            bottom: 72px;
+            right: 10px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1a3a1a 0%, #0a200a 100%);
+            border: 2px solid rgba(100,220,100,0.7);
+            box-shadow: 0 0 14px rgba(80,220,80,0.35), inset 0 0 8px rgba(80,220,80,0.1);
+            color: #7fffb0;
+            font-size: 20px;
+            line-height: 1.2;
+            cursor: pointer;
+            z-index: 9100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            outline: none;
+            transition: box-shadow 0.12s, background 0.12s;
+        `;
+        btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            btn.style.background = 'linear-gradient(135deg, #2a6a2a 0%, #1a4a1a 100%)';
+            btn.style.boxShadow  = '0 0 22px rgba(80,220,80,0.65)';
+            setTimeout(() => {
+                btn.style.background = 'linear-gradient(135deg, #1a3a1a 0%, #0a200a 100%)';
+                btn.style.boxShadow  = '0 0 14px rgba(80,220,80,0.35), inset 0 0 8px rgba(80,220,80,0.1)';
+            }, 180);
+            this._tryNearestIslandRepair();
+        });
+        document.body.appendChild(btn);
+        this._repairBtn = btn;
+    }
+
+    _tryNearestIslandRepair() {
+        if (!this.player?.active) return;
+        /* Find nearest island within range */
+        let nearest = null;
+        let nearestDist = Infinity;
+        this.islands?.getChildren().forEach(isl => {
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, isl.x, isl.y);
+            if (d < nearestDist) { nearest = isl; nearestDist = d; }
+        });
+        /* If the guild island is closer, consider that too */
+        if (this.guildIsland) {
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.guildIsland.x, this.guildIsland.y);
+            if (d < nearestDist) { nearest = this.guildIsland; nearestDist = d; }
+        }
+        if (nearest && nearestDist <= 650) {
+            this._tryIslandRepair(nearest);
+        } else {
+            /* Emergency repair at sea — costs more */
+            const missingHP = (this.player.maxHP ?? 300) - (this.player.hp ?? 300);
+            if (missingHP <= 0) { this.showStatusMsg('⚓ Rumpf bereits vollständig repariert!', 0x7fffb0); return; }
+            const cost = Math.ceil(missingHP * 1.8);
+            if ((this.player.gold ?? 0) < cost) {
+                this.showStatusMsg(`🔧 Notfall-Reparatur kostet ${cost} Gold. Nicht genug!`, 0xff6644);
+                return;
+            }
+            this.player.gold -= cost;
+            this.player.heal(missingHP);
+            this.updateUIBars();
+            this.showStatusMsg(`🔧 Notfall-Reparatur: -${cost} Gold, +${missingHP} HP`, 0x7fffb0);
+        }
     }
 
     _tryIslandRepair(island) {
@@ -4018,6 +4191,11 @@ handleResize(gameSize) {
         target.takeDamage(appliedDamage);
         this.events.emit('damage-dealt', appliedDamage);
 
+        /* --- Island tower destroyed → check conquest --- */
+        if (target.isIslandTower && !target.active) {
+            this._checkIslandConquest(target.parentIsland);
+        }
+
         try { this.spawnProjectile(target, isHarpoon, ammoConfig); } catch (e) {}
 
         if (!target.active || target.hp <= 0) {
@@ -4409,6 +4587,17 @@ handleResize(gameSize) {
         }
 
         this.player.update();
+
+        /* --- Island towers shoot at the player --- */
+        this._towerShootAccum = (this._towerShootAccum ?? 0) + delta;
+        if (this._towerShootAccum > 2600 && this.player?.active) {
+            this._towerShootAccum = 0;
+            this.islandTowerGroup?.getChildren().forEach(tower => {
+                if (!tower.active) return;
+                const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, tower.x, tower.y);
+                if (dist < 420) this._fireTowerProjectile(tower);
+            });
+        }
 
         if (this.inventoryHit?.input) this.inventoryHit.input.enabled = true;
         if (this.shopHit?.input) this.shopHit.input.enabled = true;
