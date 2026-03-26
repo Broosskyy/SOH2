@@ -2157,7 +2157,16 @@ handleResize(gameSize) {
 
             this.progressContainer.setVisible(false);
             this.returnToShipBtn.setVisible(false);
+            this.actionsContainer.setVisible(false);
+            this.minimapToggleBtn.setVisible(false);
+            this.targetHUD.setVisible(false);
+
             this.chartNav?.setShipVisible(this.isReturnToShipVisible);
+            this.chartNav?.setAttackVisible(!!(this.TargetEnemy && this.TargetEnemy.active));
+
+            if (this.leftTargetPanel) {
+                this.leftTargetPanel.setPosition(18, navH + 84);
+            }
 
             const chatH = this.isChatMinimized ? 44 : 168;
             const feedH = this.isStatusFeedMinimized ? 44 : 120;
@@ -2380,7 +2389,8 @@ handleResize(gameSize) {
         this.refreshSeaGateUI();
 
         if (this.selectedTarget && this.selectedTarget.active) {
-            this.targetHUD.setVisible(true);
+            const { width: _tw, height: _th } = this.scale;
+            this.targetHUD.setVisible(_tw <= _th);
             this.leftTargetPanel.setVisible(true);
             const targetLabel = this.selectedTarget instanceof Monster ? 'Sea Monster' : 'Enemy Ship';
             const enemyName = this.selectedTarget.captainName
@@ -2713,15 +2723,19 @@ handleResize(gameSize) {
         const cannonActive = hasTarget && this.autoAttackEnabled && this.autoAttackMode === 'cannon';
         const ammo = this.player ? this.player.getAmmoConfig(this.currentAmmoType) : null;
 
-        if (this.attackBtn) this.attackBtn.setVisible(hasTarget);
+        const { width: w2, height: h2 } = this.scale;
+        const isLand = w2 > h2;
+        this.chartNav?.setAttackVisible(hasTarget);
+
+        if (this.attackBtn) this.attackBtn.setVisible(hasTarget && !isLand);
         if (this.attackLabel) {
-            this.attackLabel.setVisible(hasTarget);
+            this.attackLabel.setVisible(hasTarget && !isLand);
             this.attackLabel.setText('ATTACK');
         }
 
         if (this.attackBtnHit) {
-            this.attackBtnHit.setVisible(hasTarget);
-            if (hasTarget) this.attackBtnHit.setInteractive({ useHandCursor: true });
+            this.attackBtnHit.setVisible(hasTarget && !isLand);
+            if (hasTarget && !isLand) this.attackBtnHit.setInteractive({ useHandCursor: true });
             else this.attackBtnHit.disableInteractive();
         }
 
@@ -2734,7 +2748,7 @@ handleResize(gameSize) {
 
         if (this.attackBtnRing) {
             this.attackBtnRing.clear();
-            if (hasTarget) {
+            if (hasTarget && !isLand) {
                 this.attackBtnRing.setVisible(true);
                 this.attackBtnRing.lineStyle(4, cannonActive ? 0x7fffd4 : 0xffffff, cannonActive ? 0.95 : 0.28);
                 this.attackBtnRing.strokeCircle(0, 0, 66);

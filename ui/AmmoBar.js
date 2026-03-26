@@ -54,7 +54,7 @@ export default class AmmoBar {
                 color: skill.color,
                 bg: skill.bg,
                 glow: skill.glow,
-                size: 62,
+                size: 50,
                 countText: '⚡',
                 isSkill: true,
                 isActive: true,
@@ -80,7 +80,7 @@ export default class AmmoBar {
                 color: ammo.color,
                 bg: ammo.bg,
                 glow: ammo.glow,
-                size: 62,
+                size: 50,
                 countText: '∞',
                 isActive: ammo.type === this._activeAmmo,
             });

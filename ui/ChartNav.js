@@ -3,6 +3,7 @@ export default class ChartNav {
         this.scene = scene;
         this._el = null;
         this._shipBtn = null;
+        this._attackBtn = null;
         this._build();
     }
 
@@ -29,13 +30,13 @@ export default class ChartNav {
         const shipBtn = document.createElement('button');
         shipBtn.id = 'chart-ship-btn';
         shipBtn.style.cssText = `
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             background: linear-gradient(135deg, #0a1a2e, #1a3060);
             border: 2px solid rgba(255,200,80,0.55);
             color: #ffd080;
-            font-size: 22px;
+            font-size: 20px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
@@ -43,8 +44,8 @@ export default class ChartNav {
             align-items: center;
             justify-content: center;
             padding: 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.7), 0 0 10px rgba(255,200,80,0.2);
-            transition: background 0.15s, border-color 0.15s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+            transition: background 0.15s;
             flex-shrink: 0;
         `;
         shipBtn.textContent = '⚓';
@@ -54,34 +55,31 @@ export default class ChartNav {
         };
         shipBtn.addEventListener('click', doShip);
         shipBtn.addEventListener('touchend', doShip, { passive: false });
-        shipBtn.addEventListener('touchstart', () => {
-            shipBtn.style.background = 'linear-gradient(135deg, #1a3060, #2a4080)';
-        }, { passive: true });
         this._shipBtn = shipBtn;
 
         const westBtn = document.createElement('button');
         westBtn.id = 'chart-nav-west';
         westBtn.style.cssText = `
-            width: 48px; height: 48px;
+            width: 44px; height: 44px;
             border-radius: 50% 0 0 50%;
             background: linear-gradient(135deg, #0a1a2e, #0d2040);
             border: 2px solid rgba(99,214,255,0.4);
             border-right: none;
             color: #9fdcff;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             display: flex; align-items: center; justify-content: center;
-            transition: background 0.15s, border-color 0.15s;
+            transition: background 0.15s;
             padding: 0;
         `;
         westBtn.textContent = '◄';
 
         const center = document.createElement('div');
         center.style.cssText = `
-            min-width: 90px;
-            height: 48px;
+            min-width: 80px;
+            height: 44px;
             background: linear-gradient(135deg, #0d2040, #0a1a2e);
             border-top: 2px solid rgba(99,214,255,0.4);
             border-bottom: 2px solid rgba(99,214,255,0.4);
@@ -90,35 +88,69 @@ export default class ChartNav {
             align-items: center;
             justify-content: center;
             gap: 1px;
-            padding: 0 12px;
+            padding: 0 10px;
         `;
         const numEl = document.createElement('div');
         numEl.id = 'chart-nav-num';
-        numEl.style.cssText = `font-size:17px;font-weight:bold;color:#dff8ff;letter-spacing:1px;line-height:1;`;
+        numEl.style.cssText = `font-size:15px;font-weight:bold;color:#dff8ff;letter-spacing:1px;line-height:1;`;
         const nameEl = document.createElement('div');
         nameEl.id = 'chart-nav-name';
-        nameEl.style.cssText = `font-size:10px;color:#63d6ff;line-height:1;`;
+        nameEl.style.cssText = `font-size:9px;color:#63d6ff;line-height:1;`;
         center.appendChild(numEl);
         center.appendChild(nameEl);
 
         const eastBtn = document.createElement('button');
         eastBtn.id = 'chart-nav-east';
         eastBtn.style.cssText = `
-            width: 48px; height: 48px;
+            width: 44px; height: 44px;
             border-radius: 0 50% 50% 0;
             background: linear-gradient(135deg, #0d2040, #0a1a2e);
             border: 2px solid rgba(99,214,255,0.4);
             border-left: none;
             color: #9fdcff;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             display: flex; align-items: center; justify-content: center;
-            transition: background 0.15s, border-color 0.15s;
+            transition: background 0.15s;
             padding: 0;
         `;
         eastBtn.textContent = '►';
+
+        const attackBtn = document.createElement('button');
+        attackBtn.id = 'chart-attack-btn';
+        attackBtn.style.cssText = `
+            height: 44px;
+            padding: 0 14px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #6a0c0c, #c01010);
+            border: 2px solid rgba(255,100,80,0.7);
+            color: #fff;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 12px rgba(200,30,30,0.5);
+            transition: background 0.15s;
+            flex-shrink: 0;
+            white-space: nowrap;
+        `;
+        attackBtn.textContent = '⚔ FEUER';
+        const doAttack = (e) => {
+            e.preventDefault();
+            s.handleAttackButtonPressed?.();
+            attackBtn.style.background = 'linear-gradient(135deg, #9a1818, #e01818)';
+            setTimeout(() => { attackBtn.style.background = 'linear-gradient(135deg, #6a0c0c, #c01010)'; }, 200);
+        };
+        attackBtn.addEventListener('click', doAttack);
+        attackBtn.addEventListener('touchend', doAttack, { passive: false });
+        this._attackBtn = attackBtn;
 
         const doWest = (e) => {
             e.preventDefault();
@@ -147,6 +179,7 @@ export default class ChartNav {
         nav.appendChild(westBtn);
         nav.appendChild(center);
         nav.appendChild(eastBtn);
+        nav.appendChild(attackBtn);
         document.body.appendChild(nav);
         this._el = nav;
 
@@ -159,8 +192,8 @@ export default class ChartNav {
         const max = s.maxChartIndex ?? 10;
         const cfg = s.getChartConfig?.(idx);
 
-        const numEl  = document.getElementById('chart-nav-num');
-        const nameEl = document.getElementById('chart-nav-name');
+        const numEl   = document.getElementById('chart-nav-num');
+        const nameEl  = document.getElementById('chart-nav-name');
         const westBtn = document.getElementById('chart-nav-west');
         const eastBtn = document.getElementById('chart-nav-east');
 
@@ -169,20 +202,16 @@ export default class ChartNav {
 
         const canWest = idx > 1;
         const canEast = idx < max;
-        if (westBtn) {
-            westBtn.style.opacity = canWest ? '1' : '0.3';
-            westBtn.style.cursor  = canWest ? 'pointer' : 'default';
-        }
-        if (eastBtn) {
-            eastBtn.style.opacity = canEast ? '1' : '0.3';
-            eastBtn.style.cursor  = canEast ? 'pointer' : 'default';
-        }
+        if (westBtn) { westBtn.style.opacity = canWest ? '1' : '0.35'; westBtn.style.cursor = canWest ? 'pointer' : 'default'; }
+        if (eastBtn) { eastBtn.style.opacity = canEast ? '1' : '0.35'; eastBtn.style.cursor = canEast ? 'pointer' : 'default'; }
     }
 
     setShipVisible(v) {
-        if (this._shipBtn) {
-            this._shipBtn.style.display = v ? 'flex' : 'none';
-        }
+        if (this._shipBtn) this._shipBtn.style.display = v ? 'flex' : 'none';
+    }
+
+    setAttackVisible(v) {
+        if (this._attackBtn) this._attackBtn.style.display = v ? 'flex' : 'none';
     }
 
     setVisible(v) { if (this._el) this._el.style.display = v ? 'flex' : 'none'; }
