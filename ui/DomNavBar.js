@@ -59,10 +59,10 @@ export default class DomNavBar {
         `;
         el.style.setProperty('scrollbar-width', 'none');
 
-        /* invisible spacer on left for player-info panel */
+        /* Linker Abstand — reserviert Platz für das Player-Info-Panel */
         const lSpacer = document.createElement('div');
         lSpacer.id = 'nav-left-spacer';
-        lSpacer.style.cssText = 'min-width:164px;flex-shrink:0;pointer-events:none;';
+        lSpacer.style.cssText = 'min-width:168px;flex-shrink:0;pointer-events:none;';
         el.appendChild(lSpacer);
 
         this._buttons().forEach(btn => {
@@ -105,11 +105,7 @@ export default class DomNavBar {
             el.appendChild(b);
         });
 
-        /* right spacer for stats panel */
-        const rSpacer = document.createElement('div');
-        rSpacer.id = 'nav-right-spacer';
-        rSpacer.style.cssText = 'min-width:204px;flex-shrink:0;pointer-events:none;';
-        el.appendChild(rSpacer);
+        /* Kein rechter Spacer mehr — Buttons gehen bis zum Rand */
 
         document.body.appendChild(el);
         this._el = el;
@@ -129,42 +125,48 @@ export default class DomNavBar {
             position: fixed;
             top: 0;
             left: 0;
-            width: 162px;
+            width: 166px;
             height: 56px;
             z-index: 9002;
             display: flex;
             align-items: center;
             padding: 0 8px;
-            gap: 6px;
+            gap: 7px;
             background: linear-gradient(135deg, rgba(3,10,24,0.99) 0%, rgba(5,16,36,0.97) 100%);
-            border-bottom: 2px solid rgba(212,175,55,0.55);
-            border-right: 1px solid rgba(212,175,55,0.2);
+            border-bottom: 2px solid rgba(212,175,55,0.6);
+            border-right: 1px solid rgba(212,175,55,0.22);
             box-sizing: border-box;
             pointer-events: none;
             font-family: Arial, sans-serif;
-            padding-top: calc(env(safe-area-inset-top, 0px));
+            padding-top: env(safe-area-inset-top, 0px);
             flex-shrink: 0;
         `;
         el.innerHTML = `
             <div id="nav-avatar" style="
-                width:34px;height:34px;border-radius:50%;flex-shrink:0;
+                width:36px;height:36px;border-radius:50%;flex-shrink:0;
                 background:linear-gradient(135deg,#1a3a6a,#0d2040);
-                border:2px solid rgba(212,175,55,0.7);
+                border:2px solid rgba(212,175,55,0.75);
                 display:flex;align-items:center;justify-content:center;
-                font-size:16px;box-shadow:0 0 10px rgba(212,175,55,0.25);
+                font-size:18px;box-shadow:0 0 10px rgba(212,175,55,0.3);
             ">⚓</div>
             <div style="flex:1;min-width:0;overflow:hidden;">
                 <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;">
-                    <span id="nav-player-name" style="font-size:12px;font-weight:bold;color:#ffd36a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;">Kapitän</span>
+                    <span id="nav-player-name" style="
+                        font-size:12px;font-weight:bold;color:#ffd36a;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:76px;
+                    ">Kapitän</span>
                     <span id="nav-level-badge" style="
                         font-size:9px;font-weight:bold;color:#fff;
                         background:linear-gradient(135deg,#1a5a9a,#0d3a6a);
                         border:1px solid rgba(74,200,255,0.5);
-                        border-radius:4px;padding:1px 4px;flex-shrink:0;white-space:nowrap;
+                        border-radius:4px;padding:1px 4px;flex-shrink:0;
                     ">Lv.1</span>
                 </div>
                 <div style="margin-top:2px;">
-                    <span id="nav-guild-tag" style="font-size:9px;color:#c8a060;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:110px;">Kein Gildenverband</span>
+                    <span id="nav-guild-tag" style="
+                        font-size:9px;color:#c8a060;white-space:nowrap;overflow:hidden;
+                        text-overflow:ellipsis;display:block;max-width:108px;
+                    ">Kein Gildenverband</span>
                 </div>
             </div>
         `;
@@ -172,51 +174,53 @@ export default class DomNavBar {
         this._playerInfoEl = el;
     }
 
+    /* Stats-Panel jetzt LINKS — direkt unter dem Player-Info-Panel */
     _buildStatsPanel() {
         const stats = document.createElement('div');
         stats.id = 'nav-stats';
         stats.style.cssText = `
             position: fixed;
-            top: 0;
-            right: 0;
-            width: 202px;
-            height: 56px;
-            z-index: 9002;
+            top: 56px;
+            left: 0;
+            width: 166px;
+            z-index: 9001;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 3px;
-            padding: 0 10px 0 10px;
-            background: linear-gradient(225deg, rgba(3,10,24,0.99) 0%, rgba(5,18,40,0.97) 100%);
-            border-bottom: 2px solid rgba(74,200,255,0.55);
-            border-left: 1px solid rgba(74,200,255,0.2);
+            gap: 4px;
+            padding: 5px 10px 6px 10px;
+            background: linear-gradient(180deg, rgba(4,12,30,0.97) 0%, rgba(5,18,40,0.94) 100%);
+            border-bottom: 1px solid rgba(74,200,255,0.25);
+            border-right: 1px solid rgba(74,200,255,0.15);
             box-sizing: border-box;
             pointer-events: none;
             font-family: Arial, sans-serif;
-            padding-top: calc(env(safe-area-inset-top, 0px));
         `;
         stats.innerHTML = `
+            <!-- EXP -->
             <div style="display:flex;align-items:center;gap:3px;">
-                <span style="font-size:9px;font-weight:bold;color:#4ac8ff;width:18px;flex-shrink:0;">EXP</span>
-                <div style="flex:1;height:7px;background:rgba(0,0,0,0.6);border-radius:4px;overflow:hidden;border:1px solid rgba(74,200,255,0.18);">
-                    <div id="nav-exp-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#1a6fdd,#4ac8ff);border-radius:4px;transition:width 0.5s;box-shadow:0 0 5px #4ac8ff66;"></div>
+                <span style="font-size:8px;font-weight:bold;color:#4ac8ff;width:16px;flex-shrink:0;">EXP</span>
+                <div style="flex:1;height:6px;background:rgba(0,0,0,0.6);border-radius:3px;overflow:hidden;border:1px solid rgba(74,200,255,0.18);">
+                    <div id="nav-exp-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#1a6fdd,#4ac8ff);border-radius:3px;transition:width 0.5s;box-shadow:0 0 5px #4ac8ff55;"></div>
                 </div>
-                <span id="nav-exp-text" style="font-size:9px;color:#7fd8ff;min-width:40px;text-align:right;font-weight:bold;white-space:nowrap;">0/100</span>
+                <span id="nav-exp-text" style="font-size:8px;color:#7fd8ff;min-width:38px;text-align:right;font-weight:bold;white-space:nowrap;">0/100</span>
             </div>
+            <!-- HP -->
             <div style="display:flex;align-items:center;gap:3px;">
-                <span style="font-size:9px;font-weight:bold;color:#45ff85;width:18px;flex-shrink:0;">HP</span>
-                <div style="flex:1;height:7px;background:rgba(0,0,0,0.6);border-radius:4px;overflow:hidden;border:1px solid rgba(69,255,133,0.18);">
-                    <div id="nav-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#0da044,#45ff85);border-radius:4px;transition:width 0.3s;box-shadow:0 0 5px #45ff8566;"></div>
+                <span style="font-size:8px;font-weight:bold;color:#45ff85;width:16px;flex-shrink:0;">HP</span>
+                <div style="flex:1;height:6px;background:rgba(0,0,0,0.6);border-radius:3px;overflow:hidden;border:1px solid rgba(69,255,133,0.18);">
+                    <div id="nav-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#0da044,#45ff85);border-radius:3px;transition:width 0.3s;box-shadow:0 0 5px #45ff8555;"></div>
                 </div>
-                <span id="nav-hp-text" style="font-size:9px;color:#7fffb0;min-width:40px;text-align:right;font-weight:bold;white-space:nowrap;">0/0</span>
+                <span id="nav-hp-text" style="font-size:8px;color:#7fffb0;min-width:38px;text-align:right;font-weight:bold;white-space:nowrap;">0/0</span>
             </div>
-            <div style="display:flex;align-items:center;gap:3px;flex-wrap:nowrap;">
-                <span style="font-size:11px;">🪙</span>
-                <span id="nav-gold-val" style="font-size:10px;font-weight:bold;color:#ffd36a;min-width:32px;">0</span>
-                <span style="color:#333;font-size:9px;">│</span>
-                <span style="font-size:11px;">🔧</span>
-                <span id="nav-mats-val" style="font-size:10px;color:#b8f0ff;min-width:24px;">0</span>
-                <span id="nav-gold-deck" style="font-size:8px;margin-left:1px;color:#ffd36a;">🟠🟠🟠</span>
+            <!-- Gold + Mats -->
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;">
+                <span style="font-size:11px;flex-shrink:0;">🪙</span>
+                <span id="nav-gold-val" style="font-size:10px;font-weight:bold;color:#ffd36a;min-width:28px;">0</span>
+                <span style="color:#334;font-size:9px;">│</span>
+                <span style="font-size:11px;flex-shrink:0;">🔧</span>
+                <span id="nav-mats-val" style="font-size:10px;color:#b8f0ff;min-width:22px;">0</span>
+                <span id="nav-gold-deck" style="font-size:8px;color:#ffd36a;margin-left:2px;">🟠🟠🟠</span>
             </div>
         `;
         document.body.appendChild(stats);
@@ -247,10 +251,10 @@ export default class DomNavBar {
             opacity: 0;
             transition: transform 0.45s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
             min-width: 260px;
-            max-width: 90vw;
+            max-width: min(340px, 90vw);
         `;
         el.innerHTML = `
-            <div id="lu-star" style="font-size:52px;line-height:1;animation:starPop 0.5s ease;">⭐</div>
+            <div id="lu-star" style="font-size:52px;line-height:1;">⭐</div>
             <div style="font-size:11px;color:#9fdcff;text-transform:uppercase;letter-spacing:3px;font-weight:bold;">Aufgestiegen!</div>
             <div id="lu-level" style="font-size:40px;font-weight:900;color:#ffd36a;text-shadow:0 0 24px rgba(255,211,106,0.7);line-height:1;">Level 2</div>
             <div id="lu-rewards" style="font-size:12px;color:#b8f0ff;line-height:1.8;"></div>
@@ -343,14 +347,14 @@ export default class DomNavBar {
     }
 
     show() {
-        if (this._el)          { this._el.style.display = 'flex'; this.visible = true; }
-        if (this._statsEl)     this._statsEl.style.display = 'flex';
+        if (this._el)           { this._el.style.display = 'flex'; this.visible = true; }
+        if (this._statsEl)      this._statsEl.style.display = 'flex';
         if (this._playerInfoEl) this._playerInfoEl.style.display = 'flex';
     }
 
     hide() {
-        if (this._el)          { this._el.style.display = 'none'; this.visible = false; }
-        if (this._statsEl)     this._statsEl.style.display = 'none';
+        if (this._el)           { this._el.style.display = 'none'; this.visible = false; }
+        if (this._statsEl)      this._statsEl.style.display = 'none';
         if (this._playerInfoEl) this._playerInfoEl.style.display = 'none';
     }
 
