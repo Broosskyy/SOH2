@@ -37,7 +37,7 @@ export default class GameScene extends Phaser.Scene {
         this.cameraReturnTween = null;
         this.cameraDefaultZoom = 1;
         this.isMinimapMinimized = true;
-        this.isNavBarVisible = false;
+        this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
         this.isReturnToShipVisible = false;
         this.isStatusFeedVisible = false;
@@ -1814,6 +1814,14 @@ handleResize(gameSize) {
             this.upgradeCloseHit
         ]);
         this.topUiContainer.add(this.upgradePanel);
+
+        [
+            this.hullUpgradeBtn?.hit, this.sailsUpgradeBtn?.hit,
+            this.cannonUpgradeBtn?.hit, this.cannonSlotsUpgradeBtn?.hit,
+            this.deckUpgradeBtn?.hit, this.ammoUpgradeBtn?.hit,
+            this.chainshotUnlockBtn?.hit, this.grapeshotUnlockBtn?.hit,
+            this.upgradeCloseHit
+        ].filter(Boolean).forEach(z => z.disableInteractive());
 
         this.uiControls.push(
             this.minimapToggleHit,
