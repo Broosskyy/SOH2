@@ -18,6 +18,7 @@ import AmmoBar from '../ui/AmmoBar.js';
 import ChartNav from '../ui/ChartNav.js';
 import DomNavBar from '../ui/DomNavBar.js';
 import ShipDesignPanel from '../ui/ShipDesignPanel.js';
+import ChatPanel from '../ui/ChatPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -356,6 +357,7 @@ export default class GameScene extends Phaser.Scene {
         this.chartNav        = new ChartNav(this);
         this.domNavBar       = new DomNavBar(this);
         this.shipDesignPanel = new ShipDesignPanel(this);
+        this.chatPanel       = new ChatPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -364,7 +366,7 @@ export default class GameScene extends Phaser.Scene {
             this.scale.off('resize', this.handleResize, this);
             [this.premiumShopPanel, this.guildPanel, this.shipEventPanel, this.missionPanel, this.bonusPanel,
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
-             this.chartNav, this.domNavBar, this.shipDesignPanel]
+             this.chartNav, this.domNavBar, this.shipDesignPanel, this.chatPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
         });
@@ -950,14 +952,25 @@ handleResize(gameSize) {
         this.showStatusMsg(`⚔ EVENT: ${eventName} erscheint — ${dirStr}!`, 0xd4aa40);
         this._showEventDirectionHUD(eventId, eventName, dirStr);
 
+        const eventHpMap    = { konvoi: 4800, geisterschiff: 9600, admiralsjagd: 7200 };
+        const eventSpeedMap = { konvoi: 3.5,  geisterschiff: 5.0,  admiralsjagd: 4.5  };
+        const eventHP    = eventHpMap[eventId]    ?? 4800;
+        const eventSpeed = eventSpeedMap[eventId] ?? 4;
+
         textures.forEach((tex, i) => {
-            const ex = Phaser.Math.Clamp(cx + i * 220 - textures.length * 110, 300, this.mapWidth - 300);
+            const ex = Phaser.Math.Clamp(cx + i * 240 - textures.length * 120, 300, this.mapWidth - 300);
             const ey = Phaser.Math.Clamp(cy, 300, this.mapHeight - 300);
             try {
                 const npc = new NPCShip(this, ex, ey);
-                if (this.textures.exists(tex)) { npc.sprite?.setTexture(tex); npc.sprite?.setScale(0.12); }
-                npc.npcTier = 3;
-                npc.npcName = eventId === 'geisterschiff' ? '[GEIST] Phantom' : eventId === 'admiralsjagd' ? '[ADM] Admiral' : `[KONVOI] Händler`;
+                if (this.textures.exists(tex)) { npc.sprite?.setTexture(tex); npc.sprite?.setScale(0.13); }
+                npc.npcTier = 4;
+                npc.maxHP   = eventHP;
+                npc.hp      = eventHP;
+                npc.speed   = eventSpeed;
+                npc.xpValue = eventId === 'admiralsjagd' ? 2000 : eventId === 'geisterschiff' ? 1500 : 1000;
+                npc.healthBarWidth = 90;
+                npc.updateHealthBar?.();
+                npc.npcName = eventId === 'geisterschiff' ? '[GEIST] Phantom-Kapitän' : eventId === 'admiralsjagd' ? '[ADM] Hochadmiral Krueger' : `[KONVOI] Händler-Escort`;
                 npc._isEventShip = true;
                 npc._eventId = eventId;
                 this.npcGroup.add(npc);
@@ -969,18 +982,25 @@ handleResize(gameSize) {
             const allDead = this._activeEventShips.every(s => !s?.active);
             if (allDead && this._activeEventShips.length > 0) {
                 this._activeEventShips = [];
-                const rewards = { 'konvoi': 1000, 'geisterschiff': 2000, 'admiralsjagd': 3500 };
-                const goldReward = rewards[eventId] ?? 1000;
+                const baseRewards = { konvoi: 2500, geisterschiff: 5000, admiralsjagd: 8000 };
+                const gemRewards  = { konvoi: 8,    geisterschiff: 15,   admiralsjagd: 25   };
+                const mult = this.player?.rewardMultiplier ?? 1;
+                const goldReward = Math.round((baseRewards[eventId] ?? 2500) * mult);
+                const gemReward  = Math.round((gemRewards[eventId]  ?? 8)    * mult);
                 if (this.player) {
-                    this.player.gold += goldReward;
-                    this.player.gems = (this.player.gems ?? 0) + 3;
-                    const bp = eventId === 'geisterschiff' ? '👻 Geisterschiff-Schiffsplan' : eventId === 'admiralsjagd' ? '👑 Flaggschiff-Schiffsplan' : '⚓ Konvoi-Schiffsplan';
+                    this.player.gold = (this.player.gold ?? 0) + goldReward;
+                    this.player.gems = (this.player.gems ?? 0) + gemReward;
                     try {
                         const designs = JSON.parse(localStorage.getItem('ahc_ship_blueprints') || '[]');
-                        if (!designs.includes(eventId)) { designs.push(eventId); localStorage.setItem('ahc_ship_blueprints', JSON.stringify(designs)); }
+                        if (!designs.includes(eventId)) {
+                            designs.push(eventId);
+                            localStorage.setItem('ahc_ship_blueprints', JSON.stringify(designs));
+                        }
                     } catch {}
                 }
-                this.showStatusMsg(`🏆 EVENT gewonnen! +${goldReward} Gold +3 💎 +Schiffsplan!`, 0xd4aa40);
+                const multStr = mult > 1 ? ` (×${mult})` : '';
+                this.showStatusMsg(`🏆 EVENT gewonnen! +${goldReward}🪙 +${gemReward}💎 +Schiffsplan!${multStr}`, 0xd4aa40);
+                this._showEventRewardBanner(eventId, goldReward, gemReward, mult);
                 this.updateUIBars?.();
                 this._removeEventDirectionHUD();
                 clearInterval(doneCheck);
@@ -1029,6 +1049,46 @@ handleResize(gameSize) {
         document.getElementById('event-direction-hud')?.remove();
         document.getElementById('event-hud-style')?.remove();
         this._eventHudEl = null;
+    }
+
+    _showEventRewardBanner(eventId, gold, gems, mult) {
+        document.getElementById('event-reward-banner')?.remove();
+        const icons = { konvoi:'⚓', geisterschiff:'👻', admiralsjagd:'👑' };
+        const names = { konvoi:'Schiffsdesign-Konvoi', geisterschiff:'Das Geisterschiff', admiralsjagd:'Admiralsjagd' };
+        const banner = document.createElement('div');
+        banner.id = 'event-reward-banner';
+        banner.style.cssText = `
+            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+            z-index:25000; background:linear-gradient(160deg,#0a1e10,#040e06);
+            border:2px solid #d4aa40; border-radius:12px;
+            padding:20px 28px; text-align:center; font-family:Arial,sans-serif;
+            box-shadow:0 0 60px rgba(212,170,64,0.5);
+            animation:rewardFadeIn 0.4s ease-out;
+            min-width:260px;
+        `;
+        if (!document.getElementById('reward-anim-style')) {
+            const s = document.createElement('style');
+            s.id = 'reward-anim-style';
+            s.textContent = '@keyframes rewardFadeIn{from{opacity:0;transform:translate(-50%,-44%) scale(0.88)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}';
+            document.head.appendChild(s);
+        }
+        const multBadge = mult > 1 ? `<div style="background:#ff8800;color:#fff;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:bold;display:inline-block;margin-bottom:8px;">⚡ ×${mult} MULTIPLIKATOR</div><br>` : '';
+        banner.innerHTML = `
+            ${multBadge}
+            <div style="font-size:36px;margin-bottom:4px;">${icons[eventId]??'⚔'}</div>
+            <div style="font-size:14px;font-weight:bold;color:#d4aa40;letter-spacing:2px;margin-bottom:12px;">🏆 EVENT GEWONNEN</div>
+            <div style="font-size:12px;color:#aaa;margin-bottom:12px;">${names[eventId]??eventId}</div>
+            <div style="display:flex;justify-content:center;gap:20px;margin-bottom:14px;">
+                <div><div style="font-size:22px;font-weight:bold;color:#ffd36a;">+${gold.toLocaleString()}</div><div style="font-size:10px;color:#888;">🪙 Gold</div></div>
+                <div><div style="font-size:22px;font-weight:bold;color:#88ffdd;">+${gems}</div><div style="font-size:10px;color:#888;">💎 Gems</div></div>
+                <div><div style="font-size:22px;font-weight:bold;color:#aaffaa;">+1</div><div style="font-size:10px;color:#888;">📜 Schiffsplan</div></div>
+            </div>
+            <div style="font-size:11px;color:#6a8;margin-bottom:14px;">Neues Design verfügbar in der Werft!</div>
+            <button id="evt-reward-close" style="padding:8px 24px;background:rgba(212,170,64,0.12);border:1px solid #d4aa40;color:#d4aa40;border-radius:20px;cursor:pointer;font-size:13px;touch-action:manipulation;">✕ Schließen</button>
+        `;
+        document.body.appendChild(banner);
+        setTimeout(() => { document.getElementById('evt-reward-close')?.addEventListener('click', () => banner.remove()); }, 0);
+        setTimeout(() => banner.remove(), 8000);
     }
 
     getNPCClusterCenter(index) {
@@ -2247,6 +2307,10 @@ handleResize(gameSize) {
             this.shipEventPanel?.toggle();
             return;
         }
+        if (action === 'chat') {
+            this.chatPanel?.toggle();
+            return;
+        }
         if (action === 'board') {
             this.boardPanel?.toggle();
             return;
@@ -3365,21 +3429,21 @@ handleResize(gameSize) {
 
     showStatusMsg(msg, color) {
         const { width } = this.scale;
-        const text = this.add.text(width / 2, 112, msg, {
-            fontSize: '26px',
+        const text = this.add.text(width / 2, 92, msg, {
+            fontSize: '16px',
             fontFamily: 'Arial',
             fill: Phaser.Display.Color.IntegerToColor(color).rgba,
             stroke: '#000000',
-            strokeThickness: 4
+            strokeThickness: 3
         }).setOrigin(0.5).setScrollFactor(0).setDepth(4600);
 
         this.pushStatusFeedMessage(msg, Phaser.Display.Color.IntegerToColor(color).rgba);
 
         this.tweens.add({
             targets: text,
-            y: 88,
+            y: 72,
             alpha: 0,
-            duration: 1800,
+            duration: 2000,
             onComplete: () => text.destroy()
         });
     }

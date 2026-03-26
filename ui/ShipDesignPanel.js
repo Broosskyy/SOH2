@@ -27,6 +27,18 @@ export default class ShipDesignPanel {
         ];
     }
 
+    _eventDesigns() {
+        const all = [
+            { key: 'ship-event-galleon',  src: 'assets/ship_event_galleon.png',   name: 'Konvoi-Galeone',      class: 'Beutedesigns', eventId: 'konvoi',        badge: '⚓', color: '#d4aa40' },
+            { key: 'ship-event-ghost',    src: 'assets/ship_event_ghost.png',     name: 'Phantom-Geisterschiff', class: 'Beutedesigns', eventId: 'geisterschiff', badge: '👻', color: '#88aaff' },
+            { key: 'ship-event-flagship', src: 'assets/ship_event_flagship.png',  name: 'Admirals-Flaggschiff', class: 'Beutedesigns', eventId: 'admiralsjagd',  badge: '👑', color: '#ff8844' },
+        ];
+        try {
+            const unlocked = JSON.parse(localStorage.getItem('ahc_ship_blueprints') || '[]');
+            return all.map(d => ({ ...d, unlocked: unlocked.includes(d.eventId) }));
+        } catch { return all.map(d => ({ ...d, unlocked: false })); }
+    }
+
     _build() {
         const el = document.createElement('div');
         el.id = 'ship-design-panel';
@@ -87,109 +99,68 @@ export default class ShipDesignPanel {
         const classes = [...new Set(designs.map(d => d.class))];
 
         classes.forEach(cls => {
-            const clsDesigns = designs.filter(d => d.class === cls);
-            const section = document.createElement('div');
-            section.style.marginBottom = '14px';
+            body.appendChild(this._buildSection(cls, designs.filter(d => d.class === cls)));
+        });
 
-            const title = document.createElement('div');
-            title.style.cssText = `
-                font-size: 11px;
-                letter-spacing: 2px;
-                color: #9fdcff;
-                text-transform: uppercase;
-                margin-bottom: 8px;
-                border-bottom: 1px solid rgba(99,214,255,0.2);
-                padding-bottom: 4px;
+        const evDesigns = this._eventDesigns();
+        const evSection = document.createElement('div');
+        evSection.style.marginBottom = '14px';
+        const evTitle = document.createElement('div');
+        evTitle.style.cssText = `
+            font-size:11px; letter-spacing:2px; color:#ffd36a;
+            text-transform:uppercase; margin-bottom:8px;
+            border-bottom:1px solid rgba(255,211,106,0.3); padding-bottom:4px;
+            display:flex; align-items:center; gap:6px;
+        `;
+        evTitle.innerHTML = `<span>📜 Beutedesigns (Event)</span>`;
+        evSection.appendChild(evTitle);
+        const evGrid = document.createElement('div');
+        evGrid.style.cssText = `display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px;`;
+        evDesigns.forEach(design => {
+            const card = document.createElement('div');
+            card.dataset.key = design.key;
+            const isActive = design.key === this._currentKey;
+            card.style.cssText = `
+                border:2px solid ${isActive ? '#d4aa40' : design.unlocked ? `${design.color}55` : 'rgba(255,255,255,0.08)'};
+                border-radius:6px; position:relative;
+                background:${isActive ? 'rgba(212,170,64,0.1)' : design.unlocked ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.35)'};
+                padding:8px 6px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;
+                cursor:${design.unlocked ? 'pointer' : 'default'}; touch-action:manipulation;
+                transition:border-color 0.15s,background 0.15s; overflow:hidden;
             `;
-            title.textContent = cls;
-            section.appendChild(title);
-
-            const grid = document.createElement('div');
-            grid.style.cssText = `
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-                gap: 8px;
-            `;
-
-            clsDesigns.forEach(design => {
-                const card = document.createElement('div');
-                card.dataset.key = design.key;
-                const isActive = design.key === this._currentKey;
-                card.style.cssText = `
-                    border: 2px solid ${isActive ? '#d4aa40' : 'rgba(255,255,255,0.12)'};
-                    border-radius: 6px;
-                    background: ${isActive ? 'rgba(212,170,64,0.1)' : 'rgba(255,255,255,0.04)'};
-                    padding: 8px 6px 6px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 6px;
-                    cursor: pointer;
-                    touch-action: manipulation;
-                    transition: border-color 0.15s, background 0.15s;
-                    position: relative;
-                `;
-                if (isActive) {
-                    const badge = document.createElement('div');
-                    badge.style.cssText = `
-                        position:absolute;top:4px;right:4px;
-                        background:#d4aa40;color:#000;
-                        font-size:8px;font-weight:bold;
-                        padding:1px 4px;border-radius:3px;letter-spacing:0.5px;
-                    `;
-                    badge.textContent = 'AKTIV';
-                    card.appendChild(badge);
-                }
-                const img = document.createElement('img');
-                img.src = design.src;
-                img.alt = design.name;
-                img.style.cssText = `
-                    width: 64px;
-                    height: 64px;
-                    object-fit: contain;
-                    image-rendering: auto;
-                `;
-                img.onerror = () => { img.style.display = 'none'; };
-
-                const name = document.createElement('div');
-                name.style.cssText = `
-                    font-size: 10px;
-                    color: #ddd;
-                    text-align: center;
-                    line-height: 1.2;
-                    word-break: break-word;
-                `;
-                name.textContent = design.name;
-
-                const costEl = document.createElement('div');
-                costEl.style.cssText = `
-                    font-size: 10px;
-                    color: ${design.cost === 0 ? '#7fffb0' : '#ffd36a'};
-                    font-weight: bold;
-                `;
-                costEl.textContent = design.cost === 0 ? 'Standard' : `${design.cost} 🪙`;
-
-                card.appendChild(img);
-                card.appendChild(name);
-                card.appendChild(costEl);
-
-                const activate = (e) => {
-                    e.preventDefault();
-                    this._equipShip(design);
-                    this._updateCards(design.key);
-                };
+            if (isActive) {
+                const b = document.createElement('div');
+                b.className = 'aktiv-badge';
+                b.style.cssText = `position:absolute;top:4px;right:4px;background:#d4aa40;color:#000;font-size:8px;font-weight:bold;padding:1px 4px;border-radius:3px;`;
+                b.textContent = 'AKTIV'; card.appendChild(b);
+            }
+            const img = document.createElement('img');
+            img.src = design.src; img.alt = design.name;
+            img.style.cssText = `width:64px;height:64px;object-fit:contain;${design.unlocked?'':'filter:grayscale(1) opacity(0.3);'}`;
+            img.onerror = () => { img.style.display='none'; };
+            const name = document.createElement('div');
+            name.style.cssText = `font-size:10px;color:${design.unlocked?'#ddd':'#555'};text-align:center;line-height:1.2;word-break:break-word;`;
+            name.textContent = design.name;
+            const costEl = document.createElement('div');
+            costEl.style.cssText = `font-size:10px;font-weight:bold;`;
+            if (design.unlocked) {
+                costEl.style.color = '#7fffb0';
+                costEl.textContent = `${design.badge} Gewonnen`;
+            } else {
+                costEl.style.color = '#555';
+                costEl.textContent = '🔒 Event';
+            }
+            card.appendChild(img); card.appendChild(name); card.appendChild(costEl);
+            if (design.unlocked) {
+                const activate = (e) => { e.preventDefault(); this._equipShip(design); this._updateCards(design.key); };
                 card.addEventListener('click', activate);
                 card.addEventListener('touchend', activate, { passive: false });
-                card.addEventListener('touchstart', () => {
-                    card.style.background = 'rgba(212,170,64,0.15)';
-                }, { passive: true });
-
-                grid.appendChild(card);
-            });
-
-            section.appendChild(grid);
-            body.appendChild(section);
+                card.addEventListener('touchstart', () => { card.style.background='rgba(212,170,64,0.12)'; }, { passive:true });
+            }
+            evGrid.appendChild(card);
         });
+        evSection.appendChild(evGrid);
+        body.appendChild(evSection);
 
         panel.appendChild(header);
         panel.appendChild(body);
@@ -205,6 +176,61 @@ export default class ShipDesignPanel {
         setTimeout(() => {
             el.querySelector('#sdp-close')?.addEventListener('click', () => this.hide());
         }, 0);
+    }
+
+    _buildSection(cls, clsDesigns) {
+        const section = document.createElement('div');
+        section.style.marginBottom = '14px';
+
+        const title = document.createElement('div');
+        title.style.cssText = `
+            font-size:11px; letter-spacing:2px; color:#9fdcff;
+            text-transform:uppercase; margin-bottom:8px;
+            border-bottom:1px solid rgba(99,214,255,0.2); padding-bottom:4px;
+        `;
+        title.textContent = cls;
+        section.appendChild(title);
+
+        const grid = document.createElement('div');
+        grid.style.cssText = `display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px;`;
+
+        clsDesigns.forEach(design => {
+            const card = document.createElement('div');
+            card.dataset.key = design.key;
+            const isActive = design.key === this._currentKey;
+            card.style.cssText = `
+                border:2px solid ${isActive ? '#d4aa40' : 'rgba(255,255,255,0.12)'};
+                border-radius:6px; background:${isActive ? 'rgba(212,170,64,0.1)' : 'rgba(255,255,255,0.04)'};
+                padding:8px 6px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;
+                cursor:pointer; touch-action:manipulation;
+                transition:border-color 0.15s,background 0.15s; position:relative;
+            `;
+            if (isActive) {
+                const badge = document.createElement('div');
+                badge.className = 'aktiv-badge';
+                badge.style.cssText = `position:absolute;top:4px;right:4px;background:#d4aa40;color:#000;font-size:8px;font-weight:bold;padding:1px 4px;border-radius:3px;letter-spacing:0.5px;`;
+                badge.textContent = 'AKTIV'; card.appendChild(badge);
+            }
+            const img = document.createElement('img');
+            img.src = design.src; img.alt = design.name;
+            img.style.cssText = `width:64px;height:64px;object-fit:contain;image-rendering:auto;`;
+            img.onerror = () => { img.style.display = 'none'; };
+            const name = document.createElement('div');
+            name.style.cssText = `font-size:10px;color:#ddd;text-align:center;line-height:1.2;word-break:break-word;`;
+            name.textContent = design.name;
+            const costEl = document.createElement('div');
+            costEl.style.cssText = `font-size:10px;color:${design.cost === 0 ? '#7fffb0' : '#ffd36a'};font-weight:bold;`;
+            costEl.textContent = design.cost === 0 ? 'Standard' : `${design.cost} 🪙`;
+            card.appendChild(img); card.appendChild(name); card.appendChild(costEl);
+            const activate = (e) => { e.preventDefault(); this._equipShip(design); this._updateCards(design.key); };
+            card.addEventListener('click', activate);
+            card.addEventListener('touchend', activate, { passive: false });
+            card.addEventListener('touchstart', () => { card.style.background = 'rgba(212,170,64,0.15)'; }, { passive: true });
+            grid.appendChild(card);
+        });
+
+        section.appendChild(grid);
+        return section;
     }
 
     _updateCards(activeKey) {

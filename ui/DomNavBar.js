@@ -20,6 +20,7 @@ export default class DomNavBar {
             { label: 'Kampf',    icon: '⚔',  action: () => this.scene.handleMenuAction('combat') },
             { label: 'Board',    icon: '🗺️', action: () => this.scene.handleMenuAction('board') },
             { label: 'Ausfahrt', icon: '⛵', action: () => this.scene.handleMenuAction('sail') },
+            { label: 'Chat',     icon: '💬', action: () => this.scene.handleMenuAction('chat') },
         ];
     }
 
