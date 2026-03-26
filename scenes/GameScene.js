@@ -2057,8 +2057,8 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'shipyard') {
-            if (!this.upgradePanelOpen) this.toggleUpgradePanel();
-            else this.showStatusMsg('Dockyard ready for another upgrade pass', 0x8be7ff);
+            if (this.upgradePanelOpen) this.toggleUpgradePanel();
+            this.shopPanel?.toggle();
             return;
         }
         if (action === 'shop') {
