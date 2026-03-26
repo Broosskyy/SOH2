@@ -157,12 +157,35 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('ship-large-1', 'assets/ship_manwar_1.png');
         this.load.image('ship-large-2', 'assets/ship_manwar_2.png');
 
+        /* Neon-Klasse Schiffe */
+        this.load.image('ship-neon-small-1', 'assets/ship_small_neon_1.webp');
+        this.load.image('ship-neon-small-2', 'assets/ship_small_neon_2.webp');
+        this.load.image('ship-neon-small-3', 'assets/ship_small_neon_3.webp');
+        this.load.image('ship-neon-small-4', 'assets/ship_small_neon_4.webp');
+        this.load.image('ship-neon-medium-1', 'assets/ship_medium_neon_1.webp');
+        this.load.image('ship-neon-medium-2', 'assets/ship_medium_neon_2.webp');
+        this.load.image('ship-neon-medium-3', 'assets/ship_medium_neon_3.webp');
+        this.load.image('ship-neon-large-1', 'assets/ship_large_neon_1.webp');
+        this.load.image('ship-neon-large-2', 'assets/ship_large_neon_2.webp');
+
+        /* Legendäre KI-generierte Schiffe */
+        this.load.image('ship-legend-black-galleon', 'assets/ship_legendary_black_galleon.png');
+        this.load.image('ship-legend-golden-manwar',  'assets/ship_legendary_golden_manwar.png');
+        this.load.image('ship-legend-ghost-galleon',  'assets/ship_legendary_ghost_galleon.png');
+
+        /* Neue Insel */
+        this.load.image('island-temple', 'assets/island_temple_ruins.png');
+
+        /* Goldene Kanonenkugel (Tier 4-5 Bonus) */
+        this.load.image('cannonball-golden', 'assets/projectile_golden_cannonball.png');
+
         this.load.image('monster-kraken', 'assets/monster_kraken_tentacle.webp');
         this.load.image('monster-leviathan', 'assets/monster_leviathan.webp');
         this.load.image('monster-shark', 'assets/monster_giant_shark_pro.webp');
         this.load.image('monster-demon', 'assets/monster_sea_demon_pro.webp');
 
-        this.load.image('ocean-bg', 'assets/gekachelterhintergrund-1.png');
+        this.load.image('ocean-bg',      'assets/gekachelterhintergrund-1.png');
+        this.load.image('ocean-deep-bg', 'assets/ocean_deep_tile.png');
         this.load.image('island-atoll',    'assets/island_atoll_pro.webp');
         this.load.image('island-reef',     'assets/island_reef_pro.webp');
         this.load.image('island-tropical', 'assets/island_tropical.png');
@@ -1187,15 +1210,25 @@ export default class GameScene extends Phaser.Scene {
 
     syncOceanBackground() {
         if (!this.background) return;
-        const width = this.scale.width;
+        const width  = this.scale.width;
         const height = this.scale.height;
         const tileScale = Math.max(0.72, Math.min(1.18, Math.max(width / 1600, height / 900)));
+        const chart = this.currentChartIndex ?? 1;
+
+        /* Switch texture + tint depending on chart depth */
+        const useDeep = chart >= 5 && this.textures.exists('ocean-deep-bg');
+        const texKey  = useDeep ? 'ocean-deep-bg' : 'ocean-bg';
+        if (this.background.texture?.key !== texKey) {
+            this.background.setTexture(texKey);
+        }
+        /* Tint: shallow=teal, mid=dark-blue, deep=very-dark-navy */
+        const tints = [0x4ec8c8, 0x2a8aa8, 0x1a5580, 0x0d3355, 0x08203a];
+        const tintIdx = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
+        this.background.setTint(tints[tintIdx]);
 
         this.background.setPosition(0, 0);
-        if (this.background.setSize) {
-            this.background.setSize(width, height);
-        }
-        this.background.width = width;
+        if (this.background.setSize) this.background.setSize(width, height);
+        this.background.width  = width;
         this.background.height = height;
         this.background.setScale(1);
         this.background.setTileScale(tileScale, tileScale);
@@ -1583,7 +1616,7 @@ handleResize(gameSize) {
             this.islandSpawnPoints.push({
                 x,
                 y,
-                texture: ['island-atoll','island-reef','island-tropical','island-volcanic','island-frozen','island-ruins'][this.islandSpawnPoints.length % 6]
+                texture: ['island-atoll','island-reef','island-tropical','island-volcanic','island-frozen','island-ruins','island-temple'][this.islandSpawnPoints.length % 7]
             });
         }
     }
@@ -1596,7 +1629,7 @@ handleResize(gameSize) {
 
         const ISLAND_RADII = {
             'island-atoll':    105, 'island-reef':     105, 'island-tropical': 108,
-            'island-volcanic':  95, 'island-frozen':   102, 'island-ruins':     80
+            'island-volcanic':  95, 'island-frozen':   102, 'island-ruins':     80, 'island-temple': 98
         };
 
         this.islandSpawnPoints.forEach((point) => {
@@ -4204,8 +4237,12 @@ handleResize(gameSize) {
         const spawnY = this.player.y + Math.sin(facingAngle) * muzzleDistance;
         const ammoKey = isHarpoon ? 'harpoon' : (ammoConfig?.key ?? 'cannonball');
 
+        /* Golden cannonball override for Episch (3) and Legendär (4) tier */
+        const _tier = this.playerCannonTier ?? 0;
         const AMMO_VISUALS = {
-            cannonball: { color:0xdddddd, trail:0xaaaaaa, size:7,  trailSize:8,  duration:210, impactColor:0xffffff, impactR:22, impactParticles:4,  particleColor:0xdddddd },
+            cannonball: _tier >= 3
+                ? { color:0xffd700, trail:0xff9900, size:9,  trailSize:14, duration:195, impactColor:0xffcc00, impactR:30, impactParticles:8, particleColor:0xffa500, golden:true }
+                : { color:0xdddddd, trail:0xaaaaaa, size:7,  trailSize:8,  duration:210, impactColor:0xffffff, impactR:22, impactParticles:4,  particleColor:0xdddddd },
             flare:      { color:0xff7700, trail:0xff4400, size:8,  trailSize:14, duration:200, impactColor:0xff6600, impactR:30, impactParticles:8,  particleColor:0xffaa00 },
             fire:       { color:0xff2200, trail:0xff6600, size:10, trailSize:18, duration:190, impactColor:0xff3300, impactR:40, impactParticles:12, particleColor:0xff6600 },
             storm:      { color:0xaa44ff, trail:0x6600ff, size:8,  trailSize:16, duration:170, impactColor:0xcc88ff, impactR:35, impactParticles:10, particleColor:0x8844ff },

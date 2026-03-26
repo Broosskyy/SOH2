@@ -30,6 +30,17 @@ export default class ShipDesignPanel {
             { key: 'ship-large-1',         src: 'assets/ship_manwar_1.png',                   name: 'Man-o-War I',      class: 'Linienschiff', cost: 4000 },
             { key: 'ship-large-2',         src: 'assets/ship_manwar_2.png',                   name: 'Man-o-War II',     class: 'Linienschiff', cost: 5500 },
 
+            /* ── Neon-Klasse ─────────────────────────────────── */
+            { key: 'ship-neon-small-1',  src: 'assets/ship_small_neon_1.webp',   name: 'Neon Kutter I',    class: 'Neon-Klasse', cost: 900  },
+            { key: 'ship-neon-small-2',  src: 'assets/ship_small_neon_2.webp',   name: 'Neon Kutter II',   class: 'Neon-Klasse', cost: 1100 },
+            { key: 'ship-neon-small-3',  src: 'assets/ship_small_neon_3.webp',   name: 'Neon Kutter III',  class: 'Neon-Klasse', cost: 1300 },
+            { key: 'ship-neon-small-4',  src: 'assets/ship_small_neon_4.webp',   name: 'Neon Kutter IV',   class: 'Neon-Klasse', cost: 1500 },
+            { key: 'ship-neon-medium-1', src: 'assets/ship_medium_neon_1.webp',  name: 'Neon Brigg I',     class: 'Neon-Klasse', cost: 2200 },
+            { key: 'ship-neon-medium-2', src: 'assets/ship_medium_neon_2.webp',  name: 'Neon Brigg II',    class: 'Neon-Klasse', cost: 2800 },
+            { key: 'ship-neon-medium-3', src: 'assets/ship_medium_neon_3.webp',  name: 'Neon Brigg III',   class: 'Neon-Klasse', cost: 3400 },
+            { key: 'ship-neon-large-1',  src: 'assets/ship_large_neon_1.webp',   name: 'Neon Galleon I',   class: 'Neon-Klasse', cost: 5500 },
+            { key: 'ship-neon-large-2',  src: 'assets/ship_large_neon_2.webp',   name: 'Neon Galleon II',  class: 'Neon-Klasse', cost: 7000 },
+
             /* ── Legendary ships — unique passive bonuses ────── */
             {
                 key: 'ship-small-5', src: 'assets/ship_cutter_5.png',
@@ -70,6 +81,30 @@ export default class ShipDesignPanel {
                 bonus: { damageMult: 1.40, speedMult: 0.90 },
                 bonusLabel: '🐉 +40% Schaden, -10% Speed',
                 bonusColor: '#ff9944'
+            },
+            {
+                key: 'ship-legend-black-galleon', src: 'assets/ship_legendary_black_galleon.png',
+                name: 'Schwarze Pest',  class: 'Legendär — Gallone',
+                cost: 9500, unlockLevel: 18,
+                bonus: { damageMult: 1.55, goldMult: 1.20 },
+                bonusLabel: '💀 +55% Schaden · +20% Gold',
+                bonusColor: '#cc44ff'
+            },
+            {
+                key: 'ship-legend-golden-manwar', src: 'assets/ship_legendary_golden_manwar.png',
+                name: 'El Dorado',      class: 'Legendär — Linienschiff',
+                cost: 13000, unlockLevel: 20,
+                bonus: { goldMult: 1.80, hpMult: 1.25 },
+                bonusLabel: '👑 +80% Gold · +25% HP',
+                bonusColor: '#ffd700'
+            },
+            {
+                key: 'ship-legend-ghost-galleon', src: 'assets/ship_legendary_ghost_galleon.png',
+                name: 'Geisterschiff',  class: 'Legendär — Phantom',
+                cost: 11500, unlockLevel: 16,
+                bonus: { stormImmune: true, speedMult: 1.30, damageMult: 1.15 },
+                bonusLabel: '👻 Sturm-Imm · +30% Speed · +15% DMG',
+                bonusColor: '#88ccff'
             },
             {
                 key: 'ship-large-2', src: 'assets/ship_manwar_2.png',
