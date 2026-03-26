@@ -21,6 +21,9 @@ export default class PlayerShip extends Ship {
             chainshot: false,
             grapeshot: false
         };
+        /* Hide the floating HP bar above the player ship — the HUD shows HP instead */
+        if (this.barBg)   this.barBg.setVisible(false);
+        if (this.barFill) this.barFill.setVisible(false);
         this.healthBarWidth = 64;
         this.healthBarHeight = 5;
         this.healthBarOffsetY = -52;
@@ -49,8 +52,8 @@ export default class PlayerShip extends Ship {
 
         this.moveTarget = null;
         this.useSpriteRotation = true;
-        this.navigationRotationSpeed = 0.05;
-        this.combatRotationSpeed = 0.24;
+        this.navigationRotationSpeed = 0.045; /* Smooth, nautical turn rate */
+        this.combatRotationSpeed     = 0.045; /* Same — no wild combat spin */
         this.rotationSpeed = this.navigationRotationSpeed;
         this.combatFacingTarget = null;
 
@@ -848,12 +851,8 @@ export default class PlayerShip extends Ship {
     }
 
     update() {
-        if (this.combatFacingTarget && this.combatFacingTarget.active) {
-            this.rotationSpeed = this.combatRotationSpeed;
-            this.targetAngle = Phaser.Math.Angle.Between(this.x, this.y, this.combatFacingTarget.x, this.combatFacingTarget.y);
-        } else {
-            this.rotationSpeed = this.navigationRotationSpeed;
-        }
+        /* Seafight-style: rotation always follows movement direction, never snaps to enemy */
+        this.rotationSpeed = this.navigationRotationSpeed;
 
         super.update();
         this.refreshShipInfoPanel();
@@ -868,11 +867,13 @@ export default class PlayerShip extends Ship {
                 const angle = Phaser.Math.Angle.Between(this.x, this.y, this.moveTarget.x, this.moveTarget.y);
                 const targetVx = Math.cos(angle) * this.speed;
                 const targetVy = Math.sin(angle) * this.speed;
-                const responseLerp = this.combatFacingTarget && this.combatFacingTarget.active ? 0.16 : 0.08;
 
-                this.body.setVelocityX(Phaser.Math.Linear(vx, targetVx, responseLerp));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, targetVy, responseLerp));
+                this.body.setVelocityX(Phaser.Math.Linear(vx, targetVx, 0.08));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, targetVy, 0.08));
                 this.setWakeVisible(true);
+
+                /* Always rotate toward movement direction — never toward combat target */
+                this.targetAngle = angle;
             } else {
                 this.body.setVelocityX(Phaser.Math.Linear(vx, 0, 0.1));
                 this.body.setVelocityY(Phaser.Math.Linear(vy, 0, 0.1));
@@ -891,12 +892,6 @@ export default class PlayerShip extends Ship {
                 this.body.setVelocity(0, 0);
                 this.setWakeVisible(false);
             }
-        }
-
-        if (this.combatFacingTarget && this.combatFacingTarget.active) {
-            this.targetAngle = Phaser.Math.Angle.Between(this.x, this.y, this.combatFacingTarget.x, this.combatFacingTarget.y);
-        } else if (this.body.velocity.length() > 5) {
-            this.targetAngle = Math.atan2(this.body.velocity.y, this.body.velocity.x);
         }
     }
 }

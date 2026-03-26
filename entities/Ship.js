@@ -81,9 +81,13 @@ export default class Ship extends Phaser.GameObjects.Container {
     takeDamage(amount) {
         this.hp -= amount;
         this.updateHealthBar();
-        
-        // Damage number popup
-        this.scene.events.emit('damage-popup', this.x, this.y - 20, amount);
+
+        /* Only emit damage-popup for the PLAYER ship.
+           Enemy ships get their own floating damage number from GameScene
+           via showEnemyDamageFloat() to avoid double display. */
+        if (this.scene?.player === this) {
+            this.scene.events.emit('damage-popup', this.x, this.y - 20, amount);
+        }
 
         if (this.hp <= 0) {
             this.onDeath();
