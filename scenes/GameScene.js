@@ -14,6 +14,7 @@ import CombatPanel from '../ui/CombatPanel.js';
 import AmmoBar from '../ui/AmmoBar.js';
 import ChartNav from '../ui/ChartNav.js';
 import DomNavBar from '../ui/DomNavBar.js';
+import ShipDesignPanel from '../ui/ShipDesignPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -110,7 +111,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('player-ship', 'assets/player_ship_royal_crimson_v1.webp');
+        this.load.image('player-ship',      'assets/player_ship_royal_crimson_v1.webp');
+        this.load.image('player-ship-neon', 'assets/player_ship_neon_pro.webp');
+        this.load.image('player-ship-pro',  'assets/player_ship_pro.webp');
 
         this.load.image('ship-small-1', 'assets/ship_small_neon_1.webp');
         this.load.image('ship-small-2', 'assets/ship_small_neon_2.webp');
@@ -311,7 +314,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.gifts, this.collectGift, null, this);
 
         this.createUI();
-        this.minimap = new Minimap(this, width - 188, 92, 160, worldWidth, worldHeight);
+        this.minimap = new Minimap(this, width - 208, 92, 190, worldWidth, worldHeight);
         this.minimap.setWorldMetrics(worldWidth, worldHeight);
         this.minimap.setChartInfo(this.currentChartIndex, this.currentChartConfig.name);
         this.minimap.setMinimized(this.isMinimapMinimized);
@@ -324,16 +327,17 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
-        this.shopPanel    = new ShopPanel(this);
-        this.missionPanel = new MissionPanel(this);
-        this.bonusPanel   = new BonusPanel(this);
-        this.eventsPanel  = new EventsPanel(this);
-        this.rangPanel    = new RangPanel(this);
-        this.boardPanel   = new BoardPanel(this);
-        this.combatPanel  = new CombatPanel(this);
-        this.ammoBar      = new AmmoBar(this);
-        this.chartNav     = new ChartNav(this);
-        this.domNavBar    = new DomNavBar(this);
+        this.shopPanel       = new ShopPanel(this);
+        this.missionPanel    = new MissionPanel(this);
+        this.bonusPanel      = new BonusPanel(this);
+        this.eventsPanel     = new EventsPanel(this);
+        this.rangPanel       = new RangPanel(this);
+        this.boardPanel      = new BoardPanel(this);
+        this.combatPanel     = new CombatPanel(this);
+        this.ammoBar         = new AmmoBar(this);
+        this.chartNav        = new ChartNav(this);
+        this.domNavBar       = new DomNavBar(this);
+        this.shipDesignPanel = new ShipDesignPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -341,7 +345,8 @@ export default class GameScene extends Phaser.Scene {
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
             [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel,
-             this.boardPanel, this.combatPanel, this.ammoBar, this.chartNav, this.domNavBar]
+             this.boardPanel, this.combatPanel, this.ammoBar, this.chartNav, this.domNavBar,
+             this.shipDesignPanel]
                 .forEach(p => p?.destroy());
         });
 
@@ -2072,8 +2077,7 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'shipyard') {
-            if (this.upgradePanelOpen) this.toggleUpgradePanel();
-            this.shopPanel?.toggle();
+            this.shipDesignPanel?.toggle();
             return;
         }
         if (action === 'shop') {
@@ -2161,7 +2165,7 @@ handleResize(gameSize) {
             this.minimapToggleBtn.setVisible(false);
             this.targetHUD.setVisible(false);
 
-            this.chartNav?.setShipVisible(this.isReturnToShipVisible);
+            this.chartNav?.setShipVisible(true);
             this.chartNav?.setAttackVisible(!!(this.TargetEnemy && this.TargetEnemy.active));
 
             if (this.leftTargetPanel) {

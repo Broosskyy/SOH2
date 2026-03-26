@@ -40,7 +40,7 @@ export default class ChartNav {
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
             padding: 0;

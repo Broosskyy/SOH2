@@ -19,32 +19,42 @@ export default class Minimap extends Phaser.GameObjects.Container {
         this.entityLayer = scene.add.graphics();
         this.overlayLayer = scene.add.graphics();
 
-        this.titleText = scene.add.text(this.panelWidth / 2, 7, 'Sea Chart', {
-            fontSize: '14px',
+        this.titleText = scene.add.text(10, 8, 'X: A1  Y: 1', {
+            fontSize: '11px',
             fontFamily: 'Arial',
-            fill: '#dff8ff',
+            fontStyle: 'bold',
+            fill: '#ffe89a',
             stroke: '#000000',
             strokeThickness: 3
-        }).setOrigin(0.5, 0);
+        }).setOrigin(0, 0);
 
-        this.levelText = scene.add.text(10, this.footerY - 1, 'Level 1', {
-            fontSize: '13px',
+        this.badgeText = scene.add.text(this.panelWidth - 9, 8, '2D', {
+            fontSize: '10px',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            fill: '#0a1824',
+            backgroundColor: '#d4aa40',
+            padding: { x: 4, y: 1 }
+        }).setOrigin(1, 0);
+
+        this.levelText = scene.add.text(10, this.footerY + 2, 'Lvl 1', {
+            fontSize: '11px',
             fontFamily: 'Arial',
             fill: '#ffffff',
             stroke: '#000000',
             strokeThickness: 3
         });
 
-        this.xpText = scene.add.text(this.panelWidth - 10, this.footerY - 1, 'XP', {
-            fontSize: '12px',
+        this.xpText = scene.add.text(this.panelWidth - 10, this.footerY + 2, 'XP', {
+            fontSize: '11px',
             fontFamily: 'Arial',
             fill: '#91eeff',
             stroke: '#000000',
             strokeThickness: 3
         }).setOrigin(1, 0);
 
-        this.playerSectorText = scene.add.text(this.panelWidth / 2, this.footerY - 1, 'Sector A1', {
-            fontSize: '12px',
+        this.playerSectorText = scene.add.text(this.panelWidth / 2, this.footerY + 2, 'Chart 1', {
+            fontSize: '11px',
             fontFamily: 'Arial',
             fill: '#ffe89a',
             stroke: '#000000',
@@ -77,6 +87,7 @@ export default class Minimap extends Phaser.GameObjects.Container {
             this.entityLayer,
             this.overlayLayer,
             this.titleText,
+            this.badgeText,
             ...this.columnLabels,
             ...this.rowLabels,
             this.levelText,
@@ -98,11 +109,11 @@ export default class Minimap extends Phaser.GameObjects.Container {
     configureMetrics(size) {
         this.size = size;
         this.panelWidth = size;
-        this.mapInset = 10;
-        this.mapTop = 26;
+        this.mapInset = 14;
+        this.mapTop = 30;
         this.mapSize = size - (this.mapInset * 2);
-        this.footerY = this.mapTop + this.mapSize + 10;
-        this.panelHeight = this.footerY + 26;
+        this.footerY = this.mapTop + this.mapSize + 8;
+        this.panelHeight = this.footerY + 28;
         this.minimizedPanelHeight = this.mapSize + 16;
         this.xpBarWidth = this.panelWidth - 20;
     }
@@ -142,42 +153,66 @@ export default class Minimap extends Phaser.GameObjects.Container {
         this.redrawFrame();
     }
 
+    _drawCornerDiamond(g, cx, cy, r) {
+        g.fillStyle(0xd4aa40, 1);
+        g.beginPath();
+        g.moveTo(cx, cy - r);
+        g.lineTo(cx + r, cy);
+        g.lineTo(cx, cy + r);
+        g.lineTo(cx - r, cy);
+        g.closePath();
+        g.fillPath();
+        g.fillStyle(0xfff0a0, 0.8);
+        g.fillCircle(cx, cy, r * 0.38);
+    }
+
     redrawFrame() {
         this.bg.clear();
         this.grid.clear();
         this.xpBarBg.clear();
 
         const topOffset = this.isMinimized ? 8 : this.mapTop;
+        const W = this.panelWidth;
 
         if (this.isMinimized) {
-            this.bg.fillStyle(0x1b1309, 0.96);
-            this.bg.lineStyle(3, 0xb88b42, 0.98);
-            this.bg.fillRoundedRect(0, 0, this.panelWidth, this.mapSize + 16, 12);
-            this.bg.strokeRoundedRect(0, 0, this.panelWidth, this.mapSize + 16, 12);
-
-            this.bg.lineStyle(2, 0x6b4a20, 0.95);
-            this.bg.strokeRoundedRect(4, 4, this.panelWidth - 8, this.mapSize + 8, 10);
-
-            this.bg.fillStyle(0x102432, 0.94);
-            this.bg.lineStyle(2, 0xdbbe7a, 0.92);
-            this.bg.fillRoundedRect(this.mapInset, topOffset, this.mapSize, this.mapSize, 8);
-            this.bg.strokeRoundedRect(this.mapInset, topOffset, this.mapSize, this.mapSize, 8);
+            const H = this.mapSize + 16;
+            this.bg.fillStyle(0x1b0e04, 0.97);
+            this.bg.fillRoundedRect(0, 0, W, H, 10);
+            this.bg.lineStyle(4, 0xc8902a, 1);
+            this.bg.strokeRoundedRect(0, 0, W, H, 10);
+            this.bg.lineStyle(1.5, 0xffd070, 0.7);
+            this.bg.strokeRoundedRect(3, 3, W - 6, H - 6, 8);
+            this.bg.fillStyle(0x0d2030, 0.95);
+            this.bg.fillRoundedRect(this.mapInset, topOffset, this.mapSize, this.mapSize, 6);
+            this.bg.lineStyle(1.5, 0xb8902a, 0.9);
+            this.bg.strokeRoundedRect(this.mapInset, topOffset, this.mapSize, this.mapSize, 6);
         } else {
-            this.bg.fillStyle(0x1b1309, 0.96);
-            this.bg.lineStyle(3, 0xc79a52, 0.98);
-            this.bg.fillRoundedRect(0, 0, this.panelWidth, this.panelHeight, 12);
-            this.bg.strokeRoundedRect(0, 0, this.panelWidth, this.panelHeight, 12);
+            const H = this.panelHeight;
+            this.bg.fillStyle(0x1b0e04, 0.97);
+            this.bg.fillRoundedRect(0, 0, W, H, 10);
 
-            this.bg.lineStyle(2, 0x6b4a20, 0.95);
-            this.bg.strokeRoundedRect(4, 4, this.panelWidth - 8, this.panelHeight - 8, 10);
+            this.bg.lineStyle(5, 0xa07020, 1);
+            this.bg.strokeRoundedRect(0, 0, W, H, 10);
+            this.bg.lineStyle(2, 0xffd060, 0.9);
+            this.bg.strokeRoundedRect(2.5, 2.5, W - 5, H - 5, 8);
+            this.bg.lineStyle(1, 0x7a5010, 0.7);
+            this.bg.strokeRoundedRect(5, 5, W - 10, H - 10, 6);
 
-            this.bg.fillStyle(0x102432, 0.95);
-            this.bg.lineStyle(2, 0xe0c887, 0.92);
-            this.bg.fillRoundedRect(this.mapInset, this.mapTop, this.mapSize, this.mapSize, 8);
-            this.bg.strokeRoundedRect(this.mapInset, this.mapTop, this.mapSize, this.mapSize, 8);
+            const r = 6;
+            this._drawCornerDiamond(this.bg, r + 1, r + 1, r);
+            this._drawCornerDiamond(this.bg, W - r - 1, r + 1, r);
+            this._drawCornerDiamond(this.bg, r + 1, H - r - 1, r);
+            this._drawCornerDiamond(this.bg, W - r - 1, H - r - 1, r);
+
+            this.bg.fillStyle(0x0a1d2e, 0.97);
+            this.bg.fillRoundedRect(this.mapInset, this.mapTop, this.mapSize, this.mapSize, 5);
+            this.bg.lineStyle(2, 0xd4aa40, 0.85);
+            this.bg.strokeRoundedRect(this.mapInset, this.mapTop, this.mapSize, this.mapSize, 5);
+            this.bg.lineStyle(1, 0xfff0a0, 0.35);
+            this.bg.strokeRoundedRect(this.mapInset + 2, this.mapTop + 2, this.mapSize - 4, this.mapSize - 4, 4);
         }
 
-        this.grid.lineStyle(1, 0xd8c286, this.isMinimized ? 0.12 : 0.2);
+        this.grid.lineStyle(1, 0xd8c286, this.isMinimized ? 0.1 : 0.18);
         for (let i = 0; i <= 4; i++) {
             const offset = this.mapInset + ((this.mapSize / 4) * i);
             this.grid.beginPath();
@@ -191,18 +226,19 @@ export default class Minimap extends Phaser.GameObjects.Container {
         this.columnLabels.forEach((label, index) => {
             label.setVisible(!this.isMinimized);
             if (!this.isMinimized) {
-                label.setPosition(this.mapInset + ((this.mapSize / 4) * index) + (this.mapSize / 8), this.mapTop - 10);
+                label.setPosition(this.mapInset + ((this.mapSize / 4) * index) + (this.mapSize / 8), this.mapTop - 11);
             }
         });
 
         this.rowLabels.forEach((label, index) => {
             label.setVisible(!this.isMinimized);
             if (!this.isMinimized) {
-                label.setPosition(this.mapInset - 8, this.mapTop + ((this.mapSize / 4) * index) + (this.mapSize / 8));
+                label.setPosition(this.mapInset - 9, this.mapTop + ((this.mapSize / 4) * index) + (this.mapSize / 8));
             }
         });
 
         this.titleText.setVisible(!this.isMinimized);
+        this.badgeText.setVisible(!this.isMinimized);
         this.levelText.setVisible(!this.isMinimized);
         this.playerSectorText.setVisible(!this.isMinimized);
         this.xpText.setVisible(!this.isMinimized);
@@ -210,8 +246,8 @@ export default class Minimap extends Phaser.GameObjects.Container {
         this.xpBarFill.setVisible(!this.isMinimized);
 
         if (!this.isMinimized) {
-            this.xpBarBg.fillStyle(0x000000, 0.7);
-            this.xpBarBg.fillRoundedRect(10, this.footerY + 12, this.xpBarWidth, 7, 4);
+            this.xpBarBg.fillStyle(0x000000, 0.65);
+            this.xpBarBg.fillRoundedRect(10, this.footerY + 14, this.xpBarWidth, 6, 3);
         }
     }
 
@@ -319,10 +355,14 @@ export default class Minimap extends Phaser.GameObjects.Container {
         if (!this.isMinimized) {
             const columnIndex = Phaser.Math.Clamp(Math.floor((player.x / this.worldWidth) * 4), 0, 3);
             const rowIndex = Phaser.Math.Clamp(Math.floor((player.y / this.worldHeight) * 4), 0, 3);
-            const sectorLabel = `${String.fromCharCode(65 + columnIndex)}${rowIndex + 1}`;
+            const colLabel = String.fromCharCode(65 + columnIndex);
+            const sectorLabel = `${colLabel}${rowIndex + 1}`;
             const chartIndex = this.chartIndex ?? this.scene.currentChartIndex ?? 1;
-            this.levelText.setText(`Lvl ${player.level} • Chart ${chartIndex}`);
-            this.playerSectorText.setText(`Sector ${sectorLabel}`);
+            const gx = Math.floor((player.x / this.worldWidth) * 48);
+            const gy = Math.floor((player.y / this.worldHeight) * 48);
+            this.titleText.setText(`(${chartIndex}) X: ${gx}  Y: ${gy}`);
+            this.levelText.setText(`Lvl ${player.level}`);
+            this.playerSectorText.setText(`Sektor ${sectorLabel}`);
             this.xpText.setText(`${Math.floor(player.xp)}/${100 * player.level} XP`);
         }
 
@@ -330,7 +370,7 @@ export default class Minimap extends Phaser.GameObjects.Container {
         if (!this.isMinimized) {
             const xpPercent = Phaser.Math.Clamp(player.xp / (100 * player.level), 0, 1);
             this.xpBarFill.fillStyle(0x58dcff, 1);
-            this.xpBarFill.fillRoundedRect(10, this.footerY + 12, this.xpBarWidth * xpPercent, 7, 4);
+            this.xpBarFill.fillRoundedRect(10, this.footerY + 14, this.xpBarWidth * xpPercent, 6, 3);
         }
     }
 }
