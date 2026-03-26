@@ -25,6 +25,7 @@ import MultiplayerPanel from '../ui/MultiplayerPanel.js';
 import ItemBar from '../ui/ItemBar.js';
 import PirateTrialPanel, { PIRATE_TRIALS } from '../ui/PirateTrialPanel.js';
 import DailyQuestPanel from '../ui/DailyQuestPanel.js';
+import ReputationHUD from '../ui/ReputationHUD.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -203,7 +204,10 @@ export default class GameScene extends Phaser.Scene {
         this._initTrialSystem();
         this.createPlayerVisualEffects();
         this._loadProgress();
-        this.time.delayedCall(200, () => { this.talentPanel?.applyAllToPlayer(); });
+        this.time.delayedCall(200, () => {
+            this.talentPanel?.applyAllToPlayer();
+            this._refreshPlayerInfoHUD();
+        });
 
         this.playerReturnHighlight = this.add.circle(this.player.x, this.player.y, 54, 0x7fd3ff, 0.12)
             .setStrokeStyle(4, 0xcdf6ff, 0.95)
@@ -374,6 +378,7 @@ export default class GameScene extends Phaser.Scene {
         this.itemBar          = new ItemBar(this);
         this.pirateTrialPanel = new PirateTrialPanel(this);
         this.dailyQuestPanel  = new DailyQuestPanel(this);
+        this.reputationHUD    = new ReputationHUD(this);
 
         this.navBar.setVisible(false);
 
@@ -384,7 +389,7 @@ export default class GameScene extends Phaser.Scene {
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
              this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
              this.adminPanel, this.talentPanel, this.multiplayerPanel,
-             this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel]
+             this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
         });
@@ -404,11 +409,17 @@ export default class GameScene extends Phaser.Scene {
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
                 this._updateTrialProgress('npc_kills', 1);
                 this._dropRandomItem(npc.x, npc.y, 0.12);
+                const repGain = 15 + (npc.level ?? 1) * 5;
+                this.reputationHUD?.addReputation(repGain, 'NPC besiegt');
+                this.reputationHUD?.addBounty(Math.round(repGain * 2.5));
                 this.time.delayedCall(10000, () => this.spawnNPC());
             } else if (npc instanceof Monster) {
                 this.dailyQuestPanel?.addProgress('monsters', 1);
                 this._updateTrialProgress('monsters', 1);
                 this._dropRandomItem(npc.x, npc.y, 0.30);
+                const repGain = 40 + (npc.level ?? 1) * 12;
+                this.reputationHUD?.addReputation(repGain, 'Monster besiegt');
+                this.reputationHUD?.addBounty(Math.round(repGain * 4));
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
         });
@@ -464,10 +475,12 @@ export default class GameScene extends Phaser.Scene {
         }, this);
         this.events.on('level-up', (level) => {
             this.updateUIBars();
-            this.showStatusMsg(`⭐ Level Up! Level ${level} erreicht! • +1 Skillpunkt`, 0xffff00);
             this.refreshSeaGateUI();
             this.talentPanel?.addSkillPoint(1);
-            this._checkPirateTrial(level);
+            const trialMsg = this._checkPirateTrial(level);
+            const rewards = [`Max HP +20`, `+1 Kanonenschlitz geöffnet`];
+            this.domNavBar?.showLevelUp(level, rewards, trialMsg ?? '');
+            this._refreshPlayerInfoHUD();
         });
         this.events.on('player-upgraded', (type) => {
             this.attackInterval = this.player.reloadTime;
@@ -2531,13 +2544,13 @@ handleResize(gameSize) {
 
         this.goldContainer.setPosition(12, navH);
 
+        this.progressContainer.setVisible(false);
+
         if (isLandscape) {
             this.progressContainer.setPosition(width - 248, navH);
 
             this.targetHUD.x = width / 2;
             this.targetHUD.y = navH + 18;
-
-            this.progressContainer.setVisible(false);
             this.returnToShipBtn.setVisible(false);
             this.actionsContainer.setVisible(false);
             this.minimapToggleBtn.setVisible(false);
@@ -4009,11 +4022,12 @@ handleResize(gameSize) {
 
     _checkPirateTrial(level) {
         const trial = PIRATE_TRIALS.find(t => t.level === level && !this._completedTrials?.has(t.level));
-        if (!trial) return;
+        if (!trial) return null;
         this._activeTrial = { ...trial, progress: this._trialProgress[trial.level] ?? 0 };
-        this.time.delayedCall(800, () => {
+        this.time.delayedCall(1200, () => {
             this.pirateTrialPanel?.show(this._activeTrial);
         });
+        return `Piratenprüfung verfügbar: ${trial.name}`;
     }
 
     startPirateTrial(trial) {
@@ -4179,6 +4193,20 @@ handleResize(gameSize) {
     _updateItemBar() {
         if (!this.player || !this.itemBar) return;
         this.itemBar.update(this.player.inventory ?? {}, this.player.activeEffects ?? {});
+    }
+
+    /* ═══════════════════ PLAYER INFO HUD ═══════════════════ */
+
+    _refreshPlayerInfoHUD() {
+        if (!this.player || !this.domNavBar) return;
+        const name  = window._loginUsername ?? 'Kapitän';
+        const level = this.player.level ?? 1;
+        let guildTag = null, guildName = null;
+        try {
+            const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
+            if (gData) { guildTag = gData.tag ?? gData.name?.substring(0, 4).toUpperCase(); guildName = gData.name; }
+        } catch (e) {}
+        this.domNavBar.setPlayerInfo(name, level, guildTag, guildName);
     }
 }
 
