@@ -4,14 +4,32 @@ const ISLAND_CONFIG = {
     'island-atoll': {
         scale: 1.42,
         minimapRadiusScale: 0.62,
-        collisionScaleX: 0.56,
-        collisionScaleY: 0.48
+        collisionRadiusFactor: 0.28
     },
     'island-reef': {
         scale: 1.28,
         minimapRadiusScale: 0.58,
-        collisionScaleX: 0.64,
-        collisionScaleY: 0.54
+        collisionRadiusFactor: 0.26
+    },
+    'island-tropical': {
+        scale: 1.35,
+        minimapRadiusScale: 0.60,
+        collisionRadiusFactor: 0.27
+    },
+    'island-volcanic': {
+        scale: 1.20,
+        minimapRadiusScale: 0.52,
+        collisionRadiusFactor: 0.25
+    },
+    'island-frozen': {
+        scale: 1.30,
+        minimapRadiusScale: 0.55,
+        collisionRadiusFactor: 0.26
+    },
+    'island-ruins': {
+        scale: 1.25,
+        minimapRadiusScale: 0.50,
+        collisionRadiusFactor: 0.24
     }
 };
 
@@ -25,8 +43,7 @@ export default class Island extends Phaser.GameObjects.Image {
         const config = ISLAND_CONFIG[texture] ?? {
             scale: 1.12,
             minimapRadiusScale: 0.48,
-            collisionScaleX: 0.6,
-            collisionScaleY: 0.5
+            collisionRadiusFactor: 0.26
         };
 
         this.islandConfig = config;
@@ -38,9 +55,10 @@ export default class Island extends Phaser.GameObjects.Image {
 
         const body = this.body;
         if (body) {
-            const collisionWidth = Math.max(80, this.displayWidth * config.collisionScaleX);
-            const collisionHeight = Math.max(80, this.displayHeight * config.collisionScaleY);
-            body.setSize(collisionWidth, collisionHeight);
+            const r = Math.floor(Math.min(this.displayWidth, this.displayHeight) * config.collisionRadiusFactor);
+            const offsetX = Math.floor(this.displayWidth / 2 - r);
+            const offsetY = Math.floor(this.displayHeight / 2 - r);
+            body.setCircle(r, offsetX, offsetY);
             body.updateFromGameObject();
             body.moves = false;
             body.immovable = true;

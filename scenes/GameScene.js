@@ -4,7 +4,7 @@ import Gift from '../entities/Gift.js';
 import Monster from '../entities/Monster.js';
 import Island from '../entities/Island.js';
 import Minimap from '../ui/Minimap.js';
-import ShopPanel from '../ui/ShopPanel.js';
+import PremiumShopPanel from '../ui/PremiumShopPanel.js';
 import MissionPanel from '../ui/MissionPanel.js';
 import BonusPanel from '../ui/BonusPanel.js';
 import EventsPanel from '../ui/EventsPanel.js';
@@ -137,8 +137,12 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('monster-demon', 'assets/monster_sea_demon_pro.webp');
 
         this.load.image('ocean-bg', 'assets/gekachelterhintergrund-1.png');
-        this.load.image('island-atoll', 'assets/island_atoll_pro.webp');
-        this.load.image('island-reef', 'assets/island_reef_pro.webp');
+        this.load.image('island-atoll',    'assets/island_atoll_pro.webp');
+        this.load.image('island-reef',     'assets/island_reef_pro.webp');
+        this.load.image('island-tropical', 'assets/island_tropical.png');
+        this.load.image('island-volcanic', 'assets/island_volcanic.png');
+        this.load.image('island-frozen',   'assets/island_frozen.png');
+        this.load.image('island-ruins',    'assets/island_ruins.png');
         this.load.image('gift-chest', 'assets/loot_treasure_chest_gold.webp');
         this.load.image('gold-bag', 'assets/loot_gold_bag_pro.webp');
         this.load.image('xp-orb', 'assets/loot_xp_orb_pro.webp');
@@ -330,7 +334,7 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
-        this.shopPanel       = new ShopPanel(this);
+        this.premiumShopPanel = new PremiumShopPanel(this);
         this.missionPanel    = new MissionPanel(this);
         this.bonusPanel      = new BonusPanel(this);
         this.eventsPanel     = new EventsPanel(this);
@@ -347,7 +351,7 @@ export default class GameScene extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
-            [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel,
+            [this.premiumShopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel,
              this.boardPanel, this.combatPanel, this.ammoBar, this.chartNav, this.domNavBar,
              this.shipDesignPanel]
                 .forEach(p => p?.destroy());
@@ -386,7 +390,7 @@ export default class GameScene extends Phaser.Scene {
             this.updateUIBars();
             this.refreshUpgradeTexts();
             this.playUpgradeBurst(type);
-            if (this.shopPanel?.visible) this.shopPanel.show();
+            if (this.premiumShopPanel?.isOpen()) this.premiumShopPanel.show();
             this.missionPanel?.trackUpgrade();
         });
         this.events.on('gold-collected', (amount) => {
@@ -866,7 +870,7 @@ handleResize(gameSize) {
             this.islandSpawnPoints.push({
                 x,
                 y,
-                texture: this.islandSpawnPoints.length % 2 === 0 ? 'island-atoll' : 'island-reef'
+                texture: ['island-atoll','island-reef','island-tropical','island-volcanic','island-frozen','island-ruins'][this.islandSpawnPoints.length % 6]
             });
         }
     }
@@ -984,41 +988,44 @@ handleResize(gameSize) {
         if (!defeatedEntity) return;
 
         const isMonster = defeatedEntity instanceof Monster;
-        const baseGold = isMonster
-            ? Phaser.Math.Between(50, 110)
-            : Phaser.Math.Between(30, 80);
-        const baseMaterials = isMonster
-            ? Phaser.Math.Between(4, 9)
-            : Phaser.Math.Between(2, 5);
-        const bonusXP = Math.max(10, Math.round(defeatedEntity.xpValue * 0.35));
+        const tier = defeatedEntity.npcTier ?? (isMonster ? 3 : 1);
 
-        this.createLootDrop(defeatedEntity.x, defeatedEntity.y, {
-            type: 'gold-bag',
-            goldValue: baseGold,
-            materialValue: 0,
-            xpValue: Math.round(bonusXP * 0.35),
-            hpValue: 0,
-            scale: 0.082
-        });
+        const lootTable = defeatedEntity.getLootTable?.() ?? null;
 
-        this.createLootDrop(defeatedEntity.x, defeatedEntity.y, {
-            type: 'gift-chest',
-            goldValue: Math.round(baseGold * 0.45),
-            materialValue: baseMaterials,
-            xpValue: Math.round(bonusXP * 0.65),
-            hpValue: Phaser.Math.Between(8, 20),
-            scale: 0.082
-        });
-
-        if (isMonster || Phaser.Math.Between(0, 100) < 40) {
-            this.createLootDrop(defeatedEntity.x, defeatedEntity.y, {
-                type: 'xp-orb',
-                goldValue: 0,
-                materialValue: isMonster ? Phaser.Math.Between(1, 3) : 0,
-                xpValue: bonusXP,
-                hpValue: 0,
-                scale: 0.12
-            });
+        if (lootTable) {
+            const totalW = lootTable.reduce((s, e) => s + e.weight, 0);
+            const dropCount = tier === 3 ? 3 : tier === 2 ? 2 : 1;
+            for (let i = 0; i < dropCount; i++) {
+                let roll = Phaser.Math.Between(0, totalW - 1);
+                let chosen = lootTable[lootTable.length - 1];
+                for (const entry of lootTable) {
+                    roll -= entry.weight;
+                    if (roll < 0) { chosen = entry; break; }
+                }
+                this.createLootDrop(defeatedEntity.x, defeatedEntity.y, {
+                    type: chosen.type,
+                    goldValue:    Phaser.Math.Between(chosen.gold[0], chosen.gold[1]),
+                    materialValue: Phaser.Math.Between(0, tier),
+                    xpValue:      Phaser.Math.Between(chosen.xp[0], chosen.xp[1]),
+                    hpValue:      chosen.type === 'gift-chest' ? Phaser.Math.Between(10, 30 * tier) : 0,
+                    scale:        chosen.type === 'xp-orb' ? 0.12 : 0.082
+                });
+            }
+            if (tier >= 2 && Phaser.Math.Between(0, 100) < 35) {
+                this.createLootDrop(defeatedEntity.x, defeatedEntity.y, {
+                    type: 'xp-orb', goldValue: 0, materialValue: tier - 1,
+                    xpValue: Phaser.Math.Between(50 * tier, 120 * tier), hpValue: 0, scale: 0.12
+                });
+            }
+        } else {
+            const baseGold = isMonster ? Phaser.Math.Between(50, 110) : Phaser.Math.Between(30, 80);
+            const baseMats = isMonster ? Phaser.Math.Between(4, 9) : Phaser.Math.Between(2, 5);
+            const bonusXP  = Math.max(10, Math.round(defeatedEntity.xpValue * 0.35));
+            this.createLootDrop(defeatedEntity.x, defeatedEntity.y, { type: 'gold-bag',   goldValue: baseGold, materialValue: 0, xpValue: Math.round(bonusXP * 0.35), hpValue: 0, scale: 0.082 });
+            this.createLootDrop(defeatedEntity.x, defeatedEntity.y, { type: 'gift-chest', goldValue: Math.round(baseGold * 0.45), materialValue: baseMats, xpValue: Math.round(bonusXP * 0.65), hpValue: Phaser.Math.Between(8, 20), scale: 0.082 });
+            if (isMonster || Phaser.Math.Between(0, 100) < 40) {
+                this.createLootDrop(defeatedEntity.x, defeatedEntity.y, { type: 'xp-orb', goldValue: 0, materialValue: isMonster ? Phaser.Math.Between(1, 3) : 0, xpValue: bonusXP, hpValue: 0, scale: 0.12 });
+            }
         }
     }
 
@@ -2064,7 +2071,7 @@ handleResize(gameSize) {
 
     _anyPanelOpen() {
         return !!(
-            this.shopPanel?.visible ||
+            this.premiumShopPanel?.isOpen() ||
             this.missionPanel?.visible ||
             this.bonusPanel?.visible ||
             this.eventsPanel?.visible ||
@@ -2084,7 +2091,7 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'shop') {
-            if (this.shopPanel) this.shopPanel.toggle();
+            this.premiumShopPanel?.toggle();
             return;
         }
         if (action === 'board') {

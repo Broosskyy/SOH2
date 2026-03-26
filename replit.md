@@ -6,18 +6,29 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 
 - `index.html` – Einstiegspunkt, lädt Phaser 3 (v3.70.0), Tone.js und InstantDB via Import-Maps
 - `main.js` – Phaser-Spielkonfiguration, startet `GameScene`
-- `scenes/GameScene.js` – Hauptspielszene (3300+ Zeilen): Welt, Kamera, UI, Kampf, Karten
+- `scenes/LoginScene.js` – Login + Registrierung (Tab-System), localStorage-Konten
+- `scenes/LoadingScene.js` – Ladeszene (2.6s) mit Fortschrittsbalken
+- `scenes/GameScene.js` – Hauptspielszene (3400+ Zeilen): Welt, Kamera, UI, Kampf, Karten
 - `entities/` – Spielobjekte:
-  - `Ship.js` – Basisklasse für alle Schiffe
+  - `Ship.js` – Basisklasse (Container) für alle Schiffe
   - `PlayerShip.js` – Spielerschiff mit Upgrade-System, Munitionstypen
   - `PlayerStats.js` – Statistikmodell des Spielers
-  - `NPCShip.js` – Feindliche NPC-Schiffe
+  - `NPCShip.js` – Feindliche NPC-Schiffe (3 Tiers, Fraktionen, benannte Kapitäne)
   - `Monster.js` – Seeungeheuer (Kraken, Leviathan, Hai, Seedämon)
-  - `Island.js` – Inseln als Hindernisse
-  - `Gift.js` – Loot (Gold, Materialien, XP)
-- `ui/Minimap.js` – Minimap-Komponente
+  - `Island.js` – Inseln als Hindernisse (6 Typen, Kreis-Kollision)
+  - `Gift.js` – Loot-Drops (Gold, Materialien, XP)
+- `ui/` – DOM & Phaser UI-Komponenten:
+  - `Minimap.js` – Minimap-Komponente (190px, BOS-Stil, Goldrahmen, Koordinaten)
+  - `PremiumShopPanel.js` – Premium-Item-Shop (4 Tabs: Upgrades, Munition, Besatzung, Premium)
+  - `ShipDesignPanel.js` – Schiffsdesign-Panel (13 Kategorien)
+  - `MissionPanel.js`, `BonusPanel.js`, `EventsPanel.js`, `RangPanel.js`, `BoardPanel.js`, `CombatPanel.js`
+  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js`
 - `assets/` – Alle Bild-Assets (WebP, PNG, JPG)
-- `rosie/` – Rosie-Integrations-Controls
+
+## Szenen-Fluss
+
+`LoginScene` → `LoadingScene` (2.6s) → `GameScene`
+- `window._loginUsername` speichert den Benutzernamen zwischen den Szenen
 
 ## Spielmechanik
 
@@ -27,7 +38,41 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - 6 Munitionstypen: Iron Ball, Leuchtkugel, Feuerkugel, Sturmkugel, Chain Shot, Grape Shot
 - Skill-Bar mit 3 Kampffähigkeiten (Burst, Break, Repair) mit Cooldowns
 - Upgrade-System: Rumpf, Segel, Kanonen, Decks, Munitionstechnik
-- Gold und Materialien als Ressourcen
+- Gold und Materialien als Ressourcen; Edelsteine (gems) für Premium-Items
+
+## NPC-System (3 Tiers)
+
+- **Tier 1** (60%): Kleines Schiff (Kutter), Piraten/Schmuggler Fraktion, 260 HP
+- **Tier 2** (30%): Mittelgroßes Schiff (Brigantin), Korsaren/Flibustier Fraktion, 560 HP
+- **Tier 3** (10%): Großes Schiff (Kriegsschiff), Kriegsmarine/Teufelsgilde Fraktion, 1040 HP
+- Jeder NPC hat Fraktionstag + benannten Kapitän (z.B. „[PIR] Roter Sam")
+- Loot-Tabelle skaliert nach Tier (mehr Gold/XP für größere Gegner, mehrere Drops)
+
+## Insel-System (6 Typen)
+
+- `island-atoll`, `island-reef` – Klassische BOS-Inseln (webp)
+- `island-tropical` – KI-generierte tropische Insel (PNG, transparent)
+- `island-volcanic` – KI-generierte Vulkaninsel (PNG, transparent)
+- `island-frozen` – KI-generierte arktische Insel (PNG, transparent)
+- `island-ruins` – KI-generierte Ruinen-Insel (PNG, transparent)
+- Alle Inseln verwenden **Kreis-Physik-Kollision** (setCircle, nicht setSize)
+- Inseltypen wechseln zyklisch (per Index % 6)
+
+## Login & Registrierung
+
+- Zwei Tabs: "Anmeldung" und "Registrierung"
+- Konten in `localStorage` als `ahc_accounts` Array gespeichert
+- Validierung: Benutzername 3–20 Zeichen, gültige E-Mail, Passwort min. 6 Zeichen
+- Ohne gespeicherte Konten: jeder Benutzername wird akzeptiert (Demo-Modus)
+
+## Premium-Shop (PremiumShopPanel)
+
+- 4 Tabs: Upgrades, Munition, Besatzung, Premium (Edelsteine)
+- Gold-Items: Rumpf reparieren, Kanonenstärke, Geschwindigkeit, Nachladezeit, HP-Boost
+- Munitions-Items: Leuchtfackel, Brandkugeln, Sturmkugeln, Kettenschuss, Kartätsche
+- Besatzungs-Items: Kanonier, Schiffsarzt, Navigator, Spion
+- Premium-Items (💎): Sofort-Reparatur, XP-Boost, Gold-Pack, Titan-Kanone
+- Ersetzt den alten `ShopPanel`
 
 ## Schiffs-Assets
 
