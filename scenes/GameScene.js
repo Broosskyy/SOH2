@@ -4,6 +4,7 @@ import Gift from '../entities/Gift.js';
 import Monster from '../entities/Monster.js';
 import Island from '../entities/Island.js';
 import Minimap from '../ui/Minimap.js';
+import ShopPanel from '../ui/ShopPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -309,9 +310,12 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
+        this.shopPanel = new ShopPanel(this);
+
         this.scale.on('resize', this.handleResize, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
+            if (this.shopPanel) this.shopPanel.destroy();
         });
 
         this.events.on('damage-popup', this.showDamagePopup, this);
@@ -346,6 +350,7 @@ export default class GameScene extends Phaser.Scene {
             this.updateUIBars();
             this.refreshUpgradeTexts();
             this.playUpgradeBurst(type);
+            if (this.shopPanel?.visible) this.shopPanel.show();
         });
 
         this.finalizeChartEntryPosition();
@@ -2051,7 +2056,7 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'shop') {
-            this.toggleUpgradePanel();
+            if (this.shopPanel) this.shopPanel.toggle();
             return;
         }
         if (action === 'board') {
