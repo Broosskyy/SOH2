@@ -9,6 +9,8 @@ import MissionPanel from '../ui/MissionPanel.js';
 import BonusPanel from '../ui/BonusPanel.js';
 import EventsPanel from '../ui/EventsPanel.js';
 import RangPanel from '../ui/RangPanel.js';
+import BoardPanel from '../ui/BoardPanel.js';
+import CombatPanel from '../ui/CombatPanel.js';
 import DomNavBar from '../ui/DomNavBar.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
@@ -325,6 +327,8 @@ export default class GameScene extends Phaser.Scene {
         this.bonusPanel   = new BonusPanel(this);
         this.eventsPanel  = new EventsPanel(this);
         this.rangPanel    = new RangPanel(this);
+        this.boardPanel   = new BoardPanel(this);
+        this.combatPanel  = new CombatPanel(this);
         this.domNavBar    = new DomNavBar(this);
 
         this.navBar.setVisible(false);
@@ -332,7 +336,8 @@ export default class GameScene extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
-            [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel, this.domNavBar]
+            [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel,
+             this.boardPanel, this.combatPanel, this.domNavBar]
                 .forEach(p => p?.destroy());
         });
 
@@ -1380,6 +1385,7 @@ handleResize(gameSize) {
             this.seaGateRightHit
         ]);
         this.topUiContainer.add(this.seaGateContainer);
+        this.seaGateContainer.setVisible(false);
 
         this.chatPanel = this.add.container(22, height - 500).setScrollFactor(0).setDepth(4210);
         this.chatDragHandle = this.createPanelDragHandle('chat', 70, 20, 'MOVE');
@@ -1589,6 +1595,7 @@ handleResize(gameSize) {
             this.panelQuickDockButtons.push({ ...def, button, bg, label, hit });
         });
         this.topUiContainer.add(this.panelQuickDock);
+        this.panelQuickDock.setVisible(false);
 
         this.actionsContainer = this.add.container(width - 210, height - 212).setDepth(5000);
         this.attackBtn = this.add.image(0, 0, 'attack-btn')
@@ -1737,6 +1744,7 @@ handleResize(gameSize) {
             this.skillBar,
             this.ammoRack
         ]);
+        this.ammoRack.setVisible(false);
         this.topUiContainer.add(this.actionsContainer);
 
 
@@ -2047,7 +2055,9 @@ handleResize(gameSize) {
             this.missionPanel?.visible ||
             this.bonusPanel?.visible ||
             this.eventsPanel?.visible ||
-            this.rangPanel?.visible
+            this.rangPanel?.visible ||
+            this.boardPanel?.visible ||
+            this.combatPanel?.visible
         );
     }
 
@@ -2066,7 +2076,11 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'board') {
-            this.toggleMinimapSize();
+            this.boardPanel?.toggle();
+            return;
+        }
+        if (action === 'combat') {
+            this.combatPanel?.toggle();
             return;
         }
         if (action === 'sail') {
