@@ -45,7 +45,7 @@ export default class GameScene extends Phaser.Scene {
         this.uiPanelPositions = {};
         this.cameraReturnTween = null;
         this.cameraDefaultZoom = 1;
-        this.isMinimapMinimized = false;
+        this.isMinimapMinimized = true;
         this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
         this.isReturnToShipVisible = false;
