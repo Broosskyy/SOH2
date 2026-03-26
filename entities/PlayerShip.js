@@ -24,10 +24,19 @@ export default class PlayerShip extends Ship {
         this.healthBarWidth = 64;
         this.healthBarHeight = 5;
         this.healthBarOffsetY = -52;
-        this.captainTag = '[SEA]';
-        this.captainName = 'Rosie Corsair';
-        this.playerId = '784211';
+        const savedGuild = (() => { try { return JSON.parse(localStorage.getItem('ahc_my_guild') || 'null'); } catch { return null; } })();
+        this.captainName = window._loginUsername ?? 'Kapitän';
+        this.captainTag  = savedGuild?.tag ? `[${savedGuild.tag}]` : '[SEA]';
+        this.playerId    = '784211';
         this.shipInfoStateKey = '';
+
+        this.voodooPoints = 140;
+        this.voodooMax    = 200;
+        this.goldDeckSlots  = 3;
+        this.pearlDeckSlots = 3;
+        this.mojoDeck       = false;
+        this.pvpMode        = true;
+        this.cannonSlotCount = 8;
         this.updateDerivedStats();
         this.updateHealthBar();
         this.createUnderShipInfoPanel();
@@ -525,111 +534,142 @@ export default class PlayerShip extends Ship {
         this.waterHalo.fillEllipse(0, -68, 90, 40);
         this.shipInfoPanel.add(this.waterHalo);
 
-        this.nameText = this.scene.add.text(0, 0, '', {
-            fontSize: '13px',
-            fontFamily: 'Arial',
-            fontStyle: 'bold',
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 4,
-            align: 'center'
+        this.infoBg = this.scene.add.graphics();
+        this.shipInfoPanel.add(this.infoBg);
+
+        this.leftBadgeGfx  = this.scene.add.graphics();
+        this.rightBadgeGfx = this.scene.add.graphics();
+        this.shipInfoPanel.add([this.leftBadgeGfx, this.rightBadgeGfx]);
+
+        this.nameText = this.scene.add.text(0, -2, '', {
+            fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold',
+            color: '#ffffff', stroke: '#000000', strokeThickness: 4, align: 'center'
         }).setOrigin(0.5, 0.5);
+        this.shipInfoPanel.add(this.nameText);
 
-        this.clanTagText = this.scene.add.text(-40, 0, '', {
-            fontSize: '11px',
-            fontFamily: 'Arial',
-            fontStyle: 'bold',
-            color: '#f7e349',
-            stroke: '#000000',
-            strokeThickness: 3,
-            align: 'center'
+        this.hpBar      = this.scene.add.graphics();
+        this.voodooBar  = this.scene.add.graphics();
+        this.xpBar      = this.scene.add.graphics();
+        this.hpNumText  = this.scene.add.text(0, 14, '', {
+            fontSize: '9px', fontFamily: 'Arial', fontStyle: 'bold',
+            color: '#ffffff', stroke: '#000000', strokeThickness: 2, align: 'center'
         }).setOrigin(0.5, 0.5);
+        this.shipInfoPanel.add([this.hpBar, this.hpNumText, this.voodooBar, this.xpBar]);
 
-        this.rankIconGfx = this.scene.add.graphics();
+        this.deckGfx = this.scene.add.graphics();
+        this.cannonNumText = this.scene.add.text(0, 40, '', {
+            fontSize: '11px', fontFamily: 'Arial', fontStyle: 'bold',
+            color: '#ffd36a', stroke: '#000000', strokeThickness: 3, align: 'center'
+        }).setOrigin(0.5, 0.5);
+        this.shipInfoPanel.add([this.deckGfx, this.cannonNumText]);
 
-        this.hpBar = this.scene.add.graphics();
-        this.xpBar = this.scene.add.graphics();
-
-        this.shipInfoPanel.add([this.nameText, this.clanTagText, this.rankIconGfx, this.hpBar, this.xpBar]);
-
-        this.statDisplayRows = [
-            { key: 'decks', label: 'DECK', color: 0x6ce6dd, textColor: '#d7fffc', valueGetter: () => `${this.deckCount}` },
-            { key: 'cannons', label: 'CAN', color: 0xffc56a, textColor: '#fff2d4', valueGetter: () => `${this.cannonCount}` },
-            { key: 'broadside', label: 'DMG', color: 0xff7d6b, textColor: '#ffe1dc', valueGetter: () => `${this.getTotalDamagePerShot(this.ammoMultiplier ?? 1)}` },
-            { key: 'ammo', label: 'AMMO', color: 0x9f8cff, textColor: '#efe7ff', valueGetter: () => this.getAmmoDisplayCount(this.scene.currentAmmoType ?? 'cannonball') }
-        ];
-
-        this.statDisplayRows.forEach((row, index) => {
-            const slotX = -90 + (index * 60);
-            const slot = this.scene.add.container(slotX, 40);
-            const icon = this.scene.add.graphics();
-            const valueText = this.scene.add.text(0, 12, '', {
-                fontSize: '11px',
-                fontFamily: 'Arial',
-                fontStyle: 'bold',
-                color: row.textColor,
-                stroke: '#000000',
-                strokeThickness: 2,
-                align: 'center'
-            }).setOrigin(0.5, 0.5);
-            const labelText = this.scene.add.text(0, 24, row.label, {
-                fontSize: '9px',
-                fontFamily: 'Arial',
-                color: '#9fb8c8',
-                stroke: '#000000',
-                strokeThickness: 2,
-                align: 'center'
-            }).setOrigin(0.5, 0.5);
-
-            slot.add([icon, valueText, labelText]);
-            this.shipInfoPanel.add(slot);
-            row.slot = slot;
-            row.icon = icon;
-            row.valueText = valueText;
-            row.labelText = labelText;
-        });
+        this.rankIconGfx  = this.scene.add.graphics();
+        this.clanTagText  = this.scene.add.text(0, 0, '', { fontSize: '1px' });
+        this.shipInfoPanel.add(this.rankIconGfx);
     }
 
-    drawShipInfoIcon(type, graphic, color) {
-        graphic.clear();
-        graphic.fillStyle(color, 0.16);
-        graphic.lineStyle(1.5, color, 0.95);
-        graphic.fillRoundedRect(-18, -10, 36, 20, 8);
-        graphic.strokeRoundedRect(-18, -10, 36, 20, 8);
+    _drawLeftBadge(gfx, level) {
+        gfx.clear();
+        const cx = -82, cy = 2;
+        const rankColor = level >= 20 ? 0xffd700 : level >= 10 ? 0xd4d4d4 : level >= 5 ? 0xcd7f32 : 0x9fbccc;
+        gfx.fillStyle(0x222233, 0.7);
+        gfx.fillCircle(cx, cy, 12);
+        gfx.lineStyle(1.5, rankColor, 0.9);
+        gfx.strokeCircle(cx, cy, 12);
+        gfx.lineStyle(1, rankColor, 0.5);
+        gfx.strokeCircle(cx, cy, 10);
+        gfx.fillStyle(rankColor, 0.9);
+        gfx.fillCircle(cx, cy - 3, 4);
+        gfx.fillStyle(rankColor, 0.7);
+        gfx.beginPath();
+        gfx.moveTo(cx - 5, cy + 1);
+        gfx.lineTo(cx + 5, cy + 1);
+        gfx.lineTo(cx + 5, cy + 5);
+        gfx.lineTo(cx - 5, cy + 5);
+        gfx.closePath();
+        gfx.fillPath();
+        gfx.lineStyle(2, rankColor, 0.9);
+        gfx.beginPath();
+        gfx.moveTo(cx - 5, cy + 3);
+        gfx.lineTo(cx + 5, cy + 3);
+        gfx.strokePath();
+    }
 
-        if (type === 'decks') {
-            graphic.lineStyle(2, color, 1);
-            graphic.strokeRoundedRect(-10, -5, 20, 4, 2);
-            graphic.strokeRoundedRect(-8, -1, 16, 4, 2);
-            graphic.strokeRoundedRect(-6, 3, 12, 4, 2);
-        } else if (type === 'cannons') {
-            graphic.lineStyle(2, color, 1);
-            graphic.strokeCircle(-5, 0, 3);
-            graphic.strokeCircle(5, 0, 3);
-            graphic.beginPath();
-            graphic.moveTo(-2, -2);
-            graphic.lineTo(10, -6);
-            graphic.moveTo(-2, 2);
-            graphic.lineTo(10, 6);
-            graphic.strokePath();
-        } else if (type === 'broadside') {
-            graphic.lineStyle(2, color, 1);
-            graphic.beginPath();
-            graphic.moveTo(-10, 6);
-            graphic.lineTo(-4, -6);
-            graphic.lineTo(0, 3);
-            graphic.lineTo(5, -8);
-            graphic.lineTo(10, 5);
-            graphic.strokePath();
-        } else if (type === 'ammo') {
-            graphic.lineStyle(2, color, 1);
-            graphic.strokeCircle(0, 0, 5);
-            graphic.beginPath();
-            graphic.moveTo(-7, 7);
-            graphic.lineTo(7, -7);
-            graphic.moveTo(-7, -7);
-            graphic.lineTo(7, 7);
-            graphic.strokePath();
+    _drawRightBadge(gfx, pvpMode) {
+        gfx.clear();
+        const cx = 82, cy = 2;
+        if (!pvpMode) return;
+        gfx.fillStyle(0x440000, 0.8);
+        gfx.fillCircle(cx, cy, 11);
+        gfx.lineStyle(1.5, 0xff4444, 0.9);
+        gfx.strokeCircle(cx, cy, 11);
+        gfx.lineStyle(2, 0xff8888, 0.9);
+        gfx.beginPath();
+        gfx.moveTo(cx - 5, cy - 6);
+        gfx.lineTo(cx + 5, cy + 6);
+        gfx.moveTo(cx + 5, cy - 6);
+        gfx.lineTo(cx - 5, cy + 6);
+        gfx.strokePath();
+        gfx.fillStyle(0xff4444, 0.9);
+        gfx.fillCircle(cx - 5, cy - 6, 2);
+        gfx.fillCircle(cx + 5, cy - 6, 2);
+        gfx.fillCircle(cx, cy + 7, 2);
+    }
+
+    _drawGoldDeckIcon(gfx, x, y) {
+        gfx.fillStyle(0xff8800, 0.9);
+        gfx.fillCircle(x, y, 5);
+        gfx.lineStyle(1, 0xffaa00, 1);
+        gfx.strokeCircle(x, y, 5);
+        gfx.fillStyle(0x000000, 0.6);
+        gfx.fillCircle(x - 1.5, y - 1, 1.5);
+        gfx.fillCircle(x + 1.5, y - 1, 1.5);
+        gfx.fillStyle(0x000000, 0.5);
+        gfx.beginPath();
+        gfx.arc(x, y + 1, 2.5, 0, Math.PI, false);
+        gfx.fillPath();
+        gfx.fillStyle(0xff8800, 0.8);
+        gfx.fillCircle(x - 3, y + 8, 2);
+        gfx.fillCircle(x, y + 8, 2);
+        gfx.fillCircle(x + 3, y + 8, 2);
+    }
+
+    _drawPearlDeckIcon(gfx, x, y) {
+        gfx.fillStyle(0x2288ff, 0.9);
+        gfx.fillTriangle(x - 5, y + 3, x, y - 6, x + 5, y + 3);
+        gfx.fillTriangle(x - 7, y + 3, x - 3, y + 3, x - 5, y + 7);
+        gfx.fillTriangle(x + 3, y + 3, x + 7, y + 3, x + 5, y + 7);
+        gfx.lineStyle(1, 0x66bbff, 0.9);
+        gfx.strokeTriangle(x - 5, y + 3, x, y - 6, x + 5, y + 3);
+        gfx.fillStyle(0x2288ff, 0.8);
+        gfx.fillCircle(x - 3, y + 10, 2);
+        gfx.fillCircle(x, y + 10, 2);
+        gfx.fillCircle(x + 3, y + 10, 2);
+    }
+
+    _drawMojoDeckIcon(gfx, x, y) {
+        gfx.fillStyle(0xaa44ff, 0.9);
+        const pts = [0,-7, 2,-2, 7,-2, 3,1, 4,7, 0,3, -4,7, -3,1, -7,-2, -2,-2];
+        gfx.beginPath();
+        gfx.moveTo(x + pts[0], y + pts[1]);
+        for (let i = 2; i < pts.length; i += 2) gfx.lineTo(x + pts[i], y + pts[i+1]);
+        gfx.closePath();
+        gfx.fillPath();
+        gfx.lineStyle(1, 0xcc88ff, 0.9);
+        gfx.beginPath();
+        gfx.moveTo(x + pts[0], y + pts[1]);
+        for (let i = 2; i < pts.length; i += 2) gfx.lineTo(x + pts[i], y + pts[i+1]);
+        gfx.closePath();
+        gfx.strokePath();
+    }
+
+    _drawCannonSlotIcons(gfx, x, y, count, color) {
+        gfx.fillStyle(color, 0.85);
+        gfx.lineStyle(1, color, 0.9);
+        for (let i = 0; i < Math.min(count, 5); i++) {
+            const cx = x + i * 11;
+            gfx.fillCircle(cx, y, 3.5);
+            gfx.strokeCircle(cx, y, 3.5);
         }
     }
 
@@ -637,73 +677,87 @@ export default class PlayerShip extends Ship {
         if (!this.shipInfoPanel) return;
 
         const hpText = `${Math.ceil(this.hp)}/${this.maxHP}`;
+        const vdPct  = Math.round((this.voodooPoints ?? 0) / (this.voodooMax ?? 1) * 100);
         const stateKey = [
-            this.captainTag,
-            this.captainName,
-            this.playerId,
-            hpText,
-            this.deckCount,
-            this.cannonCount,
-            this.getTotalDamagePerShot(this.ammoMultiplier ?? 1),
-            this.scene.currentAmmoType ?? 'cannonball',
-            this.getAmmoDisplayCount(this.scene.currentAmmoType ?? 'cannonball'),
-            this.level ?? 1,
-            this.xp ?? 0
+            this.captainTag, this.captainName, hpText, vdPct,
+            this.goldDeckSlots, this.pearlDeckSlots, this.mojoDeck,
+            this.pvpMode, this.cannonSlotCount, this.cannonCount,
+            this.level ?? 1, this.xp ?? 0
         ].join('|');
 
         if (!force && this.shipInfoStateKey === stateKey) return;
         this.shipInfoStateKey = stateKey;
 
-        this.clanTagText.setText(this.captainTag ?? '');
-        const nameWidth = this.clanTagText.width;
-        this.clanTagText.setX(-(nameWidth / 2 + 4));
-        this.nameText.setText(this.captainName ?? '');
-        this.nameText.setX((nameWidth / 2 + 4));
-
-        const barWidth = 120;
-        const hpPercent = Phaser.Math.Clamp(this.hp / this.maxHP, 0, 1);
-        const hpColor = hpPercent > 0.5 ? 0x38f287 : hpPercent > 0.25 ? 0xffd45c : 0xff6f6f;
-        this.hpBar.clear();
-        this.hpBar.fillStyle(0x000000, 0.45);
-        this.hpBar.fillRoundedRect(-(barWidth / 2), 12, barWidth, 6, 3);
-        this.hpBar.fillStyle(hpColor, 1);
-        this.hpBar.fillRoundedRect(-(barWidth / 2), 12, barWidth * hpPercent, 6, 3);
-
-        const xpMax = 100 * (this.level ?? 1);
-        const xpPercent = Phaser.Math.Clamp((this.xp ?? 0) / xpMax, 0, 1);
-        this.xpBar.clear();
-        this.xpBar.fillStyle(0x000000, 0.45);
-        this.xpBar.fillRoundedRect(-(barWidth / 2), 20, barWidth, 4, 2);
-        this.xpBar.fillStyle(0xa855f7, 1);
-        this.xpBar.fillRoundedRect(-(barWidth / 2), 20, barWidth * xpPercent, 4, 2);
-
         const level = this.level ?? 1;
-        this.rankIconGfx.clear();
-        const rankColor = level >= 20 ? 0xffd700 : level >= 10 ? 0xc0c0c0 : level >= 5 ? 0xcd7f32 : 0x8899aa;
-        const iconX = 68;
-        const iconY = 0;
-        this.rankIconGfx.fillStyle(rankColor, 0.9);
-        this.rankIconGfx.lineStyle(1, rankColor, 1);
-        if (level >= 20) {
-            for (let i = 0; i < 5; i++) {
-                const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-                const px = iconX + Math.cos(a) * 7;
-                const py = iconY + Math.sin(a) * 7;
-                this.rankIconGfx.fillCircle(px, py, 2);
-            }
-        } else if (level >= 10) {
-            this.rankIconGfx.strokeTriangle(iconX - 6, iconY + 4, iconX + 6, iconY + 4, iconX, iconY - 6);
-            this.rankIconGfx.fillTriangle(iconX - 5, iconY + 3, iconX + 5, iconY + 3, iconX, iconY - 5);
-        } else if (level >= 5) {
-            this.rankIconGfx.fillRect(iconX - 5, iconY - 5, 10, 10);
-        } else {
-            this.rankIconGfx.fillCircle(iconX, iconY, 5);
+
+        const BW = 130;
+        const BX = -(BW / 2);
+
+        this.infoBg.clear();
+        this.infoBg.fillStyle(0x000000, 0.35);
+        this.infoBg.fillRoundedRect(-96, -14, 192, 62, 6);
+
+        this._drawLeftBadge(this.leftBadgeGfx, level);
+        this._drawRightBadge(this.rightBadgeGfx, this.pvpMode);
+
+        const tag  = this.captainTag  ? `${this.captainTag} ` : '';
+        const pvpIcon = this.pvpMode ? ' ⚔' : '';
+        this.nameText.setText(`☠ ${tag}${this.captainName ?? 'Kapitän'}${pvpIcon}`);
+
+        const hpPercent = Phaser.Math.Clamp((this.hp ?? 0) / (this.maxHP ?? 1), 0, 1);
+        const hpColor   = hpPercent > 0.5 ? 0x38f287 : hpPercent > 0.25 ? 0xffd45c : 0xff4444;
+        this.hpBar.clear();
+        this.hpBar.fillStyle(0x000000, 0.55);
+        this.hpBar.fillRoundedRect(BX, 8, BW, 9, 4);
+        this.hpBar.fillStyle(0x003311, 0.5);
+        this.hpBar.fillRoundedRect(BX + 1, 9, BW - 2, 7, 3);
+        this.hpBar.fillStyle(hpColor, 1);
+        this.hpBar.fillRoundedRect(BX + 1, 9, Math.max(2, (BW - 2) * hpPercent), 7, 3);
+        this.hpBar.lineStyle(1, hpColor, 0.5);
+        this.hpBar.strokeRoundedRect(BX, 8, BW, 9, 4);
+
+        this.hpNumText.setText(`${Math.ceil(this.hp ?? 0)} / ${this.maxHP ?? 0}`);
+        this.hpNumText.setY(14);
+
+        const vdPercent = Phaser.Math.Clamp((this.voodooPoints ?? 0) / (this.voodooMax ?? 1), 0, 1);
+        this.voodooBar.clear();
+        this.voodooBar.fillStyle(0x000000, 0.45);
+        this.voodooBar.fillRoundedRect(BX, 19, BW, 5, 2);
+        this.voodooBar.fillStyle(0x8822dd, 0.4);
+        this.voodooBar.fillRoundedRect(BX + 1, 20, BW - 2, 3, 1);
+        this.voodooBar.fillStyle(0xaa44ff, 1);
+        this.voodooBar.fillRoundedRect(BX + 1, 20, Math.max(2, (BW - 2) * vdPercent), 3, 1);
+        this.voodooBar.lineStyle(1, 0xaa44ff, 0.4);
+        this.voodooBar.strokeRoundedRect(BX, 19, BW, 5, 2);
+
+        const xpMax = 100 * level;
+        const xpPct = Phaser.Math.Clamp((this.xp ?? 0) / xpMax, 0, 1);
+        this.xpBar.clear();
+        this.xpBar.fillStyle(0xffd700, 0.22);
+        this.xpBar.fillRoundedRect(BX, 26, BW * xpPct, 2, 1);
+
+        this.deckGfx.clear();
+        const gold  = Math.max(0, Math.min(5, this.goldDeckSlots  ?? 3));
+        const pearl = Math.max(0, Math.min(5, this.pearlDeckSlots ?? 3));
+        const gStartX = -65;
+        const pStartX = 20;
+
+        for (let i = 0; i < gold; i++) {
+            this._drawGoldDeckIcon(this.deckGfx, gStartX + i * 14, 35);
+        }
+        for (let i = 0; i < pearl; i++) {
+            this._drawPearlDeckIcon(this.deckGfx, pStartX + i * 14, 33);
+        }
+        if (this.mojoDeck) {
+            this._drawMojoDeckIcon(this.deckGfx, pStartX + pearl * 14 + 4, 34);
         }
 
-        this.statDisplayRows.forEach((row) => {
-            row.valueText.setText(row.valueGetter());
-            this.drawShipInfoIcon(row.key, row.icon, row.color);
-        });
+        const cannonStr = `${this.cannonSlotCount ?? this.cannonCount ?? 8}`;
+        this.cannonNumText.setText(cannonStr);
+        this.cannonNumText.setX(-3);
+        this.cannonNumText.setY(40);
+
+        this.rankIconGfx.clear();
     }
 
     moveTo(targetX, targetY) {
