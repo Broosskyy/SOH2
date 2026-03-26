@@ -1711,41 +1711,6 @@ handleResize(gameSize) {
         ]);
         this.topUiContainer.add(this.actionsContainer);
 
-        this.utilityBar = this.add.container(width - 118, height - 74);
-        this.inventoryBtn = this.add.image(0, 0, 'inventory-btn').setScale(0.105).setDepth(4200);
-        this.inventoryHit = this.add.zone(0, 0, 76, 76)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .setData('uiControl', true)
-            .setDepth(4200);
-        this.inventoryHit.on('pointerdown', (pointer) => {
-            pointer?.event?.stopPropagation?.();
-            this.toggleUpgradePanel();
-        });
-
-        this.shopBtn = this.add.image(-86, 0, 'shop-btn').setScale(0.105).setDepth(4200);
-        this.shopHit = this.add.zone(-86, 0, 76, 76)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .setData('uiControl', true)
-            .setDepth(4200);
-        this.shopHit.on('pointerdown', (pointer) => {
-            pointer?.event?.stopPropagation?.();
-            this.handleMenuAction('shop');
-        });
-
-        this.mapBtn = this.add.image(-172, 0, 'map-btn').setScale(0.105).setDepth(4200);
-        this.mapHit = this.add.zone(-172, 0, 76, 76)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .setData('uiControl', true)
-            .setDepth(4200);
-        this.mapHit.on('pointerdown', (pointer) => {
-            pointer?.event?.stopPropagation?.();
-            this.toggleMinimapSize();
-        });
-        this.utilityBar.add([this.inventoryBtn, this.inventoryHit, this.shopBtn, this.shopHit, this.mapBtn, this.mapHit]);
-        this.topUiContainer.add(this.utilityBar);
 
         this.upgradePanel = this.add.container(width - 404, 96).setScrollFactor(0).setDepth(4300).setVisible(false);
         this.upgradePanelDragHandle = this.createPanelDragHandle('upgrade', 80, 22, 'MOVE');
@@ -1838,9 +1803,6 @@ handleResize(gameSize) {
             this.chatSendHit,
             this.statusFeedToggleHit,
             this.attackBtnHit,
-            this.inventoryHit,
-            this.shopHit,
-            this.mapHit,
             this.hullUpgradeBtn.hit,
             this.sailsUpgradeBtn.hit,
             this.cannonUpgradeBtn.hit,
@@ -2143,7 +2105,6 @@ if (isLandscape) {
     this.statusFeedDragHandle.container.setPosition(130, 8);
 
     this.actionsContainer.setPosition(width - 178, height - 138);
-    this.utilityBar.setPosition(width - 98, height - 62);
 
     this.upgradePanel.setPosition(width - 404, 96);
     this.upgradePanelDragHandle.container.setPosition(248, 10);
@@ -2170,7 +2131,6 @@ if (isLandscape) {
     this.statusFeedDragHandle.container.setPosition(130, 8);
 
     this.actionsContainer.setPosition(width - 192, height - 164);
-    this.utilityBar.setPosition(width - 98, height - 62);
 
     this.upgradePanel.setPosition(upgradePos.x, upgradePos.y);
     this.upgradePanelDragHandle.container.setPosition(248, 10);
@@ -2782,6 +2742,18 @@ if (isLandscape) {
         this.upgradePanelOpen = !this.upgradePanelOpen;
         if (this.upgradePanel) {
             this.upgradePanel.setVisible(this.upgradePanelOpen);
+            const panelZones = [
+                this.hullUpgradeBtn?.hit, this.sailsUpgradeBtn?.hit,
+                this.cannonUpgradeBtn?.hit, this.cannonSlotsUpgradeBtn?.hit,
+                this.deckUpgradeBtn?.hit, this.ammoUpgradeBtn?.hit,
+                this.chainshotUnlockBtn?.hit, this.grapeshotUnlockBtn?.hit,
+                this.upgradeCloseHit
+            ].filter(Boolean);
+            if (this.upgradePanelOpen) {
+                panelZones.forEach(z => z.setInteractive({ useHandCursor: true }));
+            } else {
+                panelZones.forEach(z => z.disableInteractive());
+            }
         }
         this.refreshUpgradeTexts();
     }
