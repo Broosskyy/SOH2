@@ -59,7 +59,6 @@
     <script src="https://storage.googleapis.com/rosebud_staticfiles/ProgressLogger.js"></script>
     <script src="https://storage.googleapis.com/rosebud_staticfiles/OGP.js"></script>
     <script>
-      // Request fullscreen on first touch for mobile
       (function() {
         let fsRequested = false;
         function requestFS() {
@@ -71,6 +70,20 @@
         }
         document.addEventListener('touchend', requestFS, { once: true, passive: true });
         document.addEventListener('click', requestFS, { once: true });
+
+        window.onerror = function(msg, src, line, col, err) {
+          const div = document.createElement('div');
+          div.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#c00;color:#fff;padding:10px;font:13px monospace;max-height:50vh;overflow:auto;word-break:break-all;';
+          div.textContent = '❌ ' + msg + (src ? ' [' + src.split('/').pop() + ':' + line + ':' + col + ']' : '');
+          document.body.appendChild(div);
+          return false;
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+          const div = document.createElement('div');
+          div.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#900;color:#fff;padding:10px;font:13px monospace;max-height:50vh;overflow:auto;word-break:break-all;';
+          div.textContent = '⚠ Promise: ' + (e.reason?.message || e.reason || 'unknown');
+          document.body.appendChild(div);
+        });
       })();
     </script>
   </body>

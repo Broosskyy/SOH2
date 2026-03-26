@@ -37,7 +37,7 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
             body.position.set(x - r, y - r);
             body.center.set(x, y);
             body.moves = false; body.immovable = true;
-            if (body.world) { body.world.staticTree.remove(body); body.world.staticTree.add(body); }
+            if (body.world) { body.world.staticTree.remove(body); body.world.staticTree.insert(body); }
         }
     }
 

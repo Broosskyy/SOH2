@@ -915,15 +915,15 @@ handleResize(gameSize) {
 
     _spawnGuildIsland(worldWidth, worldHeight) {
         if (this.guildIsland) { try { this.guildIsland.destroy(); } catch {} this.guildIsland = null; }
-        const gx = Phaser.Math.Between(worldWidth * 0.35, worldWidth * 0.65);
-        const gy = Phaser.Math.Between(worldHeight * 0.35, worldHeight * 0.65);
         try {
+            const gx = Math.round(worldWidth * 0.5 + (Math.random() - 0.5) * worldWidth * 0.3);
+            const gy = Math.round(worldHeight * 0.5 + (Math.random() - 0.5) * worldHeight * 0.3);
             this.guildIsland = new GuildIsland(this, gx, gy);
             const proxy = this.add.image(gx, gy, 'island-guild').setAlpha(0);
             proxy.setData('isGuildIsland', true);
             proxy.setData('minimapRadius', 22);
             this.islands.add(proxy);
-        } catch(e) { console.warn('GuildIsland spawn error:', e); }
+        } catch(e) { console.warn('[AHC] GuildIsland spawn error:', e?.message || e); }
     }
 
     startShipEvent(eventId) {

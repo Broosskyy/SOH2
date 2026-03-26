@@ -40,7 +40,7 @@ export default class Island extends Phaser.GameObjects.Image {
             body.immovable = true;
             if (body.world) {
                 body.world.staticTree.remove(body);
-                body.world.staticTree.add(body);
+                body.world.staticTree.insert(body);
             }
         }
     }
