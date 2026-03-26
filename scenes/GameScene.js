@@ -83,6 +83,10 @@ export default class GameScene extends Phaser.Scene {
         this._rageModeActive = false;
         this._streakHudEl = null;
         this._merchantActive = false;
+        this._wantedLevel = 0;
+        this._wantedHudEl = null;
+        this._bountyHunterTimer = null;
+        this.playerShipBonus = {};
         this.maxChartIndex = 10;
         this.currentChartIndex = 1;
         this.currentChartConfig = null;
@@ -212,6 +216,27 @@ export default class GameScene extends Phaser.Scene {
         this._initTrialSystem();
         this.createPlayerVisualEffects();
         this._loadProgress();
+
+        /* ── Chart minimum level enforcement ─────────────────
+           Entering a new chart immediately levels the player up
+           to match the chart index (1 new chart = 1 new level). */
+        const chartMinLevel = this.currentChartIndex;
+        if (this.player && this.player.level < chartMinLevel) {
+            const levelsGained = chartMinLevel - this.player.level;
+            this.player.level  = chartMinLevel;
+            this.player.maxHP  = 200 + (chartMinLevel - 1) * 28;
+            this.player.hp     = this.player.maxHP;
+            this.player.gold   = (this.player.gold ?? 0) + levelsGained * 150;
+            this.time.delayedCall(600, () => {
+                this.showStatusMsg(
+                    `🗺️ ${this.currentChartConfig?.name ?? 'Neue Karte'} — ${levelsGained} Level gewonnen → Lvl ${chartMinLevel}!`,
+                    0x7fffb0
+                );
+            });
+            this._saveProgress();
+        }
+
+        this._initWantedSystem();
         this._logbookAdd('charts_explored', this.currentChartIndex);
         this.time.delayedCall(200, () => {
             this.talentPanel?.applyAllToPlayer();
@@ -357,7 +382,7 @@ export default class GameScene extends Phaser.Scene {
         this.createUI();
         this.minimap = new Minimap(this, width - 238, 92, 220, worldWidth, worldHeight);
         this.minimap.setWorldMetrics(worldWidth, worldHeight);
-        this.minimap.setChartInfo(this.currentChartIndex, this.currentChartConfig.name);
+        this.minimap.setChartInfo(this.currentChartIndex, this.currentChartConfig.displayName ?? this.currentChartConfig.name);
         this.minimap.setMinimized(this.isMinimapMinimized);
 
         this.input.once('pointerdown', async () => {
@@ -410,6 +435,9 @@ export default class GameScene extends Phaser.Scene {
             this._rageOverlay?.remove();    this._rageOverlay = null;
             this._merchantShopEl?.remove(); this._merchantShopEl = null;
             this._saveIndicatorEl?.remove(); this._saveIndicatorEl = null;
+            this._wantedHudEl?.remove();    this._wantedHudEl = null;
+            this._bountyHunterTimer?.remove(false); this._bountyHunterTimer = null;
+            this._wantedDecayTimer?.remove(false);  this._wantedDecayTimer = null;
             this._merchantCleanup?.();
         });
 
@@ -426,11 +454,12 @@ export default class GameScene extends Phaser.Scene {
             this.missionPanel?.trackKill();
             this._onEnemyKilled(npc);
             if (npc instanceof NPCShip) {
+                this._addWanted(npc.npcTier === 3 ? 0.6 : npc.npcTier === 2 ? 0.5 : 0.4);
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
                 this._updateTrialProgress('npc_kills', 1);
                 this._logbookAdd('npc_kills');
                 this._dropRandomItem(npc.x, npc.y, 0.12);
-                const repGain = 15 + (npc.level ?? 1) * 5;
+                const repGain = 15 + (npc.chartLevel ?? 1) * 5;
                 this.reputationHUD?.addReputation(repGain, 'NPC besiegt');
                 this.reputationHUD?.addBounty(Math.round(repGain * 2.5));
                 this.time.delayedCall(10000, () => this.spawnNPC());
@@ -608,6 +637,7 @@ export default class GameScene extends Phaser.Scene {
                     this.playerShipDesign = shipSave.key;
                     this.playerShipClass  = shipSave.cls ?? 'Fregatte';
                     this.playerShipScale  = shipSave.scale ?? 0.10;
+                    this.playerShipBonus  = shipSave.bonus ?? {};
                 }
             } catch {}
             this.showStatusMsg(`⚓ Spielstand geladen (Lvl ${d.level ?? 1})`, 0x63d6ff);
@@ -1032,20 +1062,36 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createChartConfigs() {
+        const CHART_THEMES = [
+            { name: 'Karibisches Becken',   color: 0x4bc8ff, stars: 1 },
+            { name: 'Stürmische Passage',   color: 0x78d8f5, stars: 2 },
+            { name: 'Teufelsmeer',          color: 0xf5a85a, stars: 3 },
+            { name: 'Schwarzes Riff',       color: 0xe07080, stars: 4 },
+            { name: 'Totenkopf-See',        color: 0xd44060, stars: 5 },
+            { name: 'Fluch der Meere',      color: 0xcc3355, stars: 6 },
+            { name: 'Geistersee',           color: 0xaa44dd, stars: 7 },
+            { name: 'Admiralsbann',         color: 0xff6633, stars: 8 },
+            { name: 'Kronensturm',          color: 0xff4422, stars: 9 },
+            { name: 'Endloser Ozean',       color: 0xff2200, stars: 10 },
+        ];
         return Array.from({ length: this.maxChartIndex }, (_, index) => {
             const chart = index + 1;
-            const size = 4200 + (index * 220);
+            const size  = 4200 + (index * 220);
+            const theme = CHART_THEMES[index] ?? CHART_THEMES[CHART_THEMES.length - 1];
             return {
                 index: chart,
-                name: `Seekarte ${chart}`,
-                worldWidth: size,
-                worldHeight: size,
-                spawnX: size / 2,
-                spawnY: size / 2,
-                islandCount: 18 + Math.min(10, index),
-                npcCount: 24 + (index * 3),
+                name:         theme.name,
+                displayName:  `Karte ${chart}: ${theme.name}`,
+                themeColor:   theme.color,
+                stars:        theme.stars,
+                worldWidth:   size,
+                worldHeight:  size,
+                spawnX:       size / 2,
+                spawnY:       size / 2,
+                islandCount:  18 + Math.min(10, index),
+                npcCount:     24 + (index * 3),
                 monsterCount: 12 + (index * 2),
-                giftCount: 20 + index,
+                giftCount:    20 + index,
                 requiredLevel: chart
             };
         });
@@ -1154,8 +1200,19 @@ handleResize(gameSize) {
 
         const travelRatioY = Phaser.Math.Clamp(this.player ? (this.player.y / this.mapHeight) : 0.5, 0.08, 0.92);
         this.pendingMapTransition = true;
-        const sideLabel = travelDirection === 'east' ? 'Osttor' : travelDirection === 'west' ? 'Westtor' : travelDirection;
-        this.showStatusMsg(`Wechsel zu Seekarte ${clampedTarget} • ${sideLabel}`, 0x8be7ff);
+
+        /* Reset Wanted level on chart change */
+        this._wantedLevel = 0;
+        this._bountyHunterTimer?.remove(false);
+        this._updateWantedHUD?.();
+
+        const targetConfig = this.getChartConfig(clampedTarget);
+        const starStr = '★'.repeat(targetConfig?.stars ?? clampedTarget) + '☆'.repeat(Math.max(0, 10 - (targetConfig?.stars ?? clampedTarget)));
+        const dirLabel = travelDirection === 'east' ? '→ Osttor' : travelDirection === 'west' ? '← Westtor' : travelDirection;
+        this.showStatusMsg(
+            `⚓ ${targetConfig?.name ?? 'Seekarte ' + clampedTarget} ${dirLabel}  ${starStr}`,
+            targetConfig?.themeColor ?? 0x8be7ff
+        );
         this.time.delayedCall(180, () => {
             this.scene.restart({
                 chartIndex: clampedTarget,
@@ -1788,10 +1845,22 @@ handleResize(gameSize) {
         return spawnPoint ?? { x: clusterCenter.x, y: clusterCenter.y };
     }
 
-    spawnNPC() {
+    spawnNPC(options = {}) {
         const point = this.getNPCSpawnPoint();
-        const npc = new NPCShip(this, point.x, point.y);
+        const chartLevel = options.chartLevel ?? this.currentChartIndex;
+        const npc = new NPCShip(this, point.x, point.y, chartLevel);
+        if (options.isBountyHunter) {
+            npc.npcName = `⭐ KOPFGELDJÄGER [KGJ] (Karte ${chartLevel})`;
+            npc.maxHP   = Math.round(npc.maxHP * 1.6);
+            npc.hp      = npc.maxHP;
+            npc.speed   = Math.min(npc.speed * 1.3, 14);
+            npc.sprite?.setTint(0xff2244);
+            npc.nameLabel?.setText(npc.npcName);
+            npc.nameLabel?.setColor('#ff6666');
+            npc.updateHealthBar();
+        }
         this.npcGroup.add(npc);
+        return npc;
     }
 
     spawnMonster() {
@@ -1870,8 +1939,11 @@ handleResize(gameSize) {
 
     collectGift(player, gift) {
         player.heal(gift.hpValue);
-        player.addXP(gift.xpValue);
-        const goldGained = gift.goldValue ?? (gift.xpValue * 2);
+        const xpBonus = this.playerShipBonus?.xpMult ? Math.round((gift.xpValue ?? 0) * this.playerShipBonus.xpMult) : (gift.xpValue ?? 0);
+        player.addXP(xpBonus);
+        const rawGold   = gift.goldValue ?? (gift.xpValue * 2);
+        const goldMult  = this.playerShipBonus?.goldMult ?? 1;
+        const goldGained = Math.round(rawGold * goldMult);
         player.gold += goldGained;
         player.materials += gift.materialValue ?? 0;
         this.events.emit('gold-collected', goldGained);
@@ -3919,6 +3991,10 @@ handleResize(gameSize) {
         if (this._rageModeActive && this.player.rageDamageBonus) {
             appliedDamage = Math.round(appliedDamage * (1 + this.player.rageDamageBonus));
         }
+        /* Apply ship class damage bonus */
+        if (this.playerShipBonus?.damageMult && this.playerShipBonus.damageMult !== 1) {
+            appliedDamage = Math.round(appliedDamage * this.playerShipBonus.damageMult);
+        }
         /* Apply lucky charm crit bonus */
         const charm = this.player.activeEffects?.luckyCharm;
         if (charm && Date.now() < charm.endTime && Math.random() < (charm.critBonus ?? 0)) {
@@ -4452,11 +4528,120 @@ handleResize(gameSize) {
 
     _recalcPlayerSpeed() {
         if (!this.player) return;
-        const base = this._playerBaseSpeed ?? this.player.speed;
+        const base  = this._playerBaseSpeed ?? this.player.speed;
+        const bonus = this.playerShipBonus ?? {};
         let s = base;
-        if (this._grogActive) s = Math.round(s * 1.5);
-        if (this._stormActive) s = Math.round(s * 0.65);
+        if (this._grogActive)                              s = Math.round(s * 1.50);
+        if (this._stormActive && !bonus.stormImmune)       s = Math.round(s * 0.65);
+        if (bonus.speedMult && bonus.speedMult !== 1)      s = Math.round(s * bonus.speedMult);
         this.player.speed = s;
+    }
+
+    /* ═══════════════════ WANTED SYSTEM ════════════════════ */
+
+    _initWantedSystem() {
+        this._wantedLevel = 0;
+
+        /* Build HUD element */
+        if (this._wantedHudEl) this._wantedHudEl.remove();
+        const el = document.createElement('div');
+        el.id = 'wanted-hud';
+        el.style.cssText = `
+            position:fixed; top:72px; right:8px; z-index:10500;
+            background:rgba(8,14,28,0.88);
+            border:1px solid rgba(255,60,60,0.45);
+            border-radius:6px; padding:5px 10px;
+            font-family:Arial,sans-serif; color:#ff4444;
+            font-size:11px; font-weight:bold;
+            display:none; flex-direction:column; align-items:center; gap:2px;
+            pointer-events:none; min-width:90px; text-align:center;
+            box-shadow:0 0 12px rgba(255,40,40,0.3);
+        `;
+        el.innerHTML = `
+            <div style="letter-spacing:1px;font-size:9px;color:#ff8888;margin-bottom:1px;">FAHNDUNG</div>
+            <div id="wanted-stars" style="font-size:14px;letter-spacing:2px;"></div>
+            <div id="wanted-status" style="font-size:8px;color:#ff9999;margin-top:1px;"></div>
+        `;
+        document.body.appendChild(el);
+        this._wantedHudEl = el;
+    }
+
+    _addWanted(amount = 0.4) {
+        if (!this.player) return;
+        this._wantedLevel = Math.min(5, (this._wantedLevel ?? 0) + amount);
+        this._updateWantedHUD();
+
+        /* Spawn bounty hunters at threshold crossings */
+        const lvl = Math.floor(this._wantedLevel);
+        if (lvl >= 1 && !this._bountyHunterActive) {
+            this._bountyHunterActive = true;
+            this._scheduleBountyHunters(lvl);
+        }
+    }
+
+    _scheduleBountyHunters(wantedFloor) {
+        if (!this.player) return;
+        const interval = wantedFloor >= 4 ? 30000 : wantedFloor >= 3 ? 40000 : 55000;
+        const count    = wantedFloor >= 4 ? 2 : 1;
+        this._bountyHunterTimer = this.time.addEvent({
+            delay: interval,
+            callback: () => {
+                if (!this.player?.active || (this._wantedLevel ?? 0) < 1) {
+                    this._bountyHunterActive = false;
+                    return;
+                }
+                for (let i = 0; i < count; i++) {
+                    this.spawnNPC({ isBountyHunter: true, chartLevel: this.currentChartIndex });
+                }
+                const wlvl = Math.floor(this._wantedLevel ?? 0);
+                if (wlvl >= 5) {
+                    this.showStatusMsg('🔴 ADMIRAL AUF DER JAGD! Höchste Fahndungsstufe!', 0xff2200);
+                    this._addWanted(0); /* refresh HUD */
+                }
+                /* Reschedule with updated level */
+                this._scheduleBountyHunters(wlvl);
+            },
+            callbackScope: this,
+            loop: false
+        });
+    }
+
+    _updateWantedHUD() {
+        const el = this._wantedHudEl;
+        if (!el) return;
+        const lvl = this._wantedLevel ?? 0;
+        if (lvl < 0.5) {
+            el.style.display = 'none';
+            this._bountyHunterActive = false;
+            return;
+        }
+        el.style.display = 'flex';
+        const filled  = Math.min(5, Math.ceil(lvl));
+        const starEl  = el.querySelector('#wanted-stars');
+        const statEl  = el.querySelector('#wanted-status');
+        if (starEl) starEl.textContent = '⭐'.repeat(filled) + '☆'.repeat(5 - filled);
+        if (statEl) {
+            const msgs = ['', 'Kopfgeldjäger erscheinen', 'Elitejäger spawnen', 'Admiral in der Nähe!', '⚠ HÖCHSTE FAHNDUNG'];
+            statEl.textContent = msgs[Math.min(4, filled - 1)] ?? '';
+        }
+        /* Decay wanted level slowly over time (passive cooldown) */
+        if (!this._wantedDecayTimer) {
+            this._wantedDecayTimer = this.time.addEvent({
+                delay: 15000,
+                callback: () => {
+                    if ((this._wantedLevel ?? 0) > 0) {
+                        this._wantedLevel = Math.max(0, this._wantedLevel - 0.15);
+                        this._updateWantedHUD();
+                        if ((this._wantedLevel ?? 0) < 0.5) {
+                            this._wantedDecayTimer?.remove(false);
+                            this._wantedDecayTimer = null;
+                        }
+                    }
+                },
+                callbackScope: this,
+                loop: true
+            });
+        }
     }
 
     /* ═══════════════════ LOGBOOK SYSTEM ═══════════════════ */

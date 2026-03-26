@@ -4,13 +4,15 @@ export default class ShipDesignPanel {
         this._el = null;
         this._visible = false;
         this._activeTab = 'designs';
-        this._currentKey = scene.player?.sprite?.texture?.key ?? 'player-ship';
+        this._currentKey  = scene.player?.sprite?.texture?.key ?? 'player-ship';
+        this._currentName = '';  /* tracks legendary ship by name since keys can overlap */
         this._designsBody = null;
         this._talentsBody = null;
     }
 
     _designs() {
         return [
+            /* ── Standard ships ─────────────────────────────── */
             { key: 'player-ship',          src: 'assets/player_ship_royal_crimson_v1.webp', name: 'Royal Crimson',    class: 'Fregatte',     cost: 0    },
             { key: 'player-ship-neon',     src: 'assets/player_ship_neon_pro.webp',          name: 'Neon Phantom',     class: 'Fregatte',     cost: 1200 },
             { key: 'player-ship-pro',      src: 'assets/player_ship_pro.webp',               name: 'Sea Hawk Pro',     class: 'Fregatte',     cost: 800  },
@@ -27,6 +29,56 @@ export default class ShipDesignPanel {
             { key: 'ship-medium-3',        src: 'assets/ship_brig_3.png',                     name: 'Brigantine III',   class: 'Brigantine',   cost: 2200 },
             { key: 'ship-large-1',         src: 'assets/ship_manwar_1.png',                   name: 'Man-o-War I',      class: 'Linienschiff', cost: 4000 },
             { key: 'ship-large-2',         src: 'assets/ship_manwar_2.png',                   name: 'Man-o-War II',     class: 'Linienschiff', cost: 5500 },
+
+            /* ── Legendary ships — unique passive bonuses ────── */
+            {
+                key: 'ship-small-5', src: 'assets/ship_cutter_5.png',
+                name: 'Sturmvogel',   class: 'Legendär — Kutter',
+                cost: 1400, unlockLevel: 5,
+                bonus: { speedMult: 1.20 },
+                bonusLabel: '⚡ +20% Geschwindigkeit',
+                bonusColor: '#7fffb0'
+            },
+            {
+                key: 'ship-medium-3', src: 'assets/ship_brig_3.png',
+                name: 'Goldene Brigg',  class: 'Legendär — Brigantine',
+                cost: 4200, unlockLevel: 8,
+                bonus: { goldMult: 1.35 },
+                bonusLabel: '🪙 +35% Gold aus Beute',
+                bonusColor: '#ffd36a'
+            },
+            {
+                key: 'player-ship-frigate3', src: 'assets/player_ship_frigate_3.png',
+                name: 'Schatten des Todes',  class: 'Legendär — Fregatte',
+                cost: 5500, unlockLevel: 10,
+                bonus: { damageMult: 1.25 },
+                bonusLabel: '💀 +25% Kanonenschaden',
+                bonusColor: '#ff8888'
+            },
+            {
+                key: 'ship-medium-2', src: 'assets/ship_brig_2.png',
+                name: 'Sturmreiter',    class: 'Legendär — Brigantine',
+                cost: 3800, unlockLevel: 6,
+                bonus: { stormImmune: true, speedMult: 1.05 },
+                bonusLabel: '🌊 Sturm-Immunität',
+                bonusColor: '#9fdcff'
+            },
+            {
+                key: 'player-ship-frigate2', src: 'assets/player_ship_frigate_2.png',
+                name: 'Drachenzahn',    class: 'Legendär — Fregatte',
+                cost: 6800, unlockLevel: 12,
+                bonus: { damageMult: 1.40, speedMult: 0.90 },
+                bonusLabel: '🐉 +40% Schaden, -10% Speed',
+                bonusColor: '#ff9944'
+            },
+            {
+                key: 'ship-large-2', src: 'assets/ship_manwar_2.png',
+                name: 'Eiserner Koloss', class: 'Legendär — Linienschiff',
+                cost: 11000, unlockLevel: 15,
+                bonus: { hpMult: 1.60, speedMult: 0.85 },
+                bonusLabel: '⚓ +60% HP-Maximum',
+                bonusColor: '#aaaaff'
+            },
         ];
     }
 
@@ -216,11 +268,19 @@ export default class ShipDesignPanel {
 
     _buildDesignsContent(body) {
         this._buildActiveShipBanner(body);
-        const designs = this._designs();
-        const classes  = [...new Set(designs.map(d => d.class))];
+        const designs    = this._designs();
+        const standard   = designs.filter(d => !d.class?.startsWith('Legendär'));
+        const legendary  = designs.filter(d => d.class?.startsWith('Legendär'));
+        const classes    = [...new Set(standard.map(d => d.class))];
         classes.forEach(cls => {
-            body.appendChild(this._buildSection(cls, designs.filter(d => d.class === cls)));
+            body.appendChild(this._buildSection(cls, standard.filter(d => d.class === cls)));
         });
+
+        /* Legendary section */
+        if (legendary.length > 0) {
+            const playerLevel = this.scene?.player?.level ?? 0;
+            body.appendChild(this._buildLegendarySection(legendary, playerLevel));
+        }
 
         /* Event designs */
         const evDesigns = this._eventDesigns();
@@ -276,6 +336,85 @@ export default class ShipDesignPanel {
         });
         evSection.appendChild(evGrid);
         body.appendChild(evSection);
+    }
+
+    _buildLegendarySection(designs, playerLevel) {
+        const section = document.createElement('div');
+        section.style.marginBottom = '14px';
+        const title = document.createElement('div');
+        title.style.cssText = `
+            font-size:11px; letter-spacing:2px; color:#d4aa40;
+            text-transform:uppercase; margin-bottom:8px;
+            border-bottom:1px solid rgba(212,170,64,0.4); padding-bottom:4px;
+        `;
+        title.innerHTML = `✨ LEGENDÄRE KLASSEN`;
+        section.appendChild(title);
+
+        const grid = document.createElement('div');
+        grid.style.cssText = `display:grid; grid-template-columns:repeat(auto-fill,minmax(106px,1fr)); gap:8px;`;
+
+        designs.forEach(design => {
+            const isActive  = design.key === this._currentKey && design.name === this._currentName;
+            const unlocked  = playerLevel >= (design.unlockLevel ?? 0);
+            const card = document.createElement('div');
+            card.dataset.key = design.key;
+            card.style.cssText = `
+                border:2px solid ${isActive ? '#d4aa40' : unlocked ? 'rgba(212,170,64,0.30)' : 'rgba(255,255,255,0.08)'};
+                border-radius:6px; position:relative;
+                background:${isActive ? 'rgba(212,170,64,0.12)' : unlocked ? 'rgba(212,170,64,0.05)' : 'rgba(0,0,0,0.3)'};
+                padding:8px 6px 7px; display:flex; flex-direction:column; align-items:center; gap:5px;
+                cursor:${unlocked ? 'pointer' : 'default'}; touch-action:manipulation;
+                transition:border-color 0.15s,background 0.15s; overflow:hidden;
+            `;
+            if (isActive) {
+                const b = document.createElement('div');
+                b.className = 'aktiv-badge';
+                b.style.cssText = `position:absolute;top:4px;right:4px;background:#d4aa40;color:#000;font-size:8px;font-weight:bold;padding:1px 4px;border-radius:3px;`;
+                b.textContent = 'AKTIV'; card.appendChild(b);
+            }
+            const img = document.createElement('img');
+            img.src = design.src; img.alt = design.name;
+            img.style.cssText = `width:60px;height:60px;object-fit:contain;${unlocked?'':'filter:grayscale(1) opacity(0.3);'}`;
+            img.onerror = () => { img.style.display='none'; };
+
+            const name = document.createElement('div');
+            name.style.cssText = `font-size:10px;color:${unlocked?'#e8d080':'#555'};text-align:center;line-height:1.2;word-break:break-word;font-weight:bold;`;
+            name.textContent = design.name;
+
+            const bonusBadge = document.createElement('div');
+            bonusBadge.style.cssText = `font-size:9px;color:${unlocked?design.bonusColor:'#444'};text-align:center;line-height:1.3;`;
+            bonusBadge.textContent = design.bonusLabel ?? '';
+
+            const costEl = document.createElement('div');
+            costEl.style.cssText = `font-size:10px;font-weight:bold;`;
+            if (!unlocked) {
+                costEl.style.color = '#555';
+                costEl.textContent = `🔒 Ab Level ${design.unlockLevel}`;
+            } else {
+                costEl.style.color = '#ffd36a';
+                costEl.textContent = `${design.cost} 🪙`;
+            }
+
+            card.appendChild(img);
+            card.appendChild(name);
+            card.appendChild(bonusBadge);
+            card.appendChild(costEl);
+
+            if (unlocked) {
+                const activate = (e) => {
+                    e.preventDefault();
+                    this._equipShip(design);
+                    this._currentName = design.name;
+                    this._updateCards(design.key);
+                };
+                card.addEventListener('click', activate);
+                card.addEventListener('touchend', activate, { passive: false });
+                card.addEventListener('touchstart', () => { card.style.background = 'rgba(212,170,64,0.15)'; }, { passive: true });
+            }
+            grid.appendChild(card);
+        });
+        section.appendChild(grid);
+        return section;
     }
 
     _buildSection(cls, clsDesigns) {
@@ -368,16 +507,51 @@ export default class ShipDesignPanel {
     _equipShip(design) {
         const s = this.scene;
         if (!s.player) return;
-        const scale = this._scaleForClass(design.class ?? 'Fregatte');
+
+        /* Cost check (skip if cost is 0 or already equipped) */
+        if ((design.cost ?? 0) > 0 && design.key !== this._currentKey) {
+            if ((s.player.gold ?? 0) < design.cost) {
+                s.showStatusMsg?.(`Nicht genug Gold! Benötigt: ${design.cost} 🪙`, 0xff6644);
+                return;
+            }
+            s.player.gold -= design.cost;
+            s.events?.emit('gold-collected', 0); /* refresh HUD */
+        }
+
+        const rawClass = design.class?.replace('Legendär — ', '') ?? 'Fregatte';
+        const scale    = this._scaleForClass(rawClass);
+        const bonus    = design.bonus ?? {};
+
         const apply = () => {
             s.player.sprite.setTexture(design.key);
             s.player.sprite.setScale(scale);
             s.playerShipDesign  = design.key;
-            s.playerShipClass   = design.class ?? 'Fregatte';
+            s.playerShipClass   = rawClass;
             s.playerShipScale   = scale;
-            s.showStatusMsg?.(`⛵ ${design.name} ausgerüstet`, 0xd4aa40);
-            try { localStorage.setItem(`ahc_ship_${window._loginUsername ?? 'player'}`, JSON.stringify({ key: design.key, scale, cls: design.class })); } catch {}
+            s.playerShipBonus   = bonus;
+            this._currentName   = design.name;
+
+            /* Apply HP multiplier instantly */
+            if (bonus.hpMult && bonus.hpMult !== 1) {
+                const base = 200 + (s.player.level - 1) * 28;
+                s.player.maxHP = Math.round(base * bonus.hpMult);
+                s.player.hp    = Math.min(s.player.hp ?? s.player.maxHP, s.player.maxHP);
+                s.player.refreshShipInfoPanel?.(true);
+            }
+            /* Apply speed bonus */
+            s._recalcPlayerSpeed?.();
+
+            const bonusStr = design.bonusLabel ? `  ${design.bonusLabel}` : '';
+            s.showStatusMsg?.(`⛵ ${design.name} ausgerüstet${bonusStr}`, design.bonusColor ? parseInt(design.bonusColor.replace('#', ''), 16) : 0xd4aa40);
+
+            try {
+                localStorage.setItem(
+                    `ahc_ship_${window._loginUsername ?? 'player'}`,
+                    JSON.stringify({ key: design.key, scale, cls: design.class, bonus, shipName: design.name })
+                );
+            } catch {}
         };
+
         if (!s.textures.exists(design.key)) {
             s.load.image(design.key, design.src);
             s.load.once('complete', apply);

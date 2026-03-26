@@ -17,7 +17,8 @@ const FACTIONS = {
 };
 
 export default class NPCShip extends Ship {
-    constructor(scene, x, y) {
+    /* chartLevel: 1 = easy (Karte 1), up to 10 = brutal (Karte 10) */
+    constructor(scene, x, y, chartLevel = 1) {
         const smallShips  = ['ship-small-1','ship-small-2','ship-small-3','ship-small-4','ship-small-5'];
         const mediumShips = ['ship-medium-1','ship-medium-2','ship-medium-3'];
         const largeShips  = ['ship-large-1','ship-large-2'];
@@ -25,11 +26,16 @@ export default class NPCShip extends Ship {
         const rand = Math.random();
         let type, scale, maxHP, speed, xpValue, colliderRadius, tier, factionPool, healthBarW, healthBarOffY;
 
-        if (rand < 0.6) {
+        /* Higher charts shift the tier distribution toward harder ships */
+        const tierShift = Math.min(chartLevel - 1, 6) * 0.03; /* max +0.18 shift */
+        const smallThreshold  = Math.max(0.20, 0.60 - tierShift * 2.5);
+        const mediumThreshold = Math.min(0.94, 0.90 + tierShift * 0.5);
+
+        if (rand < smallThreshold) {
             type = Phaser.Utils.Array.GetRandom(smallShips);
             scale = 0.07; maxHP = 260; speed = 7; xpValue = 55; colliderRadius = 18;
             tier = 1; factionPool = FACTIONS.small; healthBarW = 50; healthBarOffY = -55;
-        } else if (rand < 0.9) {
+        } else if (rand < mediumThreshold) {
             type = Phaser.Utils.Array.GetRandom(mediumShips);
             scale = 0.085; maxHP = 560; speed = 5; xpValue = 150; colliderRadius = 22;
             tier = 2; factionPool = FACTIONS.medium; healthBarW = 62; healthBarOffY = -68;
@@ -41,20 +47,33 @@ export default class NPCShip extends Ship {
 
         super(scene, x, y, type);
 
-        this.npcTier    = tier;
-        this.npcFaction = Phaser.Utils.Array.GetRandom(factionPool);
-        this.npcName    = `${this.npcFaction.tag} ${Phaser.Utils.Array.GetRandom(this.npcFaction.captains)}`;
+        /* ── Chart difficulty scaling ─────────────────────── */
+        /* HP & XP: +35% per chart level; speed: +6% per chart, capped at 1.8× */
+        const diffMult  = Math.pow(1.35, chartLevel - 1);
+        const spdMult   = Math.min(Math.pow(1.06, chartLevel - 1), 1.80);
 
-        this.maxHP = maxHP;
-        this.speed = speed;
-        this.xpValue = xpValue;
+        this.chartLevel    = chartLevel;
+        this.lootGoldMult  = diffMult;        /* used by spawnLootFromDefeat */
+        this.npcTier       = tier;
+        this.npcFaction    = Phaser.Utils.Array.GetRandom(factionPool);
+        const captain      = Phaser.Utils.Array.GetRandom(this.npcFaction.captains);
+        this.npcName       = `Lvl${chartLevel} ${this.npcFaction.tag} ${captain}`;
+
+        this.maxHP   = Math.round(maxHP  * diffMult);
+        this.speed   = Math.round(speed  * spdMult * 10) / 10;
+        this.xpValue = Math.round(xpValue * diffMult);
+
         this.sprite.setScale(scale);
         this.shipType = type;
         this.hp = this.maxHP;
-        this.healthBarWidth  = healthBarW;
-        this.healthBarHeight = 5;
+        this.healthBarWidth   = healthBarW;
+        this.healthBarHeight  = 5;
         this.healthBarOffsetY = healthBarOffY;
         this.updateHealthBar();
+
+        /* Tint higher-chart NPCs progressively redder */
+        if (chartLevel >= 8)       this.sprite?.setTint(0xff5555);
+        else if (chartLevel >= 5)  this.sprite?.setTint(0xffa07a);
 
         this._buildNameLabel();
 
@@ -97,21 +116,23 @@ export default class NPCShip extends Ship {
 
     getLootTable() {
         const t = this.npcTier;
+        const m = this.lootGoldMult ?? 1; /* chart difficulty gold multiplier */
+        const g = (lo, hi) => [Math.round(lo * m), Math.round(hi * m)];
         const tables = {
             1: [
-                { type: 'gold-bag',    weight: 60, gold: [20, 60],   mats: [0, 2],   xp: [10, 30] },
-                { type: 'gift-chest',  weight: 30, gold: [10, 30],   mats: [1, 4],   xp: [20, 50] },
-                { type: 'xp-orb',      weight: 10, gold: [0, 0],     mats: [0, 0],   xp: [40, 80] }
+                { type: 'gold-bag',    weight: 60, gold: g(20, 60),    mats: [0, 2],   xp: [10, 30] },
+                { type: 'gift-chest',  weight: 30, gold: g(10, 30),    mats: [1, 4],   xp: [20, 50] },
+                { type: 'xp-orb',      weight: 10, gold: [0, 0],       mats: [0, 0],   xp: [40, 80] }
             ],
             2: [
-                { type: 'gold-bag',    weight: 40, gold: [80, 200],  mats: [2, 6],   xp: [30, 80] },
-                { type: 'gift-chest',  weight: 40, gold: [40, 100],  mats: [4, 10],  xp: [50, 120] },
-                { type: 'xp-orb',      weight: 20, gold: [0, 10],    mats: [0, 2],   xp: [100, 200] }
+                { type: 'gold-bag',    weight: 40, gold: g(80, 200),   mats: [2, 6],   xp: [30, 80] },
+                { type: 'gift-chest',  weight: 40, gold: g(40, 100),   mats: [4, 10],  xp: [50, 120] },
+                { type: 'xp-orb',      weight: 20, gold: [0, 10],      mats: [0, 2],   xp: [100, 200] }
             ],
             3: [
-                { type: 'gold-bag',    weight: 30, gold: [200, 500], mats: [5, 15],  xp: [80, 200] },
-                { type: 'gift-chest',  weight: 50, gold: [100, 300], mats: [10, 25], xp: [150, 350] },
-                { type: 'xp-orb',      weight: 20, gold: [0, 50],    mats: [2, 8],   xp: [250, 500] }
+                { type: 'gold-bag',    weight: 30, gold: g(200, 500),  mats: [5, 15],  xp: [80, 200] },
+                { type: 'gift-chest',  weight: 50, gold: g(100, 300),  mats: [10, 25], xp: [150, 350] },
+                { type: 'xp-orb',      weight: 20, gold: g(0, 50),     mats: [2, 8],   xp: [250, 500] }
             ]
         };
         return tables[t] ?? tables[1];
