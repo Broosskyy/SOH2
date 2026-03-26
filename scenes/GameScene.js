@@ -1928,7 +1928,7 @@ handleResize(gameSize) {
             minimap: { x: width - (this.minimap?.getRenderWidth?.() ?? 220) - 20, y: 92 },
             chat: { x: 24, y: this.isChatMinimized ? height - 286 : height - 430 },
             statusFeed: { x: 24, y: this.isStatusFeedMinimized ? height - 238 : height - 346 },
-            upgrade: { x: width - 404, y: 96 }
+            upgrade: { x: Math.max(8, Math.floor((width - 372) / 2)), y: 8 }
         };
 
     return defaults[panelKey] ?? { x: 24, y: 24 };
@@ -1943,7 +1943,7 @@ handleResize(gameSize) {
             },
             chat: { width: 248, height: this.isChatMinimized ? 40 : 168 },
             statusFeed: { width: 248, height: this.isStatusFeedMinimized ? 40 : 136 },
-            upgrade: { width: 372, height: 760 }
+            upgrade: { width: Math.min(372, width - 16), height: 760 }
         };
         const panelSize = boundsMap[panelKey] ?? { width: 200, height: 120 };
         return {
@@ -2051,7 +2051,7 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'shop') {
-            this.showStatusMsg('Market convoy arriving soon', 0x8be7ff);
+            this.toggleUpgradePanel();
             return;
         }
         if (action === 'board') {
