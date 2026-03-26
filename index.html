@@ -58,6 +58,18 @@
         0%,100% { opacity:1; }
         50%     { opacity:0.55; }
       }
+      @keyframes slideUp {
+        from { transform:translateY(24px);opacity:0; }
+        to   { transform:translateY(0);opacity:1; }
+      }
+      @keyframes fadeIn {
+        from { opacity:0; }
+        to   { opacity:1; }
+      }
+      @keyframes bonusBounce {
+        0%,100% { transform:scale(1); }
+        50%     { transform:scale(1.08); }
+      }
 
       /* === Hochformat-Fallback === */
       @media screen and (orientation: portrait) {

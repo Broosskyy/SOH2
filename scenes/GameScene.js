@@ -26,6 +26,9 @@ import ItemBar from '../ui/ItemBar.js';
 import PirateTrialPanel, { PIRATE_TRIALS } from '../ui/PirateTrialPanel.js';
 import DailyQuestPanel from '../ui/DailyQuestPanel.js';
 import ReputationHUD from '../ui/ReputationHUD.js';
+import LoginBonusPanel from '../ui/LoginBonusPanel.js';
+import AchievementPanel from '../ui/AchievementPanel.js';
+import LogbookPanel from '../ui/LogbookPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -204,9 +207,11 @@ export default class GameScene extends Phaser.Scene {
         this._initTrialSystem();
         this.createPlayerVisualEffects();
         this._loadProgress();
+        this._logbookAdd('charts_explored', this.currentChartIndex);
         this.time.delayedCall(200, () => {
             this.talentPanel?.applyAllToPlayer();
             this._refreshPlayerInfoHUD();
+            this.achievementPanel?.check(this._logbook);
         });
 
         this.playerReturnHighlight = this.add.circle(this.player.x, this.player.y, 54, 0x7fd3ff, 0.12)
@@ -379,6 +384,9 @@ export default class GameScene extends Phaser.Scene {
         this.pirateTrialPanel = new PirateTrialPanel(this);
         this.dailyQuestPanel  = new DailyQuestPanel(this);
         this.reputationHUD    = new ReputationHUD(this);
+        this.loginBonusPanel  = new LoginBonusPanel(this);
+        this.achievementPanel = new AchievementPanel(this);
+        this.logbookPanel     = new LogbookPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -389,7 +397,8 @@ export default class GameScene extends Phaser.Scene {
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
              this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
              this.adminPanel, this.talentPanel, this.multiplayerPanel,
-             this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD]
+             this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD,
+             this.loginBonusPanel, this.achievementPanel, this.logbookPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
         });
@@ -408,6 +417,7 @@ export default class GameScene extends Phaser.Scene {
             if (npc instanceof NPCShip) {
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
                 this._updateTrialProgress('npc_kills', 1);
+                this._logbookAdd('npc_kills');
                 this._dropRandomItem(npc.x, npc.y, 0.12);
                 const repGain = 15 + (npc.level ?? 1) * 5;
                 this.reputationHUD?.addReputation(repGain, 'NPC besiegt');
@@ -416,6 +426,7 @@ export default class GameScene extends Phaser.Scene {
             } else if (npc instanceof Monster) {
                 this.dailyQuestPanel?.addProgress('monsters', 1);
                 this._updateTrialProgress('monsters', 1);
+                this._logbookAdd('monster_kills');
                 this._dropRandomItem(npc.x, npc.y, 0.30);
                 const repGain = 40 + (npc.level ?? 1) * 12;
                 this.reputationHUD?.addReputation(repGain, 'Monster besiegt');
@@ -493,9 +504,11 @@ export default class GameScene extends Phaser.Scene {
         });
         this.events.on('gold-collected', (amount) => {
             this.missionPanel?.trackGold(amount);
+            this._logbookAdd('gold_total', amount);
         });
         this.events.on('damage-dealt', (amount) => {
             this.missionPanel?.trackDamage(amount);
+            this._logbookAdd('damage_dealt', amount);
         });
 
         this.finalizeChartEntryPosition();
@@ -515,6 +528,7 @@ export default class GameScene extends Phaser.Scene {
         if (!this.player?.active) return;
         const p = this.player;
         const key = `ahc_save_${window._loginUsername ?? 'player'}`;
+        this._showSaveIndicator();
         try {
             const data = {
                 gold:          p.gold          ?? 0,
@@ -524,6 +538,7 @@ export default class GameScene extends Phaser.Scene {
                 xp:            p.xp            ?? 0,
                 hpFraction:    Phaser.Math.Clamp((p.hp ?? p.maxHP) / (p.maxHP || 1), 0, 1),
                 ammo:          { ...(p.ammo ?? {}) },
+                inventory:     { ...(p.inventory ?? {}) },
                 goldDeckSlots: p.goldDeckSlots  ?? 3,
                 pearlDeckSlots:p.pearlDeckSlots ?? 3,
                 mojoDeck:      p.mojoDeck       ?? false,
@@ -532,6 +547,7 @@ export default class GameScene extends Phaser.Scene {
                 pvpMode:       p.pvpMode        ?? false,
                 selectedShip:  p._selectedShipKey ?? null,
                 chartIndex:    this.currentChartIndex ?? 1,
+                logbook:       this._logbook ? { ...this._logbook, charts_explored: [...(this._logbook.charts_explored ?? [])] } : {},
                 savedAt:       Date.now()
             };
             localStorage.setItem(key, JSON.stringify(data));
@@ -560,10 +576,51 @@ export default class GameScene extends Phaser.Scene {
             if (d.voodooPoints  !== undefined) p.voodooPoints   = d.voodooPoints;
             if (d.pvpMode       !== undefined) p.pvpMode        = d.pvpMode;
             if (d.selectedShip  !== undefined) p._selectedShipKey = d.selectedShip;
+            if (d.inventory     !== undefined) p.inventory      = { ...p.inventory, ...d.inventory };
+            if (d.logbook       !== undefined) {
+                this._logbook = { ...this._logbook, ...d.logbook };
+                if (Array.isArray(d.logbook.charts_explored)) {
+                    this._logbook.charts_explored = new Set(d.logbook.charts_explored);
+                }
+            }
             p.updateHealthBar?.();
             p.refreshShipInfoPanel?.(true);
+            this._updateItemBar?.();
+            /* Restore selected ship design */
+            try {
+                const shipSave = JSON.parse(localStorage.getItem(`ahc_ship_${window._loginUsername ?? 'player'}`) || 'null');
+                if (shipSave?.key && this.textures.exists(shipSave.key)) {
+                    p.sprite?.setTexture(shipSave.key);
+                    p.sprite?.setScale(shipSave.scale ?? 0.10);
+                    this.playerShipDesign = shipSave.key;
+                    this.playerShipClass  = shipSave.cls ?? 'Fregatte';
+                    this.playerShipScale  = shipSave.scale ?? 0.10;
+                }
+            } catch {}
             this.showStatusMsg(`⚓ Spielstand geladen (Lvl ${d.level ?? 1})`, 0x63d6ff);
         } catch (e) {}
+    }
+
+    _showSaveIndicator() {
+        if (this._saveIndicatorEl) return;
+        const el = document.createElement('div');
+        el.style.cssText = `
+            position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+            z-index:20000;background:rgba(10,30,60,0.88);
+            border:1px solid rgba(74,200,255,0.5);border-radius:8px;
+            padding:5px 14px;font-size:11px;color:#9fdcff;
+            font-family:Arial,sans-serif;letter-spacing:1.5px;
+            pointer-events:none;display:flex;align-items:center;gap:6px;
+            animation:fadeIn 0.3s ease;
+        `;
+        el.textContent = '💾 Gespeichert';
+        document.body.appendChild(el);
+        this._saveIndicatorEl = el;
+        setTimeout(() => {
+            el.style.transition = 'opacity 0.5s';
+            el.style.opacity = '0';
+            setTimeout(() => { el?.remove(); this._saveIndicatorEl = null; }, 520);
+        }, 1800);
     }
 
     createChartConfigs() {
@@ -1044,7 +1101,45 @@ handleResize(gameSize) {
         this.islandSpawnPoints.forEach((point) => {
             const island = new Island(this, point.x, point.y, point.texture);
             this.islands.add(island);
+            island.setInteractive({ useHandCursor: true });
+            island.on('pointerdown', (ptr) => {
+                this._islandDownPtr = { x: ptr.x, y: ptr.y };
+            });
+            island.on('pointerup', (ptr) => {
+                const d = this._islandDownPtr ? Math.hypot(ptr.x - this._islandDownPtr.x, ptr.y - this._islandDownPtr.y) : 99;
+                if (d < 10) this._tryIslandRepair(island);
+                this._islandDownPtr = null;
+            });
         });
+    }
+
+    _tryIslandRepair(island) {
+        if (!this.player?.active) return;
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
+        if (dist > 650) {
+            this.showStatusMsg('⚓ Zu weit entfernt! Fahre näher an die Insel heran.', 0xff8844);
+            return;
+        }
+        const missingHP = (this.player.maxHP ?? 300) - (this.player.hp ?? 300);
+        if (missingHP <= 0) {
+            this.showStatusMsg('⚓ Rumpf ist bereits vollständig repariert!', 0x7fffb0);
+            return;
+        }
+        const cost = Math.ceil(missingHP * 0.8);
+        if ((this.player.gold ?? 0) < cost) {
+            this.showStatusMsg(`⚓ Nicht genug Gold! Reparatur kostet ${cost} Gold.`, 0xff6644);
+            return;
+        }
+        this.player.gold -= cost;
+        this.player.heal(missingHP);
+        this.updateUIBars();
+        this.showStatusMsg(`⚓ Schiff repariert! -${cost} Gold, +${missingHP} HP`, 0x7fffb0);
+        this.pushStatusFeedMessage('⚓ Schiff repariert!', '#7fffb0');
+        const sparkle = this.add.text(island.x, island.y - 60, '🔧 REPARIERT!', {
+            fontSize: '18px', fontFamily: 'Arial', fontStyle: 'bold',
+            color: '#7fffb0', stroke: '#000', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(3000);
+        this.tweens.add({ targets: sparkle, y: island.y - 110, alpha: 0, duration: 2000, onComplete: () => sparkle.destroy() });
     }
 
     _spawnGuildIsland(worldWidth, worldHeight) {
@@ -1379,9 +1474,11 @@ handleResize(gameSize) {
         if ((gift.materialValue ?? 0) > 0) {
             this.dailyQuestPanel?.addProgress('mats_collected', gift.materialValue);
             this._updateTrialProgress('mats_collected', gift.materialValue);
+            this._logbookAdd('mats_total', gift.materialValue);
         }
         if (gift.dropCategory === 'treasure') {
             this.dailyQuestPanel?.addProgress('treasures', 1);
+            this._logbookAdd('treasures_opened');
         }
 
         if (gift.giftType === 'gift-chest') {
@@ -2503,6 +2600,14 @@ handleResize(gameSize) {
             this.rangPanel?.toggle();
             return;
         }
+        if (action === 'achievements') {
+            this.achievementPanel?.toggle();
+            return;
+        }
+        if (action === 'logbook') {
+            this.logbookPanel?.toggle();
+            return;
+        }
         this.showStatusMsg('Navigation menu ready', 0xbfe8ff);
     }
 
@@ -2872,7 +2977,8 @@ handleResize(gameSize) {
     }
 
     showHealPopup(x, y, amount) {
-        const text = this.add.text(x, y, `+${Math.round(amount)}`, {
+        const healed = Math.round(amount);
+        const text = this.add.text(x, y, `+${healed}`, {
             fontSize: '24px',
             fontFamily: 'Arial',
             fill: '#7fffb0',
@@ -2887,6 +2993,11 @@ handleResize(gameSize) {
             duration: 900,
             onComplete: () => text.destroy()
         });
+
+        if (healed > 0) {
+            this.dailyQuestPanel?.addProgress('hp_healed', healed);
+            this._logbookAdd('hp_healed', healed);
+        }
     }
 
     getSelectedAmmoConfig() {
@@ -3380,6 +3491,7 @@ handleResize(gameSize) {
 
         this.lastAttackTime = now;
         this.playSound('shoot');
+        this._logbookAdd('shots_fired');
 
         let appliedDamage = isHarpoon
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
@@ -3782,6 +3894,12 @@ handleResize(gameSize) {
     }
 
     update(time, delta) {
+        if (!this._lastAutoSave) this._lastAutoSave = time;
+        if (time - this._lastAutoSave > 300000) {
+            this._lastAutoSave = time;
+            this._saveProgress();
+        }
+
         this.player.update();
 
         if (this.inventoryHit?.input) this.inventoryHit.input.enabled = true;
@@ -3904,8 +4022,40 @@ handleResize(gameSize) {
         this._rumExpiry = 0;
         this._grogActive = false;
         this._grogExpiry = 0;
+        this._playerBaseSpeed = this.player.speed;
+        this._initLogbook();
         this._initStormSystem();
         this._startTreasureChestTimer();
+    }
+
+    _recalcPlayerSpeed() {
+        if (!this.player) return;
+        const base = this._playerBaseSpeed ?? this.player.speed;
+        let s = base;
+        if (this._grogActive) s = Math.round(s * 1.5);
+        if (this._stormActive) s = Math.round(s * 0.65);
+        this.player.speed = s;
+    }
+
+    /* ═══════════════════ LOGBOOK SYSTEM ═══════════════════ */
+
+    _initLogbook() {
+        this._logbook = {
+            npc_kills: 0, monster_kills: 0, gold_total: 0, mats_total: 0,
+            hp_healed: 0, items_used: 0, treasures_opened: 0,
+            charts_explored: new Set(), damage_dealt: 0, shots_fired: 0
+        };
+    }
+
+    _logbookAdd(key, amount = 1) {
+        if (!this._logbook) this._initLogbook();
+        if (key === 'charts_explored') {
+            this._logbook.charts_explored.add(amount);
+        } else {
+            this._logbook[key] = (this._logbook[key] ?? 0) + amount;
+        }
+        this.logbookPanel?.refresh?.();
+        this.achievementPanel?.check?.(this._logbook);
     }
 
     addItem(type, count = 1) {
@@ -3924,6 +4074,7 @@ handleResize(gameSize) {
 
         this.player.inventory[type] = count - 1;
         this.dailyQuestPanel?.addProgress('items_used', 1);
+        this._logbookAdd('items_used');
 
         if (type === 'heiltrunk') {
             const heal = Math.ceil(this.player.maxHP * 0.30);
@@ -3931,19 +4082,18 @@ handleResize(gameSize) {
             this.showStatusMsg(`🧪 Heiltrunk getrunken! +${heal} HP`, 0xff6b6b);
 
         } else if (type === 'grog') {
-            const prevSpeed = this.player.speed;
-            this._grogOrigSpeed = this.player.speed;
-            this.player.speed = Math.round(this.player.speed * 1.5);
+            if (!this._playerBaseSpeed) this._playerBaseSpeed = this.player.speed;
             this._grogActive = true;
             this._grogExpiry = this.time.now + 30000;
             this.player.activeEffects = this.player.activeEffects ?? {};
             this.player.activeEffects.grog = true;
+            this._recalcPlayerSpeed();
             this.showStatusMsg('🍺 Grog wirkt! +50% Geschwindigkeit für 30s', 0xffa040);
             this.time.delayedCall(30000, () => {
                 if (this._grogActive) {
-                    this.player.speed = this._grogOrigSpeed;
                     this._grogActive = false;
                     delete this.player.activeEffects?.grog;
+                    this._recalcPlayerSpeed();
                     this.showStatusMsg('🍺 Grog-Effekt abgelaufen.', 0x888888);
                 }
             });
@@ -4133,7 +4283,21 @@ handleResize(gameSize) {
     _initStormSystem() {
         this._stormActive = false;
         this._stormOverlay = null;
+        this._scheduleNextStorm();
+    }
+
+    _scheduleNextStorm() {
         const nextStorm = Phaser.Math.Between(180000, 360000);
+        const warnAt = Math.max(0, nextStorm - 15000);
+        this._stormWarnTimer = this.time.delayedCall(warnAt, () => {
+            if (!this._stormActive) {
+                this.showStatusMsg('⚠ STURMWARNUNG — Schifft euch! Sturm in 15 Sekunden!', 0xffaa22);
+                this.pushStatusFeedMessage('⚠ Sturmwarnung!', '#ffaa22');
+                const flash = this.add.rectangle(0, 0, 20000, 20000, 0xff8800, 0.08)
+                    .setScrollFactor(0).setDepth(9).setOrigin(0);
+                this.tweens.add({ targets: flash, alpha: 0, duration: 1200, yoyo: true, repeat: 2, onComplete: () => flash.destroy() });
+            }
+        });
         this._stormTimer = this.time.delayedCall(nextStorm, () => this._triggerStorm());
     }
 
@@ -4146,7 +4310,7 @@ handleResize(gameSize) {
         this._stormOverlay = this.add.rectangle(0, 0, 20000, 20000, 0x000044, 0.28)
             .setScrollFactor(0).setDepth(10).setOrigin(0);
         this._stormRain = [];
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < 32; i++) {
             const rain = this.add.rectangle(
                 Phaser.Math.Between(0, this.scale.width),
                 Phaser.Math.Between(0, this.scale.height),
@@ -4163,8 +4327,8 @@ handleResize(gameSize) {
             });
         }
         if (this.player) {
-            this._stormOrigSpeed = this.player.speed;
-            this.player.speed = Math.round(this.player.speed * 0.65);
+            if (!this._playerBaseSpeed) this._playerBaseSpeed = this.player.speed;
+            this._recalcPlayerSpeed();
         }
         const duration = Phaser.Math.Between(35000, 60000);
         this.time.delayedCall(duration, () => this._clearStorm());
@@ -4176,16 +4340,15 @@ handleResize(gameSize) {
         this._stormOverlay?.destroy();
         this._stormRain?.forEach(r => r.destroy());
         this._stormRain = [];
-        if (this.player && this._stormOrigSpeed) {
-            this.player.speed = this._stormOrigSpeed;
+        if (this.player) {
+            this._recalcPlayerSpeed();
         }
         this.showStatusMsg('☀ Der Sturm zieht ab. Belohnung im Wasser!', 0x88ccff);
         if (this.player?.active) {
             this._dropRandomItem(this.player.x + Phaser.Math.Between(-200, 200), this.player.y + Phaser.Math.Between(-200, 200), 1.0);
         }
         this.spawnGift();
-        const nextStorm = Phaser.Math.Between(200000, 400000);
-        this._stormTimer = this.time.delayedCall(nextStorm, () => this._triggerStorm());
+        this._scheduleNextStorm();
     }
 
     /* ═══════════════════ ITEM BAR UPDATE ═══════════════════ */

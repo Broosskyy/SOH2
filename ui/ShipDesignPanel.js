@@ -171,7 +171,51 @@ export default class ShipDesignPanel {
         }
     }
 
+    _classStats(cls) {
+        const map = {
+            'Kutter':       { speed: '★★★★★', armor: '★☆☆☆☆', firepower: '★★☆☆☆', desc: 'Schnellster Schiffstyp, kaum Panzerung.' },
+            'Brigantine':   { speed: '★★★★☆', armor: '★★★☆☆', firepower: '★★★☆☆', desc: 'Ausgewogenes Allround-Schiff.' },
+            'Fregatte':     { speed: '★★★☆☆', armor: '★★★★☆', firepower: '★★★★☆', desc: 'Schwere Bewaffnung, hohe Resistenz.' },
+            'Linienschiff': { speed: '★★☆☆☆', armor: '★★★★★', firepower: '★★★★★', desc: 'Maximale Feuerkraft, sehr langsam.' },
+            'Beutedesigns': { speed: '★★★☆☆', armor: '★★★★☆', firepower: '★★★★☆', desc: 'Seltene Event-Beute — einzigartig.' },
+        };
+        return map[cls] ?? map['Fregatte'];
+    }
+
+    _buildActiveShipBanner(body) {
+        const allDesigns  = [...this._designs(), ...this._eventDesigns()];
+        const currentKey  = this._currentKey;
+        const active      = allDesigns.find(d => d.key === currentKey) ?? allDesigns[0];
+        const stats       = this._classStats(active.class ?? 'Fregatte');
+
+        const banner = document.createElement('div');
+        banner.id = 'sdp-active-banner';
+        banner.style.cssText = `
+            display:flex; gap:12px; align-items:center;
+            background:linear-gradient(135deg,rgba(212,170,64,0.12),rgba(10,30,60,0.6));
+            border:1px solid rgba(212,170,64,0.4); border-radius:8px;
+            padding:10px 12px; margin-bottom:14px; flex-shrink:0;
+        `;
+        banner.innerHTML = `
+            <img src="${active.src}" alt="${active.name}"
+                 style="width:58px;height:58px;object-fit:contain;border-radius:6px;flex-shrink:0;"
+                 onerror="this.style.display='none'">
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:bold;color:#d4aa40;letter-spacing:1px;margin-bottom:3px;">${active.name}</div>
+                <div style="font-size:10px;color:#9fdcff;margin-bottom:6px;">${active.class}</div>
+                <div style="font-size:9px;color:#aaa;line-height:1.5;">
+                    <span style="display:inline-block;width:72px;color:#888;">Geschw.</span><span style="color:#ffe17a;">${stats.speed}</span><br>
+                    <span style="display:inline-block;width:72px;color:#888;">Panzer.</span><span style="color:#ffe17a;">${stats.armor}</span><br>
+                    <span style="display:inline-block;width:72px;color:#888;">Kanonen</span><span style="color:#ffe17a;">${stats.firepower}</span>
+                </div>
+            </div>
+            <div style="font-size:9px;color:#8899aa;max-width:90px;line-height:1.4;text-align:right;">${stats.desc}</div>
+        `;
+        body.appendChild(banner);
+    }
+
     _buildDesignsContent(body) {
+        this._buildActiveShipBanner(body);
         const designs = this._designs();
         const classes  = [...new Set(designs.map(d => d.class))];
         classes.forEach(cls => {
@@ -288,6 +332,13 @@ export default class ShipDesignPanel {
     _updateCards(activeKey) {
         if (!this._el) return;
         this._currentKey = activeKey;
+        /* Refresh active-ship banner */
+        const oldBanner = this._el.querySelector('#sdp-active-banner');
+        if (oldBanner && this._designsBody) {
+            const tmp = document.createElement('div');
+            this._buildActiveShipBanner(tmp);
+            this._designsBody.replaceChild(tmp.firstChild, oldBanner);
+        }
         this._el.querySelectorAll('[data-key]').forEach(card => {
             const isActive = card.dataset.key === activeKey;
             card.style.border     = `2px solid ${isActive ? '#d4aa40' : 'rgba(255,255,255,0.12)'}`;
@@ -304,23 +355,35 @@ export default class ShipDesignPanel {
         });
     }
 
+    _scaleForClass(cls) {
+        switch (cls) {
+            case 'Kutter':       return 0.082;
+            case 'Brigantine':   return 0.095;
+            case 'Linienschiff': return 0.13;
+            case 'Beutedesigns': return 0.11;
+            default:             return 0.10;
+        }
+    }
+
     _equipShip(design) {
         const s = this.scene;
         if (!s.player) return;
+        const scale = this._scaleForClass(design.class ?? 'Fregatte');
+        const apply = () => {
+            s.player.sprite.setTexture(design.key);
+            s.player.sprite.setScale(scale);
+            s.playerShipDesign  = design.key;
+            s.playerShipClass   = design.class ?? 'Fregatte';
+            s.playerShipScale   = scale;
+            s.showStatusMsg?.(`⛵ ${design.name} ausgerüstet`, 0xd4aa40);
+            try { localStorage.setItem(`ahc_ship_${window._loginUsername ?? 'player'}`, JSON.stringify({ key: design.key, scale, cls: design.class })); } catch {}
+        };
         if (!s.textures.exists(design.key)) {
             s.load.image(design.key, design.src);
-            s.load.once('complete', () => {
-                s.player.sprite.setTexture(design.key);
-                s.player.sprite.setScale(0.11);
-                s.playerShipDesign = design.key;
-                s.showStatusMsg?.(`Schiff geändert: ${design.name}`, 0xd4aa40);
-            });
+            s.load.once('complete', apply);
             s.load.start();
         } else {
-            s.player.sprite.setTexture(design.key);
-            s.player.sprite.setScale(0.11);
-            s.playerShipDesign = design.key;
-            s.showStatusMsg?.(`Schiff geändert: ${design.name}`, 0xd4aa40);
+            apply();
         }
     }
 

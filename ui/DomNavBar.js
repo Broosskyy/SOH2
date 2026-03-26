@@ -25,6 +25,8 @@ export default class DomNavBar {
             { label: 'Shop',     icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
             { label: 'Rang',     icon: '♛',  action: () => this.scene.handleMenuAction('rank') },
             { label: 'Board',    icon: '🗺️', action: () => this.scene.handleMenuAction('board') },
+            { label: 'Erfolge',  icon: '🏆', action: () => this.scene.handleMenuAction('achievements') },
+            { label: 'Logbuch',  icon: '📜', action: () => this.scene.handleMenuAction('logbook') },
             { label: 'Multi',    icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
         ];
     }
