@@ -11,6 +11,8 @@ import EventsPanel from '../ui/EventsPanel.js';
 import RangPanel from '../ui/RangPanel.js';
 import BoardPanel from '../ui/BoardPanel.js';
 import CombatPanel from '../ui/CombatPanel.js';
+import AmmoBar from '../ui/AmmoBar.js';
+import ChartNav from '../ui/ChartNav.js';
 import DomNavBar from '../ui/DomNavBar.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
@@ -329,6 +331,8 @@ export default class GameScene extends Phaser.Scene {
         this.rangPanel    = new RangPanel(this);
         this.boardPanel   = new BoardPanel(this);
         this.combatPanel  = new CombatPanel(this);
+        this.ammoBar      = new AmmoBar(this);
+        this.chartNav     = new ChartNav(this);
         this.domNavBar    = new DomNavBar(this);
 
         this.navBar.setVisible(false);
@@ -337,7 +341,7 @@ export default class GameScene extends Phaser.Scene {
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
             [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel,
-             this.boardPanel, this.combatPanel, this.domNavBar]
+             this.boardPanel, this.combatPanel, this.ammoBar, this.chartNav, this.domNavBar]
                 .forEach(p => p?.destroy());
         });
 
@@ -2516,6 +2520,7 @@ if (isLandscape) {
         this.player.refreshShipInfoPanel(true);
         this.refreshAmmoButtons();
         this.refreshActionButtonStates();
+        this.ammoBar?._setActive(type);
         if (!silent) {
             const ammoConfig = this.player.getAmmoConfig(type);
             this.showStatusMsg(`Ammo selected: ${ammoConfig.label} • ${ammoConfig.summary}`, 0x8be7ff);
