@@ -24,7 +24,7 @@ export default class DomNavBar {
             { label: 'Quests',   icon: '📋', action: () => this.scene.handleMenuAction('quests') },
             { label: 'Shop',     icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
             { label: 'Rang',     icon: '♛',  action: () => this.scene.handleMenuAction('rank') },
-            { label: 'Board',    icon: '🗺️', action: () => this.scene.handleMenuAction('board') },
+            { label: 'Hafen',    icon: '⚓', action: () => this.scene.handleMenuAction('hafen') },
             { label: 'Erfolge',  icon: '🏆', action: () => this.scene.handleMenuAction('achievements') },
             { label: 'Logbuch',  icon: '📜', action: () => this.scene.handleMenuAction('logbook') },
             { label: 'Multi',    icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },

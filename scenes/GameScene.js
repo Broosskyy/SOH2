@@ -29,6 +29,7 @@ import ReputationHUD from '../ui/ReputationHUD.js';
 import LoginBonusPanel from '../ui/LoginBonusPanel.js';
 import AchievementPanel from '../ui/AchievementPanel.js';
 import LogbookPanel from '../ui/LogbookPanel.js';
+import HafenPanel   from '../ui/HafenPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -216,6 +217,7 @@ export default class GameScene extends Phaser.Scene {
         this._initTrialSystem();
         this.createPlayerVisualEffects();
         this._loadProgress();
+        this._initPlayerUpgrades();
 
         /* ── Chart minimum level enforcement ─────────────────
            Entering a new chart immediately levels the player up
@@ -417,6 +419,7 @@ export default class GameScene extends Phaser.Scene {
         this.loginBonusPanel  = new LoginBonusPanel(this);
         this.achievementPanel = new AchievementPanel(this);
         this.logbookPanel     = new LogbookPanel(this);
+        this.hafenPanel       = new HafenPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -428,7 +431,7 @@ export default class GameScene extends Phaser.Scene {
              this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
              this.adminPanel, this.talentPanel, this.multiplayerPanel,
              this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD,
-             this.loginBonusPanel, this.achievementPanel, this.logbookPanel]
+             this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
             this._streakHudEl?.remove();    this._streakHudEl = null;
@@ -458,6 +461,7 @@ export default class GameScene extends Phaser.Scene {
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
                 this._updateTrialProgress('npc_kills', 1);
                 this._logbookAdd('npc_kills');
+                this.hafenPanel?.trackVertrag?.('npc_kills', 1);
                 this._dropRandomItem(npc.x, npc.y, 0.12);
                 const repGain = 15 + (npc.chartLevel ?? 1) * 5;
                 this.reputationHUD?.addReputation(repGain, 'NPC besiegt');
@@ -467,6 +471,7 @@ export default class GameScene extends Phaser.Scene {
                 this.dailyQuestPanel?.addProgress('monsters', 1);
                 this._updateTrialProgress('monsters', 1);
                 this._logbookAdd('monster_kills');
+                this.hafenPanel?.trackVertrag?.('monsters', 1);
                 this._dropRandomItem(npc.x, npc.y, 0.30);
                 const repGain = 40 + (npc.level ?? 1) * 12;
                 this.reputationHUD?.addReputation(repGain, 'Monster besiegt');
@@ -547,6 +552,7 @@ export default class GameScene extends Phaser.Scene {
         this.events.on('gold-collected', (amount) => {
             this.missionPanel?.trackGold(amount);
             this._logbookAdd('gold_total', amount);
+            this.hafenPanel?.trackVertrag?.('gold_collected', amount);
         });
         this.events.on('damage-dealt', (amount) => {
             this.missionPanel?.trackDamage(amount);
@@ -3088,6 +3094,10 @@ handleResize(gameSize) {
             this.logbookPanel?.toggle();
             return;
         }
+        if (action === 'hafen') {
+            this.hafenPanel?.toggle();
+            return;
+        }
         this.showStatusMsg('Navigation menu ready', 0xbfe8ff);
     }
 
@@ -3972,6 +3982,7 @@ handleResize(gameSize) {
         this.lastAttackTime = now;
         this.playSound('shoot');
         this._logbookAdd('shots_fired');
+        this.hafenPanel?.trackVertrag?.('shots_fired', 1);
 
         let appliedDamage = isHarpoon
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
@@ -4532,7 +4543,7 @@ handleResize(gameSize) {
         const bonus = this.playerShipBonus ?? {};
         let s = base;
         if (this._grogActive)                              s = Math.round(s * 1.50);
-        if (this._stormActive && !bonus.stormImmune)       s = Math.round(s * 0.65);
+        if (this._stormActive && !bonus.stormImmune)       s = Math.round(Math.max(this._playerBaseSpeed * 0.72, s * 0.65));
         if (bonus.speedMult && bonus.speedMult !== 1)      s = Math.round(s * bonus.speedMult);
         this.player.speed = s;
     }
@@ -4642,6 +4653,48 @@ handleResize(gameSize) {
                 loop: true
             });
         }
+    }
+
+    /* ═══════════════════ SHIP UPGRADES ═══════════════════ */
+
+    _initPlayerUpgrades() {
+        const uKey = `ahc_upgrades_${window._loginUsername ?? 'player'}`;
+        try {
+            const saved = JSON.parse(localStorage.getItem(uKey) || 'null');
+            this.playerUpgrades = saved ?? { hull: 0, cannon: 0, reload: 0, speed: 0, luck: 0, crew: 0 };
+        } catch { this.playerUpgrades = { hull: 0, cannon: 0, reload: 0, speed: 0, luck: 0, crew: 0 }; }
+        this._applyPlayerUpgrades();
+    }
+
+    _applyPlayerUpgrades() {
+        const up = this.playerUpgrades ?? {};
+        const p  = this.player;
+        if (!p) return;
+        /* Hull: +25 max HP per level */
+        const baseHP = p._baseMaxHP ?? 300;
+        p._baseMaxHP  = baseHP;
+        p.maxHP       = baseHP + (up.hull ?? 0) * 25;
+        /* Speed: modify base speed (+5% per level) */
+        const rawBase = p._baseSpeedRaw ?? p.speed;
+        p._baseSpeedRaw     = rawBase;
+        this._playerBaseSpeed = Math.round(rawBase * (1 + (up.speed ?? 0) * 0.05));
+        this._recalcPlayerSpeed();
+    }
+
+    _buyShipUpgrade(type) {
+        const COSTS = [300, 700, 1400, 2800, 5500];
+        if (!this.playerUpgrades) this._initPlayerUpgrades();
+        const cur  = this.playerUpgrades[type] ?? 0;
+        if (cur >= 5) { this.showStatusMsg?.('Bereits auf Maximal-Stufe!', 0xffaa44); return; }
+        const cost = COSTS[cur];
+        if ((this.player?.gold ?? 0) < cost) { this.showStatusMsg?.('Nicht genug Gold!', 0xff6644); return; }
+        this.player.gold -= cost;
+        this.playerUpgrades[type] = cur + 1;
+        try {
+            localStorage.setItem(`ahc_upgrades_${window._loginUsername ?? 'player'}`, JSON.stringify(this.playerUpgrades));
+        } catch {}
+        this._applyPlayerUpgrades();
+        this.showStatusMsg?.(`🔧 ${type} auf Stufe ${cur + 1} aufgerüstet!`, 0x38f287);
     }
 
     /* ═══════════════════ LOGBOOK SYSTEM ═══════════════════ */
@@ -4917,7 +4970,7 @@ handleResize(gameSize) {
         this._stormOverlay = this.add.rectangle(0, 0, 20000, 20000, 0x000044, 0.28)
             .setScrollFactor(0).setDepth(10).setOrigin(0);
         this._stormRain = [];
-        for (let i = 0; i < 32; i++) {
+        for (let i = 0; i < 65; i++) {
             const rain = this.add.rectangle(
                 Phaser.Math.Between(0, this.scale.width),
                 Phaser.Math.Between(0, this.scale.height),

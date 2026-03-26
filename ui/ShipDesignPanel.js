@@ -135,12 +135,18 @@ export default class ShipDesignPanel {
             border-bottom: 2px solid rgba(184,149,42,0.35);
             padding: 0 16px; margin-top: 10px; flex-shrink: 0;
         `;
-        const tabDesigns  = this._makeTab('⛵ Designs',  'designs');
-        const tabTalents  = this._makeTab('🌟 Talente',  'talent');
+        const tabDesigns  = this._makeTab('⛵ Designs',   'designs');
+        const tabTalents  = this._makeTab('🌟 Talente',   'talent');
+        const tabUpgrades = this._makeTab('🔧 Upgrades',  'upgrades');
+        const tabStatus   = this._makeTab('📊 Status',    'status');
         tabBar.appendChild(tabDesigns);
         tabBar.appendChild(tabTalents);
-        this._tabDesigns = tabDesigns;
-        this._tabTalents = tabTalents;
+        tabBar.appendChild(tabUpgrades);
+        tabBar.appendChild(tabStatus);
+        this._tabDesigns  = tabDesigns;
+        this._tabTalents  = tabTalents;
+        this._tabUpgrades = tabUpgrades;
+        this._tabStatus   = tabStatus;
 
         /* ── Scroll wrapper ─────────────────────────────── */
         const scrollWrap = document.createElement('div');
@@ -165,8 +171,26 @@ export default class ShipDesignPanel {
         `;
         this._talentsBody = talentsBody;
 
+        /* ── Upgrades body ──────────────────────────────── */
+        const upgradesBody = document.createElement('div');
+        upgradesBody.style.cssText = `
+            flex: 1; overflow-y: auto; padding: 12px;
+            -webkit-overflow-scrolling: touch; display: none; flex-direction: column; gap: 8px;
+        `;
+        this._upgradesBody = upgradesBody;
+
+        /* ── Status body ────────────────────────────────── */
+        const statusBody = document.createElement('div');
+        statusBody.style.cssText = `
+            flex: 1; overflow-y: auto; padding: 12px;
+            -webkit-overflow-scrolling: touch; display: none; flex-direction: column; gap: 8px;
+        `;
+        this._statusBody = statusBody;
+
         scrollWrap.appendChild(designsBody);
         scrollWrap.appendChild(talentsBody);
+        scrollWrap.appendChild(upgradesBody);
+        scrollWrap.appendChild(statusBody);
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
@@ -201,25 +225,171 @@ export default class ShipDesignPanel {
     }
 
     _applyTabStyle() {
-        [this._tabDesigns, this._tabTalents].forEach(btn => {
+        [this._tabDesigns, this._tabTalents, this._tabUpgrades, this._tabStatus].forEach(btn => {
             if (!btn) return;
             const active = btn.dataset.tab === this._activeTab;
-            btn.style.color        = active ? '#d4aa40' : '#6a7a8a';
-            btn.style.borderColor  = active ? '#d4aa40' : 'transparent';
+            btn.style.color       = active ? '#d4aa40' : '#6a7a8a';
+            btn.style.borderColor = active ? '#d4aa40' : 'transparent';
         });
     }
 
     _switchTab(name) {
         this._activeTab = name;
         this._applyTabStyle();
-        if (!this._designsBody || !this._talentsBody) return;
-        if (name === 'designs') {
-            this._designsBody.style.display = 'flex';
-            this._talentsBody.style.display = 'none';
-        } else {
-            this._designsBody.style.display = 'none';
-            this._talentsBody.style.display = 'flex';
+        const bodies = {
+            designs:  this._designsBody,
+            talent:   this._talentsBody,
+            upgrades: this._upgradesBody,
+            status:   this._statusBody,
+        };
+        Object.entries(bodies).forEach(([tab, el]) => {
+            if (!el) return;
+            el.style.display = tab === name ? 'flex' : 'none';
+        });
+        if (name === 'talent') {
             this.scene.talentPanel?.buildContentInto(this._talentsBody);
+        } else if (name === 'upgrades') {
+            this._buildUpgradesContent(this._upgradesBody);
+        } else if (name === 'status') {
+            this._buildStatusContent(this._statusBody);
+        }
+    }
+
+    _buildUpgradesContent(body) {
+        body.innerHTML = '';
+        const s    = this.scene;
+        const up   = s.playerUpgrades ?? { hull: 0, cannon: 0, reload: 0, speed: 0, luck: 0, crew: 0 };
+        const COSTS  = [300, 700, 1400, 2800, 5500];
+        const UPGRADES = [
+            { key: 'hull',   icon: '🛡️', label: 'Rumpfpanzerung',      desc: '+25 max. HP pro Stufe',        unit: '+25 HP' },
+            { key: 'cannon', icon: '💣', label: 'Kaliber-Aufrüstung',   desc: '+8% Kanonenschaden pro Stufe', unit: '+8% Dmg' },
+            { key: 'reload', icon: '⚡', label: 'Ladebeschleuniger',    desc: '-8% Ladezeit pro Stufe',       unit: '-8% Reload' },
+            { key: 'speed',  icon: '🌊', label: 'Antriebsverstärker',   desc: '+5% Geschwindigkeit pro Stufe', unit: '+5% Spd' },
+            { key: 'luck',   icon: '🍀', label: 'Glücksbringer',        desc: '+5% Krit-Chance pro Stufe',    unit: '+5% Crit' },
+            { key: 'crew',   icon: '👥', label: 'Mannschaftsstärke',    desc: '+10% XP-Gewinn pro Stufe',     unit: '+10% XP' },
+        ];
+        const title = document.createElement('div');
+        title.style.cssText = `font-size:10px;color:#8a9aaa;margin-bottom:4px;padding-bottom:6px;border-bottom:1px solid rgba(184,149,42,0.2);`;
+        title.textContent = `Gold: ${s.player?.gold ?? 0} 🪙   —  Permanente Aufrüstungen (bleiben bei Schiffen erhalten)`;
+        body.appendChild(title);
+        UPGRADES.forEach(u => {
+            const cur      = up[u.key] ?? 0;
+            const maxed    = cur >= 5;
+            const nextCost = maxed ? null : COSTS[cur];
+            const card = document.createElement('div');
+            card.style.cssText = `
+                background:rgba(255,255,255,0.04);border:1px solid rgba(184,149,42,0.18);
+                border-radius:8px;padding:10px 12px;
+            `;
+            /* Stars */
+            const stars = '★'.repeat(cur) + '☆'.repeat(5 - cur);
+            card.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:20px;">${u.icon}</span>
+                        <div>
+                            <div style="font-size:11px;font-weight:bold;color:#d4aa40;">${u.label}</div>
+                            <div style="font-size:9px;color:#7a8a9a;">${u.desc}</div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:12px;color:#ffd36a;letter-spacing:1px;">${stars}</div>
+                        <div style="font-size:9px;color:#5a7a6a;">${cur}/5 — ${u.unit}</div>
+                    </div>
+                </div>
+            `;
+            if (!maxed) {
+                const btn = document.createElement('button');
+                btn.style.cssText = `
+                    width:100%;padding:6px;background:rgba(184,149,42,0.15);
+                    border:1px solid rgba(184,149,42,0.4);border-radius:5px;
+                    color:#d4aa40;font-size:11px;font-weight:bold;
+                    cursor:pointer;touch-action:manipulation;
+                `;
+                btn.textContent = `${nextCost} 🪙 kaufen → Stufe ${cur + 1}`;
+                const buy = e => {
+                    e.preventDefault();
+                    s._buyShipUpgrade?.(u.key);
+                    this._buildUpgradesContent(body);
+                };
+                btn.addEventListener('click', buy);
+                btn.addEventListener('touchend', buy, { passive: false });
+                card.appendChild(btn);
+            } else {
+                const maxTag = document.createElement('div');
+                maxTag.style.cssText = `text-align:center;font-size:10px;color:#38f287;padding:4px;`;
+                maxTag.textContent = '✅ MAXIMALE STUFE ERREICHT';
+                card.appendChild(maxTag);
+            }
+            body.appendChild(card);
+        });
+    }
+
+    _buildStatusContent(body) {
+        body.innerHTML = '';
+        const s  = this.scene;
+        const p  = s.player;
+        const up = s.playerUpgrades ?? {};
+        const sb = s.playerShipBonus ?? {};
+
+        const sec = (title, color = '#d4aa40') => {
+            const el = document.createElement('div');
+            el.style.cssText = `font-size:10px;letter-spacing:2px;color:${color};text-transform:uppercase;
+                padding-bottom:5px;border-bottom:1px solid rgba(184,149,42,0.2);margin-top:4px;`;
+            el.textContent = title;
+            return el;
+        };
+        const row = (icon, label, val, color = '#fff') => {
+            const el = document.createElement('div');
+            el.style.cssText = `display:flex;align-items:center;justify-content:space-between;
+                padding:5px 8px;border-radius:5px;background:rgba(255,255,255,0.03);`;
+            el.innerHTML = `
+                <span style="font-size:14px;width:22px;text-align:center;">${icon}</span>
+                <span style="flex:1;font-size:11px;color:#8a9aaa;padding:0 8px;">${label}</span>
+                <span style="font-size:12px;font-weight:bold;color:${color};">${val}</span>
+            `;
+            return el;
+        };
+        const hpPct = p ? Math.round((p.hp / (p.maxHP || 1)) * 100) : 0;
+        const hpColor = hpPct > 60 ? '#38f287' : hpPct > 30 ? '#ffd45c' : '#ff4444';
+
+        body.appendChild(sec('⚓ Schiff & Besatzung'));
+        if (p) {
+            body.appendChild(row('⚓', 'Schiffsklasse',         p._shipClass ?? 'Standard'));
+            body.appendChild(row('🎖', 'Level',                `${p.level ?? 1}`));
+            body.appendChild(row('⭐', 'Erfahrung (XP)',        `${(p.xp ?? 0).toLocaleString()}`));
+            body.appendChild(row('💛', 'HP',                   `${Math.ceil(p.hp ?? 0)} / ${p.maxHP ?? 300}`, hpColor));
+            body.appendChild(row('🪙', 'Gold',                 `${(p.gold ?? 0).toLocaleString()}`));
+        }
+
+        body.appendChild(sec('⚙️ Kampfwerte'));
+        if (p) {
+            const dmgBonus = (sb.damageMult ?? 1) * (1 + (up.cannon ?? 0) * 0.08);
+            const spdBonus = (sb.speedMult ?? 1) * (1 + (up.speed ?? 0) * 0.05);
+            body.appendChild(row('💣', 'Kanonenschaden',       `×${dmgBonus.toFixed(2)}`));
+            body.appendChild(row('🌊', 'Geschwindigkeit',      `×${spdBonus.toFixed(2)}`));
+            body.appendChild(row('🍀', 'Krit-Chance',          `${((up.luck ?? 0) * 5)}%`));
+            body.appendChild(row('👥', 'XP-Bonus',             `+${((up.crew ?? 0) * 10)}%`));
+            body.appendChild(row('💛', 'Max HP Bonus',         `+${(up.hull ?? 0) * 25} HP`));
+        }
+
+        body.appendChild(sec('✨ Legendär-Boni'));
+        const bonusLines = [
+            sb.speedMult && sb.speedMult !== 1  ? `⚡ +${Math.round((sb.speedMult-1)*100)}% Geschwindigkeit` : null,
+            sb.goldMult  && sb.goldMult  !== 1  ? `🪙 +${Math.round((sb.goldMult-1)*100)}% Gold` : null,
+            sb.damageMult && sb.damageMult !== 1 ? `💥 +${Math.round((sb.damageMult-1)*100)}% Schaden` : null,
+            sb.stormImmune                       ? `🌊 Sturm-Immunität` : null,
+            sb.hpMult  && sb.hpMult  !== 1      ? `💛 +${Math.round((sb.hpMult-1)*100)}% HP` : null,
+        ].filter(Boolean);
+        if (bonusLines.length === 0) {
+            body.appendChild(row('—', 'Kein legendäres Schiff aktiv', '—', '#556677'));
+        } else {
+            bonusLines.forEach(l => {
+                const el = document.createElement('div');
+                el.style.cssText = `font-size:10px;color:#ffd36a;padding:3px 8px;`;
+                el.textContent = l;
+                body.appendChild(el);
+            });
         }
     }
 

@@ -8,7 +8,7 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - `main.js` – Phaser-Spielkonfiguration, startet `GameScene`
 - `scenes/LoginScene.js` – Login + Registrierung (Tab-System), localStorage-Konten
 - `scenes/LoadingScene.js` – Ladeszene (2.6s) mit Fortschrittsbalken
-- `scenes/GameScene.js` – Hauptspielszene (3400+ Zeilen): Welt, Kamera, UI, Kampf, Karten
+- `scenes/GameScene.js` – Hauptspielszene (5000+ Zeilen): Welt, Kamera, UI, Kampf, Karten, Upgrades
 - `entities/` – Spielobjekte:
   - `Ship.js` – Basisklasse (Container) für alle Schiffe
   - `PlayerShip.js` – Spielerschiff mit Upgrade-System, Munitionstypen
@@ -20,13 +20,17 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - `ui/` – DOM & Phaser UI-Komponenten:
   - `Minimap.js` – Minimap-Komponente (190px, BOS-Stil, Goldrahmen, Koordinaten)
   - `PremiumShopPanel.js` – Premium-Item-Shop (4 Tabs: Upgrades, Munition, Besatzung, Premium)
-  - `ShipDesignPanel.js` – Schiffsdesign-Panel (13 Kategorien + Event-Beutedesigns)
+  - `ShipDesignPanel.js` – Schiffswerft (4 Tabs: Designs, Talente, Upgrades, Status); 6 legendäre Klassen
+  - `HafenPanel.js` – Hafen-Panel (4 Tabs: Taverne/Verbrauchsgüter, Reparatur, Verträge/Tagesziele, Navigation/Karten)
   - `ChatPanel.js` – DOM Chat mit /hilfe-Befehlen (/gold, /gems, /hp, /lvl, /event, /spawn npc, /speichern…)
   - `AdminPanel.js` – GM-Panel: Stats, Spawn, Teleport, Godmode, Weltsteuerung, Broadcast
   - `TalentPanel.js` – 3 Talent-Bäume (Seefahrer/Kriegsherr/Händler), Skillpunkte via Level-Up
   - `MultiplayerPanel.js` – BroadcastChannel-Multiplayer (selbe Domain, mehrere Tabs) mit Minimap-Markierungen
+  - `LoginBonusPanel.js` – Täglich-Login-Bonus (7-Tage-Streak, Gold/Items/Gems)
+  - `AchievementPanel.js` – 15 Erfolge (NPC-Kills, Monster, Gold, Schüsse, HP, Items, Karten)
+  - `LogbookPanel.js` – Schiffslogbuch mit vollständigen Statistiken (persistiert)
   - `MissionPanel.js`, `BonusPanel.js`, `EventsPanel.js`, `RangPanel.js`, `BoardPanel.js`, `CombatPanel.js`
-  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js`
+  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js` (14 Buttons: Admin, Werft, Gilde, Chat, Events, Mission, Bonus, Quests, Shop, Rang, Hafen, Erfolge, Logbuch, Multi)
 - `assets/` – Alle Bild-Assets (WebP, PNG, JPG)
 
 ## Szenen-Fluss
