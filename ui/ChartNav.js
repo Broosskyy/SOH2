@@ -152,6 +152,43 @@ export default class ChartNav {
         attackBtn.addEventListener('touchend', doAttack, { passive: false });
         this._attackBtn = attackBtn;
 
+        const repairBtn = document.createElement('button');
+        repairBtn.id = 'chart-repair-btn';
+        repairBtn.style.cssText = `
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0d280d, #1a4a1a);
+            border: 2px solid rgba(80,220,100,0.65);
+            color: #7fffb0;
+            font-size: 19px;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.6), 0 0 8px rgba(60,200,80,0.25);
+            transition: background 0.15s, box-shadow 0.15s;
+            flex-shrink: 0;
+        `;
+        repairBtn.title = 'Schiff reparieren';
+        repairBtn.textContent = '🔧';
+        const doRepair = (e) => {
+            e.preventDefault();
+            repairBtn.style.background = 'linear-gradient(135deg, #1a5a1a, #2a7a2a)';
+            repairBtn.style.boxShadow  = '0 0 18px rgba(60,200,80,0.6)';
+            setTimeout(() => {
+                repairBtn.style.background = 'linear-gradient(135deg, #0d280d, #1a4a1a)';
+                repairBtn.style.boxShadow  = '0 2px 10px rgba(0,0,0,0.6), 0 0 8px rgba(60,200,80,0.25)';
+            }, 200);
+            s._tryNearestIslandRepair?.();
+        };
+        repairBtn.addEventListener('click', doRepair);
+        repairBtn.addEventListener('touchend', doRepair, { passive: false });
+        this._repairBtn = repairBtn;
+
         const doWest = (e) => {
             e.preventDefault();
             const idx = s.currentChartIndex ?? 1;
@@ -180,6 +217,7 @@ export default class ChartNav {
         nav.appendChild(center);
         nav.appendChild(eastBtn);
         nav.appendChild(attackBtn);
+        nav.appendChild(repairBtn);
         document.body.appendChild(nav);
         this._el = nav;
 

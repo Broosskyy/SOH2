@@ -423,9 +423,6 @@ export default class GameScene extends Phaser.Scene {
         this.logbookPanel     = new LogbookPanel(this);
         this.hafenPanel       = new HafenPanel(this);
 
-        /* --- Floating Repair Button (HUD, bottom-right) --- */
-        this._buildRepairButton();
-
         this.navBar.setVisible(false);
 
         this.scale.on('resize', this.handleResize, this);
@@ -439,7 +436,6 @@ export default class GameScene extends Phaser.Scene {
              this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
-            this._repairBtn?.remove();      this._repairBtn = null;
             this._streakHudEl?.remove();    this._streakHudEl = null;
             this._rageOverlay?.remove();    this._rageOverlay = null;
             this._merchantShopEl?.remove(); this._merchantShopEl = null;
@@ -1681,48 +1677,6 @@ handleResize(gameSize) {
                 this.showStatusMsg(`🏰 Turm: -${dmg} HP`, 0xff6644);
             }
         });
-    }
-
-    _buildRepairButton() {
-        const btn = document.createElement('button');
-        btn.id = 'repair-hud-btn';
-        btn.innerHTML = '🔧<br><span style="font-size:8px;font-family:Arial;letter-spacing:0.4px;">REPAIR</span>';
-        btn.style.cssText = `
-            position: fixed;
-            bottom: 72px;
-            right: 10px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #1a3a1a 0%, #0a200a 100%);
-            border: 2px solid rgba(100,220,100,0.7);
-            box-shadow: 0 0 14px rgba(80,220,80,0.35), inset 0 0 8px rgba(80,220,80,0.1);
-            color: #7fffb0;
-            font-size: 20px;
-            line-height: 1.2;
-            cursor: pointer;
-            z-index: 9100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            outline: none;
-            transition: box-shadow 0.12s, background 0.12s;
-        `;
-        btn.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); e.stopPropagation();
-            btn.style.background = 'linear-gradient(135deg, #2a6a2a 0%, #1a4a1a 100%)';
-            btn.style.boxShadow  = '0 0 22px rgba(80,220,80,0.65)';
-            setTimeout(() => {
-                btn.style.background = 'linear-gradient(135deg, #1a3a1a 0%, #0a200a 100%)';
-                btn.style.boxShadow  = '0 0 14px rgba(80,220,80,0.35), inset 0 0 8px rgba(80,220,80,0.1)';
-            }, 180);
-            this._tryNearestIslandRepair();
-        });
-        document.body.appendChild(btn);
-        this._repairBtn = btn;
     }
 
     _tryNearestIslandRepair() {
