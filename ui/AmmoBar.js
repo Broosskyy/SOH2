@@ -32,8 +32,8 @@ export default class AmmoBar {
         bar.id = 'ammo-bar';
         bar.style.cssText = `
             position: fixed;
-            right: env(safe-area-inset-right, 8px);
-            bottom: 72px;
+            right: calc(8px + env(safe-area-inset-right, 0px));
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
             z-index: 8000;
             display: flex;
             flex-direction: column;

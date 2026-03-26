@@ -2,6 +2,7 @@ export default class ChartNav {
     constructor(scene) {
         this.scene = scene;
         this._el = null;
+        this._shipBtn = null;
         this._build();
     }
 
@@ -16,7 +17,7 @@ export default class ChartNav {
             z-index: 8000;
             display: flex;
             align-items: center;
-            gap: 0;
+            gap: 8px;
             pointer-events: auto;
             user-select: none;
             -webkit-user-select: none;
@@ -24,6 +25,39 @@ export default class ChartNav {
         `;
 
         const s = this.scene;
+
+        const shipBtn = document.createElement('button');
+        shipBtn.id = 'chart-ship-btn';
+        shipBtn.style.cssText = `
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0a1a2e, #1a3060);
+            border: 2px solid rgba(255,200,80,0.55);
+            color: #ffd080;
+            font-size: 22px;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.7), 0 0 10px rgba(255,200,80,0.2);
+            transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
+        `;
+        shipBtn.textContent = '⚓';
+        const doShip = (e) => {
+            e.preventDefault();
+            s.handleReturnToShipPressed?.();
+        };
+        shipBtn.addEventListener('click', doShip);
+        shipBtn.addEventListener('touchend', doShip, { passive: false });
+        shipBtn.addEventListener('touchstart', () => {
+            shipBtn.style.background = 'linear-gradient(135deg, #1a3060, #2a4080)';
+        }, { passive: true });
+        this._shipBtn = shipBtn;
 
         const westBtn = document.createElement('button');
         westBtn.id = 'chart-nav-west';
@@ -109,6 +143,7 @@ export default class ChartNav {
         eastBtn.addEventListener('click', doEast);
         eastBtn.addEventListener('touchend', doEast, { passive: false });
 
+        nav.appendChild(shipBtn);
         nav.appendChild(westBtn);
         nav.appendChild(center);
         nav.appendChild(eastBtn);
@@ -124,23 +159,29 @@ export default class ChartNav {
         const max = s.maxChartIndex ?? 10;
         const cfg = s.getChartConfig?.(idx);
 
-        const numEl = document.getElementById('chart-nav-num');
+        const numEl  = document.getElementById('chart-nav-num');
         const nameEl = document.getElementById('chart-nav-name');
         const westBtn = document.getElementById('chart-nav-west');
         const eastBtn = document.getElementById('chart-nav-east');
 
-        if (numEl) numEl.textContent = String(idx);
+        if (numEl)  numEl.textContent  = String(idx);
         if (nameEl) nameEl.textContent = cfg?.name ?? `Seekarte ${idx}`;
 
         const canWest = idx > 1;
         const canEast = idx < max;
         if (westBtn) {
             westBtn.style.opacity = canWest ? '1' : '0.3';
-            westBtn.style.cursor = canWest ? 'pointer' : 'default';
+            westBtn.style.cursor  = canWest ? 'pointer' : 'default';
         }
         if (eastBtn) {
             eastBtn.style.opacity = canEast ? '1' : '0.3';
-            eastBtn.style.cursor = canEast ? 'pointer' : 'default';
+            eastBtn.style.cursor  = canEast ? 'pointer' : 'default';
+        }
+    }
+
+    setShipVisible(v) {
+        if (this._shipBtn) {
+            this._shipBtn.style.display = v ? 'flex' : 'none';
         }
     }
 

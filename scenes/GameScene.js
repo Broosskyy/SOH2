@@ -763,6 +763,7 @@ handleResize(gameSize) {
 
     toggleReturnToShipVisibility() {
         this.isReturnToShipVisible = !this.isReturnToShipVisible;
+        this.chartNav?.setShipVisible(this.isReturnToShipVisible);
         this.showStatusMsg(this.isReturnToShipVisible ? 'Return-to-ship panel expanded' : 'Return-to-ship panel minimized', 0x8be7ff);
         this.updateUIBars();
     }
@@ -2154,6 +2155,10 @@ handleResize(gameSize) {
             this.targetHUD.x = width / 2;
             this.targetHUD.y = navH + 18;
 
+            this.progressContainer.setVisible(false);
+            this.returnToShipBtn.setVisible(false);
+            this.chartNav?.setShipVisible(this.isReturnToShipVisible);
+
             const chatH = this.isChatMinimized ? 44 : 168;
             const feedH = this.isStatusFeedMinimized ? 44 : 120;
 
@@ -2165,11 +2170,6 @@ handleResize(gameSize) {
 
             this.statusFeedPanel.setPosition(16, height - chatH - feedH - 12);
             this.statusFeedDragHandle.container.setPosition(130, 8);
-
-            this.returnToShipBtn.setPosition(16, height - chatH - feedH - 76 - 20);
-            this.returnToShipBtn.setVisible(true);
-            this.returnToShipHit.setPosition(-6, -6);
-            this.returnToShipHit.setSize(196, 76);
 
             this.actionsContainer.setPosition(width - 178, height - 138);
 
@@ -2238,6 +2238,7 @@ handleResize(gameSize) {
         this.topHpBarFill.fillRoundedRect(48, 44, 160 * hpPercent, 10, 5);
         this.expValueText.setText(`${Math.floor(this.player.xp)}/${100 * this.player.level}`);
         this.hpTopValueText.setText(`${Math.ceil(this.player.hp)}/${this.player.maxHP}`);
+        this.domNavBar?.updateStats(this.player.xp, 100 * this.player.level, this.player.hp, this.player.maxHP);
         this.chartBadgeBg.clear();
         this.chartBadgeBg.fillStyle(0x0a1a2a, 0.78);
         this.chartBadgeBg.lineStyle(1, 0xe6cb79, 0.9);
