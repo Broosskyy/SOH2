@@ -2567,7 +2567,7 @@ handleResize(gameSize) {
             const feedH = this.isStatusFeedMinimized ? 44 : 120;
 
             this.chatPanel.setPosition(16, height - chatH - 6);
-            this.chatPanel.setVisible(true);
+            this.chatPanel.setVisible(false);
             this.chatDragHandle.container.setPosition(166, 8);
             this.chatToggleHit.setPosition(202, -4);
             this.chatToggleHit.setSize(44, 40);
@@ -2593,7 +2593,7 @@ handleResize(gameSize) {
             this.returnToShipHit.setSize(196, 76);
 
             this.chatPanel.setPosition(24, height - 200);
-            this.chatPanel.setVisible(true);
+            this.chatPanel.setVisible(false);
             this.chatDragHandle.container.setPosition(166, 8);
             this.chatToggleHit.setPosition(202, -4);
             this.chatToggleHit.setSize(44, 40);

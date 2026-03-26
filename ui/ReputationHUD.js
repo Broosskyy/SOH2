@@ -26,7 +26,7 @@ export default class ReputationHUD {
             position: fixed;
             top: 58px;
             right: 0;
-            width: 256px;
+            width: 202px;
             z-index: 8800;
             display: flex;
             flex-direction: column;
@@ -37,29 +37,28 @@ export default class ReputationHUD {
 
         el.innerHTML = `
             <div id="rep-rank-bar" style="
-                display:flex;align-items:center;gap:5px;
-                padding:3px 10px 3px 12px;
-                background:linear-gradient(90deg,rgba(3,10,24,0.96) 0%,rgba(3,10,24,0.80) 70%,transparent 100%);
-                border-bottom:1px solid rgba(212,175,55,0.2);
-                border-left:1px solid rgba(212,175,55,0.15);
+                display:flex;align-items:center;gap:4px;
+                padding:3px 10px 3px 10px;
+                background:linear-gradient(90deg,rgba(3,10,24,0.95) 0%,rgba(3,10,24,0.70) 80%,transparent 100%);
+                border-bottom:1px solid rgba(212,175,55,0.18);
+                border-left:1px solid rgba(212,175,55,0.12);
             ">
-                <span id="rep-icon" style="font-size:12px;">⚓</span>
-                <span id="rep-name" style="font-size:9px;font-weight:bold;color:#888;letter-spacing:0.5px;">UNBEKANNT</span>
-                <div style="flex:1;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:0 4px;">
-                    <div id="rep-bar" style="height:100%;width:0%;background:#888888;border-radius:2px;transition:width 0.6s ease;"></div>
+                <span id="rep-icon" style="font-size:11px;">⚓</span>
+                <span id="rep-name" style="font-size:8px;font-weight:bold;color:#888;letter-spacing:0.5px;flex-shrink:0;">UNBEKANNT</span>
+                <div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin:0 3px;">
+                    <div id="rep-bar" style="height:100%;width:0%;background:#888;border-radius:2px;transition:width 0.6s ease;"></div>
                 </div>
-                <span id="rep-val" style="font-size:8px;color:#666;min-width:32px;text-align:right;">0</span>
+                <span id="rep-val" style="font-size:8px;color:#666;min-width:28px;text-align:right;">0</span>
             </div>
             <div id="bounty-bar" style="
-                display:flex;align-items:center;gap:4px;
-                padding:2px 10px 2px 12px;
-                background:linear-gradient(90deg,rgba(3,10,24,0.90) 0%,rgba(3,10,24,0.60) 70%,transparent 100%);
-                display:none;
+                display:none;align-items:center;gap:3px;
+                padding:2px 10px 2px 10px;
+                background:linear-gradient(90deg,rgba(20,4,4,0.90) 0%,rgba(20,4,4,0.55) 80%,transparent 100%);
             ">
                 <span style="font-size:9px;">💰</span>
-                <span style="font-size:9px;color:#ff8844;">Kopfgeld:</span>
+                <span style="font-size:8px;color:#ff8844;">Kopfgeld:</span>
                 <span id="bounty-val" style="font-size:9px;font-weight:bold;color:#ffd36a;">0</span>
-                <span style="font-size:9px;color:#ff8844;">Gold</span>
+                <span style="font-size:8px;color:#ff6633;">Gold</span>
             </div>
         `;
 
