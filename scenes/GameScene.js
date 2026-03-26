@@ -30,7 +30,8 @@ import ReputationHUD from '../ui/ReputationHUD.js';
 import LoginBonusPanel from '../ui/LoginBonusPanel.js';
 import AchievementPanel from '../ui/AchievementPanel.js';
 import LogbookPanel from '../ui/LogbookPanel.js';
-import HafenPanel   from '../ui/HafenPanel.js';
+import HafenPanel         from '../ui/HafenPanel.js';
+import CannonUpgradePanel from '../ui/CannonUpgradePanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -421,7 +422,8 @@ export default class GameScene extends Phaser.Scene {
         this.loginBonusPanel  = new LoginBonusPanel(this);
         this.achievementPanel = new AchievementPanel(this);
         this.logbookPanel     = new LogbookPanel(this);
-        this.hafenPanel       = new HafenPanel(this);
+        this.hafenPanel           = new HafenPanel(this);
+        this.cannonUpgradePanel   = new CannonUpgradePanel(this);
 
         this.navBar.setVisible(false);
 
@@ -433,7 +435,8 @@ export default class GameScene extends Phaser.Scene {
              this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
              this.adminPanel, this.talentPanel, this.multiplayerPanel,
              this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD,
-             this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel]
+             this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel,
+             this.cannonUpgradePanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
             this._streakHudEl?.remove();    this._streakHudEl = null;
@@ -468,6 +471,7 @@ export default class GameScene extends Phaser.Scene {
                 const repGain = 15 + (npc.chartLevel ?? 1) * 5;
                 this.reputationHUD?.addReputation(repGain, 'NPC besiegt');
                 this.reputationHUD?.addBounty(Math.round(repGain * 2.5));
+                this._addRuf(5 + (npc.npcTier ?? 1) * 3, 'Schiff versenkt');
                 this.time.delayedCall(10000, () => this.spawnNPC());
             } else if (npc instanceof Monster) {
                 this.dailyQuestPanel?.addProgress('monsters', 1);
@@ -478,6 +482,7 @@ export default class GameScene extends Phaser.Scene {
                 const repGain = 40 + (npc.level ?? 1) * 12;
                 this.reputationHUD?.addReputation(repGain, 'Monster besiegt');
                 this.reputationHUD?.addBounty(Math.round(repGain * 4));
+                this._addRuf(20 + (npc.level ?? 1) * 5, 'Monster besiegt');
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
         });
@@ -598,6 +603,7 @@ export default class GameScene extends Phaser.Scene {
                 selectedShip:  p._selectedShipKey ?? null,
                 chartIndex:    this.currentChartIndex ?? 1,
                 logbook:       this._logbook ? { ...this._logbook, charts_explored: [...(this._logbook.charts_explored ?? [])] } : {},
+                ruf:           this._ruf ?? 0,
                 savedAt:       Date.now()
             };
             localStorage.setItem(key, JSON.stringify(data));
@@ -633,6 +639,7 @@ export default class GameScene extends Phaser.Scene {
                     this._logbook.charts_explored = new Set(d.logbook.charts_explored);
                 }
             }
+            if (d.ruf           !== undefined) this._ruf = d.ruf;
             p.updateHealthBar?.();
             p.refreshShipInfoPanel?.(true);
             this._updateItemBar?.();
@@ -1050,11 +1057,23 @@ export default class GameScene extends Phaser.Scene {
                 this.showStatusMsg('⚡ Donnerpulver! Nächster Schuss: 3× Schaden', 0xffe84a);
                 break;
             case 'grog': {
+                if (!this._playerBaseSpeed) this._playerBaseSpeed = this.player?.speed ?? 160;
+                const now15 = this.time.now;
+                const remaining = (this._grogExpiry ?? 0) > now15 ? (this._grogExpiry - now15) : 0;
+                this._grogExpiry = now15 + remaining + 15000;
                 this._grogActive = true;
-                this._grogEndTime = (this._grogEndTime ?? 0) > Date.now()
-                    ? this._grogEndTime + 15000 : Date.now() + 15000;
+                if (this.player) { this.player.activeEffects = this.player.activeEffects ?? {}; this.player.activeEffects.grog = true; }
                 this._recalcPlayerSpeed?.();
-                this.showStatusMsg('🧉 Grog! Schussrate +40% für 15s', 0x88aaff);
+                this.showStatusMsg('🧉 Grog! +50% Geschwindigkeit für 15s', 0x88aaff);
+                /* clear after total remaining duration */
+                this.time.delayedCall(remaining + 15000, () => {
+                    if (this._grogActive && (this._grogExpiry ?? 0) <= this.time.now + 50) {
+                        this._grogActive = false;
+                        delete this.player?.activeEffects?.grog;
+                        this._recalcPlayerSpeed?.();
+                        this.showStatusMsg('🧉 Grog-Effekt abgelaufen.', 0x888888);
+                    }
+                });
                 break;
             }
             case 'sea_chart':
@@ -1292,8 +1311,8 @@ handleResize(gameSize) {
         const candidates = [
             ...(this.npcGroup ? this.npcGroup.getChildren() : []),
             ...(this.monsterGroup ? this.monsterGroup.getChildren() : []),
-            ...(this.islandTowerGroup ? this.islandTowerGroup.getChildren() : [])
-        ].filter(entity => entity && entity.active);
+            ...(this.islandTowerGroup ? this.islandTowerGroup.getChildren().filter(t => !t.isDead) : [])
+        ].filter(entity => entity && entity.active && !entity.isDead);
 
         let closestTarget = null;
         let closestDistance = Number.POSITIVE_INFINITY;
@@ -1603,7 +1622,7 @@ handleResize(gameSize) {
 
                 /* clicking a tower selects it as combat target */
                 tower.on('pointerdown', () => {
-                    if (!tower.active) { this.showStatusMsg('💥 Turm bereits zerstört!', 0x888888); return; }
+                    if (tower.isDead) { this.showStatusMsg('💥 Turm bereits zerstört!', 0x888888); return; }
                     this.TargetEnemy = tower;
                     this.selectedTarget = tower;
                     this.showStatusMsg(`🏰 Turm anvisiert — ${tower.hp}/${tower.maxHp} HP`, 0xffaa44);
@@ -1642,6 +1661,7 @@ handleResize(gameSize) {
         island._conquestObjects = [fp, fb, ft, lbl];
 
         this.showStatusMsg(`⚑ Insel für ${guild} erobert! +80 Gold alle 30s`, 0xd4aa40);
+        this._addRuf(80, 'Insel erobert');
         this.events.emit('island-conquered', { island, guild });
 
         /* Gold bonus every 30s */
@@ -3177,6 +3197,10 @@ handleResize(gameSize) {
             this.multiplayerPanel?.toggle();
             return;
         }
+        if (action === 'cannon') {
+            this.cannonUpgradePanel?.toggle();
+            return;
+        }
         if (action === 'board') {
             this.boardPanel?.toggle();
             return;
@@ -3625,7 +3649,7 @@ handleResize(gameSize) {
         const ammo = this.getSelectedAmmoConfig();
         const ammoMultiplier = this.player.getAmmoMultiplier(this.currentAmmoType);
         const totalDamagePerShot = this.player.getTotalDamagePerShot(ammoMultiplier);
-        return {
+        const stats = {
             ammo,
             ammoMultiplier,
             totalDamagePerShot,
@@ -3636,6 +3660,10 @@ handleResize(gameSize) {
                 maxDamage: totalDamagePerShot
             }
         };
+        /* Apply cannon tier bonus (Einfach → Gut → Stark → Episch → Legendär) */
+        const tier = this.playerCannonTier ?? 0;
+        if (tier > 0) CannonUpgradePanel.applyTierBonus(stats, tier);
+        return stats;
     }
 
     setAmmoType(type, silent = false) {
@@ -4547,7 +4575,7 @@ handleResize(gameSize) {
         if (this._towerShootAccum > 2600 && this.player?.active) {
             this._towerShootAccum = 0;
             this.islandTowerGroup?.getChildren().forEach(tower => {
-                if (!tower.active) return;
+                if (tower.isDead || !tower.active) return;
                 const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, tower.x, tower.y);
                 if (dist < 420) this._fireTowerProjectile(tower);
             });
@@ -4848,6 +4876,32 @@ handleResize(gameSize) {
             hp_healed: 0, items_used: 0, treasures_opened: 0,
             charts_explored: new Set(), damage_dealt: 0, shots_fired: 0
         };
+        if (this._ruf === undefined) this._ruf = 0;
+    }
+
+    /* ═══════════════════ RUF (REPUTATION) ════════════════════ */
+    static RUF_TIERS = [
+        { min: 0,    title: 'Unbekannt',            color: '#aaaaaa', icon: '⚓' },
+        { min: 100,  title: 'Bekannter Seemann',    color: '#63d6ff', icon: '🌊' },
+        { min: 500,  title: 'Gefürchteter Freibeuter', color: '#8bffba', icon: '⚔️' },
+        { min: 1500, title: 'Berühmter Pirat',      color: '#ff9a5a', icon: '💀' },
+        { min: 4000, title: 'Legendärer Kapitän',   color: '#ffd700', icon: '👑' },
+        { min: 8000, title: 'Teufel der Meere',     color: '#ff4444', icon: '🔱' },
+    ];
+
+    getRufTier() {
+        const ruf = this._ruf ?? 0;
+        const tiers = GameScene.RUF_TIERS;
+        let tier = tiers[0];
+        for (const t of tiers) { if (ruf >= t.min) tier = t; else break; }
+        return { ...tier, ruf };
+    }
+
+    _addRuf(amount, reason = '') {
+        this._ruf = (this._ruf ?? 0) + amount;
+        const tier = this.getRufTier();
+        if (reason) this.pushStatusFeedMessage?.(`${tier.icon} +${amount} Ruf${reason ? ' · ' + reason : ''}`, '#d4aa40');
+        this.rangPanel?._renderAll?.();
     }
 
     _logbookAdd(key, amount = 1) {

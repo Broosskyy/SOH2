@@ -29,6 +29,7 @@ export default class DomNavBar {
             { label: 'Bonus',   icon: '◎',  action: () => this.scene.handleMenuAction('bonus') },
             { label: 'Mission', icon: '⇪',  action: () => this.scene.handleMenuAction('missions') },
             { label: 'Multi',   icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
+            { label: 'Kanone',  icon: '💣', action: () => this.scene.handleMenuAction('cannon') },
             { label: 'Admin',   icon: '🛡', action: () => this.scene.handleMenuAction('admin'), adminBtn: true },
         ];
     }

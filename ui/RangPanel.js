@@ -203,6 +203,30 @@ export default class RangPanel {
         tabEl.id = 'rang-tab-content';
 
         if (this._tab === 'stats') {
+            /* Ruf tier display */
+            const rufTier = this.scene.getRufTier?.() ?? { ruf: 0, title: 'Unbekannt', color: '#aaaaaa', icon: '⚓' };
+            const rufNextTiers = (this.scene.constructor?.RUF_TIERS ?? []).filter(t => t.min > rufTier.ruf);
+            const rufNext = rufNextTiers[0] ?? null;
+            const rufPct = rufNext ? Math.min(100, Math.round(((rufTier.ruf - rufTier.min) / (rufNext.min - rufTier.min)) * 100)) : 100;
+
+            const rufBlock = `
+                <div style="
+                    background:rgba(212,175,55,0.07);border:1px solid rgba(212,175,55,0.25);
+                    border-radius:12px;padding:12px 14px;margin-bottom:12px;
+                ">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <div style="font-size:13px;font-weight:bold;color:${rufTier.color};">${rufTier.icon} ${rufTier.title}</div>
+                        <div style="font-size:11px;color:#ffd36a;">${rufTier.ruf.toLocaleString('de-DE')} Ruf</div>
+                    </div>
+                    ${rufNext ? `
+                    <div style="background:rgba(255,255,255,0.06);border-radius:6px;height:8px;overflow:hidden;">
+                        <div style="width:${rufPct}%;height:100%;background:linear-gradient(90deg,${rufTier.color},#fff8a0);border-radius:6px;transition:width 0.4s;"></div>
+                    </div>
+                    <div style="font-size:9px;color:#888;margin-top:4px;">Nächster Rang: ${rufNext.icon} ${rufNext.title} bei ${rufNext.min.toLocaleString('de-DE')} Ruf</div>
+                    ` : `<div style="font-size:9px;color:#ffd700;">Höchster Rang erreicht!</div>`}
+                </div>
+            `;
+
             const stats = [
                 { label: '💀 Schiffe versenkt',  value: (p.totalKills ?? 0).toLocaleString(),              color: '#ff7070' },
                 { label: '💰 Gold verdient',      value: (p.totalGoldEarned ?? p.gold ?? 0).toLocaleString(), color: '#ffd36a' },
@@ -217,7 +241,7 @@ export default class RangPanel {
                 { label: '🎯 Reichweite',         value: `${p.cannonRange ?? 0}`,                          color: '#9fdcff' },
                 { label: '⚓ Kanonen',            value: `${p.cannonCount ?? 0}`,                          color: '#ffb347' },
             ];
-            tabEl.innerHTML = `
+            tabEl.innerHTML = rufBlock + `
                 <div style="font-size:10px;color:#806020;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:bold;">Kaptäns-Statistiken</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     ${stats.map(s => `
