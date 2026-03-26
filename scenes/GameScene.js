@@ -357,7 +357,7 @@ export default class GameScene extends Phaser.Scene {
         this.chartNav        = new ChartNav(this);
         this.domNavBar       = new DomNavBar(this);
         this.shipDesignPanel = new ShipDesignPanel(this);
-        this.chatPanel       = new ChatPanel(this);
+        this.domChatPanel    = new ChatPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -366,7 +366,7 @@ export default class GameScene extends Phaser.Scene {
             this.scale.off('resize', this.handleResize, this);
             [this.premiumShopPanel, this.guildPanel, this.shipEventPanel, this.missionPanel, this.bonusPanel,
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
-             this.chartNav, this.domNavBar, this.shipDesignPanel, this.chatPanel]
+             this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
         });
@@ -2308,7 +2308,7 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'chat') {
-            this.chatPanel?.toggle();
+            this.domChatPanel?.toggle();
             return;
         }
         if (action === 'board') {
