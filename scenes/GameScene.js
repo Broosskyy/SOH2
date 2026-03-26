@@ -5,6 +5,10 @@ import Monster from '../entities/Monster.js';
 import Island from '../entities/Island.js';
 import Minimap from '../ui/Minimap.js';
 import ShopPanel from '../ui/ShopPanel.js';
+import MissionPanel from '../ui/MissionPanel.js';
+import BonusPanel from '../ui/BonusPanel.js';
+import EventsPanel from '../ui/EventsPanel.js';
+import RangPanel from '../ui/RangPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -310,12 +314,17 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
-        this.shopPanel = new ShopPanel(this);
+        this.shopPanel    = new ShopPanel(this);
+        this.missionPanel = new MissionPanel(this);
+        this.bonusPanel   = new BonusPanel(this);
+        this.eventsPanel  = new EventsPanel(this);
+        this.rangPanel    = new RangPanel(this);
 
         this.scale.on('resize', this.handleResize, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
-            if (this.shopPanel) this.shopPanel.destroy();
+            [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel]
+                .forEach(p => p?.destroy());
         });
 
         this.events.on('damage-popup', this.showDamagePopup, this);
@@ -328,6 +337,7 @@ export default class GameScene extends Phaser.Scene {
             this.player.addXP(npc.xpValue);
             this.player.heal(npc.xpValue / 2);
             this.spawnLootFromDefeat(npc);
+            this.missionPanel?.trackKill();
             if (npc instanceof NPCShip) {
                 this.time.delayedCall(10000, () => this.spawnNPC());
             } else if (npc instanceof Monster) {
@@ -351,6 +361,13 @@ export default class GameScene extends Phaser.Scene {
             this.refreshUpgradeTexts();
             this.playUpgradeBurst(type);
             if (this.shopPanel?.visible) this.shopPanel.show();
+            this.missionPanel?.trackUpgrade();
+        });
+        this.events.on('gold-collected', (amount) => {
+            this.missionPanel?.trackGold(amount);
+        });
+        this.events.on('damage-dealt', (amount) => {
+            this.missionPanel?.trackDamage(amount);
         });
 
         this.finalizeChartEntryPosition();
@@ -981,8 +998,10 @@ handleResize(gameSize) {
     collectGift(player, gift) {
         player.heal(gift.hpValue);
         player.addXP(gift.xpValue);
-        player.gold += gift.goldValue ?? (gift.xpValue * 2);
+        const goldGained = gift.goldValue ?? (gift.xpValue * 2);
+        player.gold += goldGained;
         player.materials += gift.materialValue ?? 0;
+        this.events.emit('gold-collected', goldGained);
 
         if (gift.giftType === 'gift-chest') {
             player.addAmmoCharges('flare', Phaser.Math.Between(1, 3));
@@ -2030,19 +2049,19 @@ handleResize(gameSize) {
             return;
         }
         if (action === 'missions') {
-            this.showStatusMsg('Missions panel is planned next', 0xffe28a);
+            this.missionPanel?.toggle();
             return;
         }
         if (action === 'bonus') {
-            this.showStatusMsg('Bonus charts will be added after combat tuning', 0xffe28a);
+            this.bonusPanel?.toggle();
             return;
         }
         if (action === 'events') {
-            this.showStatusMsg('Sea events will appear in future builds', 0xffe28a);
+            this.eventsPanel?.toggle();
             return;
         }
         if (action === 'rank') {
-            this.showStatusMsg(`Captain level ${this.player.level} • keep farming XP`, 0xffe28a);
+            this.rangPanel?.toggle();
             return;
         }
         this.showStatusMsg('Navigation menu ready', 0xbfe8ff);
@@ -2907,6 +2926,7 @@ if (isLandscape) {
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
             : resolvedDamage;
         target.takeDamage(appliedDamage);
+        this.events.emit('damage-dealt', appliedDamage);
 
         if (!target.active || target.hp <= 0) {
             this.clearTargetAndAttackState();
