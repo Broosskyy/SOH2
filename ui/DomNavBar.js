@@ -21,6 +21,9 @@ export default class DomNavBar {
             { label: 'Board',    icon: '🗺️', action: () => this.scene.handleMenuAction('board') },
             { label: 'Ausfahrt', icon: '⛵', action: () => this.scene.handleMenuAction('sail') },
             { label: 'Chat',     icon: '💬', action: () => this.scene.handleMenuAction('chat') },
+            { label: 'Talente',  icon: '🌟', action: () => this.scene.handleMenuAction('talent') },
+            { label: 'Multi',    icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
+            { label: 'Admin',    icon: '🛡', action: () => this.scene.handleMenuAction('admin') },
         ];
     }
 

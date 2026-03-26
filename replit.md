@@ -20,7 +20,11 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - `ui/` – DOM & Phaser UI-Komponenten:
   - `Minimap.js` – Minimap-Komponente (190px, BOS-Stil, Goldrahmen, Koordinaten)
   - `PremiumShopPanel.js` – Premium-Item-Shop (4 Tabs: Upgrades, Munition, Besatzung, Premium)
-  - `ShipDesignPanel.js` – Schiffsdesign-Panel (13 Kategorien)
+  - `ShipDesignPanel.js` – Schiffsdesign-Panel (13 Kategorien + Event-Beutedesigns)
+  - `ChatPanel.js` – DOM Chat mit /hilfe-Befehlen (/gold, /gems, /hp, /lvl, /event, /spawn npc…)
+  - `AdminPanel.js` – GM-Panel: Stats, Spawn, Teleport, Godmode, Weltsteuerung, Broadcast
+  - `TalentPanel.js` – 3 Talent-Bäume (Seefahrer/Kriegsherr/Händler), Skillpunkte via Level-Up
+  - `MultiplayerPanel.js` – BroadcastChannel-Multiplayer (selbe Domain, mehrere Tabs) mit Minimap-Markierungen
   - `MissionPanel.js`, `BonusPanel.js`, `EventsPanel.js`, `RangPanel.js`, `BoardPanel.js`, `CombatPanel.js`
   - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js`
 - `assets/` – Alle Bild-Assets (WebP, PNG, JPG)

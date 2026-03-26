@@ -724,6 +724,25 @@ export default class PlayerShip extends Ship {
         this.setWakeVisible(false);
     }
 
+    takeDamage(amount) {
+        if (this._godMode || this._invincible) {
+            this.scene?.events?.emit('damage-popup', this.x, this.y - 20, 0);
+            return;
+        }
+        if (this._talentDodge && Math.random() < this._talentDodge) {
+            this.scene?.events?.emit('damage-popup', this.x, this.y - 20, 'DODGE');
+            return;
+        }
+        super.takeDamage(amount);
+    }
+
+    applyCritBonus(baseDamage) {
+        if (this._talentCritChance && Math.random() < this._talentCritChance) {
+            return Math.round(baseDamage * 2);
+        }
+        return baseDamage;
+    }
+
     onDeath() {
         this.scene.events.emit('player-died');
     }

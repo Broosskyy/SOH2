@@ -19,6 +19,9 @@ import ChartNav from '../ui/ChartNav.js';
 import DomNavBar from '../ui/DomNavBar.js';
 import ShipDesignPanel from '../ui/ShipDesignPanel.js';
 import ChatPanel from '../ui/ChatPanel.js';
+import AdminPanel from '../ui/AdminPanel.js';
+import TalentPanel from '../ui/TalentPanel.js';
+import MultiplayerPanel from '../ui/MultiplayerPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -194,6 +197,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.player = new PlayerShip(this, this.playerSpawnX, this.playerSpawnY);
         this.createPlayerVisualEffects();
+        this.time.delayedCall(200, () => { this.talentPanel?.applyAllToPlayer(); });
 
         this.playerReturnHighlight = this.add.circle(this.player.x, this.player.y, 54, 0x7fd3ff, 0.12)
             .setStrokeStyle(4, 0xcdf6ff, 0.95)
@@ -356,8 +360,11 @@ export default class GameScene extends Phaser.Scene {
         this.ammoBar         = new AmmoBar(this);
         this.chartNav        = new ChartNav(this);
         this.domNavBar       = new DomNavBar(this);
-        this.shipDesignPanel = new ShipDesignPanel(this);
-        this.domChatPanel    = new ChatPanel(this);
+        this.shipDesignPanel  = new ShipDesignPanel(this);
+        this.domChatPanel     = new ChatPanel(this);
+        this.adminPanel       = new AdminPanel(this);
+        this.talentPanel      = new TalentPanel(this);
+        this.multiplayerPanel = new MultiplayerPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -366,7 +373,8 @@ export default class GameScene extends Phaser.Scene {
             this.scale.off('resize', this.handleResize, this);
             [this.premiumShopPanel, this.guildPanel, this.shipEventPanel, this.missionPanel, this.bonusPanel,
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
-             this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel]
+             this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
+             this.adminPanel, this.talentPanel, this.multiplayerPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
         });
@@ -413,8 +421,9 @@ export default class GameScene extends Phaser.Scene {
         this.events.on('xp-gain', () => this.updateUIBars(), this);
         this.events.on('level-up', (level) => {
             this.updateUIBars();
-            this.showStatusMsg(`Level Up! Current Level: ${level}`, 0xffff00);
+            this.showStatusMsg(`Level Up! Current Level: ${level} • +1 Skillpunkt`, 0xffff00);
             this.refreshSeaGateUI();
+            this.talentPanel?.addSkillPoint(1);
         });
         this.events.on('player-upgraded', (type) => {
             this.attackInterval = this.player.reloadTime;
@@ -2311,6 +2320,18 @@ handleResize(gameSize) {
             this.domChatPanel?.toggle();
             return;
         }
+        if (action === 'admin') {
+            this.adminPanel?.toggle();
+            return;
+        }
+        if (action === 'talent') {
+            this.talentPanel?.toggle();
+            return;
+        }
+        if (action === 'multiplayer') {
+            this.multiplayerPanel?.toggle();
+            return;
+        }
         if (action === 'board') {
             this.boardPanel?.toggle();
             return;
@@ -3217,9 +3238,10 @@ handleResize(gameSize) {
         this.playSound('shoot');
         this.spawnProjectile(target, isHarpoon, ammoConfig);
 
-        const appliedDamage = isHarpoon
+        let appliedDamage = isHarpoon
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
             : resolvedDamage;
+        appliedDamage = this.player.applyCritBonus?.(appliedDamage) ?? appliedDamage;
         target.takeDamage(appliedDamage);
         this.events.emit('damage-dealt', appliedDamage);
 
@@ -3245,61 +3267,175 @@ handleResize(gameSize) {
         const muzzleDistance = isHarpoon ? 20 : 18;
         const spawnX = this.player.x + Math.cos(facingAngle) * muzzleDistance;
         const spawnY = this.player.y + Math.sin(facingAngle) * muzzleDistance;
-        const projectile = this.add.image(spawnX, spawnY, isHarpoon ? 'harpoon' : 'cannonball');
-        const tint = isHarpoon ? 0xdff9ff : (ammoConfig?.tint ?? 0xffffff);
-        const trailColor = isHarpoon ? 0x9beeff : (ammoConfig?.trailColor ?? 0xe9f1ff);
-        const impactScale = ammoConfig?.splashScale ?? 0.2;
-        projectile.setScale(isHarpoon ? 0.05 : 0.055);
-        projectile.setTint(tint);
-        projectile.setRotation(facingAngle);
-        projectile.setDepth(1200);
+        const ammoKey = isHarpoon ? 'harpoon' : (ammoConfig?.key ?? 'cannonball');
 
-        const flare = this.add.circle(spawnX, spawnY, isHarpoon ? 12 : 14, trailColor, 0.22)
-            .setBlendMode(Phaser.BlendModes.ADD)
-            .setDepth(1199);
+        const AMMO_VISUALS = {
+            cannonball: { color:0xdddddd, trail:0xaaaaaa, size:7,  trailSize:8,  duration:210, impactColor:0xffffff, impactR:22, impactParticles:4,  particleColor:0xdddddd },
+            flare:      { color:0xff7700, trail:0xff4400, size:8,  trailSize:14, duration:200, impactColor:0xff6600, impactR:30, impactParticles:8,  particleColor:0xffaa00 },
+            fire:       { color:0xff2200, trail:0xff6600, size:10, trailSize:18, duration:190, impactColor:0xff3300, impactR:40, impactParticles:12, particleColor:0xff6600 },
+            storm:      { color:0xaa44ff, trail:0x6600ff, size:8,  trailSize:16, duration:170, impactColor:0xcc88ff, impactR:35, impactParticles:10, particleColor:0x8844ff },
+            chainshot:  { color:0x88ccff, trail:0x4488ff, size:7,  trailSize:10, duration:230, impactColor:0x63d6ff, impactR:28, impactParticles:6,  particleColor:0x88ddff },
+            grapeshot:  { color:0xffee66, trail:0xffaa00, size:5,  trailSize:8,  duration:200, impactColor:0xffcc44, impactR:20, impactParticles:6,  particleColor:0xffee66 },
+            harpoon:    { color:0xdff9ff, trail:0x9beeff, size:6,  trailSize:12, duration:180, impactColor:0xdff9ff, impactR:18, impactParticles:3,  particleColor:0x9beeff },
+        };
+        const vis = AMMO_VISUALS[ammoKey] ?? AMMO_VISUALS.cannonball;
+
+        if (ammoKey === 'grapeshot') {
+            const spreadCount = 5;
+            for (let i = 0; i < spreadCount; i++) {
+                const spreadAngle = facingAngle + Phaser.Math.FloatBetween(-0.18, 0.18);
+                const px = spawnX + Math.cos(spreadAngle) * 5;
+                const py = spawnY + Math.sin(spreadAngle) * 5;
+                const tx = target.x + Math.cos(spreadAngle) * Phaser.Math.Between(-18, 18);
+                const ty = target.y + Math.sin(spreadAngle) * Phaser.Math.Between(-18, 18);
+                const pellet = this.add.circle(px, py, vis.size - 1, vis.color, 1).setDepth(1200);
+                const delay = i * 18;
+                this.time.delayedCall(delay, () => {
+                    this.tweens.add({
+                        targets: pellet, x: tx, y: ty, duration: vis.duration,
+                        ease: 'Linear',
+                        onComplete: () => {
+                            this._spawnImpact(pellet.x, pellet.y, vis, false);
+                            pellet.destroy();
+                        }
+                    });
+                });
+            }
+            return;
+        }
+
+        if (ammoKey === 'chainshot') {
+            const ball1 = this.add.circle(spawnX - 6, spawnY - 3, vis.size - 1, vis.color, 1).setDepth(1200);
+            const ball2 = this.add.circle(spawnX + 6, spawnY + 3, vis.size - 1, vis.color, 1).setDepth(1200);
+            const chain = this.add.graphics().setDepth(1199);
+            this.tweens.add({
+                targets: [ball1, ball2], x: target.x, y: target.y, duration: vis.duration, ease: 'Sine.Out',
+                onUpdate: () => {
+                    chain.clear();
+                    chain.lineStyle(2, vis.trail, 0.7);
+                    chain.beginPath();
+                    chain.moveTo(ball1.x, ball1.y);
+                    chain.lineTo(ball2.x, ball2.y);
+                    chain.strokePath();
+                },
+                onComplete: () => {
+                    chain.destroy(); ball1.destroy(); ball2.destroy();
+                    this._spawnImpact(target.x, target.y, vis, true);
+                }
+            });
+            return;
+        }
+
+        if (ammoKey === 'storm') {
+            const ball = this.add.circle(spawnX, spawnY, vis.size, vis.color, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(1200);
+            const aura = this.add.circle(spawnX, spawnY, vis.trailSize, vis.trail, 0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(1199);
+            const lightning = this.add.graphics().setDepth(1201);
+            this.tweens.add({
+                targets: [ball, aura], x: target.x, y: target.y, duration: vis.duration, ease: 'Sine.Out',
+                onUpdate: () => {
+                    aura.setPosition(ball.x, ball.y);
+                    if (Math.random() < 0.4) {
+                        lightning.clear();
+                        lightning.lineStyle(1.5, vis.trail, 0.8);
+                        lightning.beginPath();
+                        lightning.moveTo(ball.x, ball.y);
+                        const lx = ball.x + Phaser.Math.Between(-18, 18);
+                        const ly = ball.y + Phaser.Math.Between(-18, 18);
+                        lightning.lineTo(lx, ly);
+                        lightning.strokePath();
+                        this.time.delayedCall(50, () => lightning.clear());
+                    }
+                },
+                onComplete: () => {
+                    lightning.destroy(); ball.destroy(); aura.destroy();
+                    this._spawnImpact(target.x, target.y, vis, true);
+                    for (let i = 0; i < 4; i++) {
+                        const lg = this.add.graphics().setDepth(1202).setBlendMode(Phaser.BlendModes.ADD);
+                        lg.lineStyle(1.5, vis.particleColor, 0.9);
+                        lg.beginPath();
+                        const angle = (i / 4) * Math.PI * 2;
+                        lg.moveTo(target.x, target.y);
+                        lg.lineTo(target.x + Math.cos(angle) * 28, target.y + Math.sin(angle) * 28);
+                        lg.strokePath();
+                        this.tweens.add({ targets: lg, alpha: 0, duration: 300, onComplete: () => lg.destroy() });
+                    }
+                }
+            });
+            return;
+        }
+
+        const projectile = this.add.circle(spawnX, spawnY, vis.size, vis.color, 1)
+            .setBlendMode(ammoKey !== 'cannonball' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL)
+            .setDepth(1200);
+        const trail = this.add.circle(spawnX, spawnY, vis.trailSize, vis.trail, 0.4)
+            .setBlendMode(Phaser.BlendModes.ADD).setDepth(1199);
+
+        if (ammoKey === 'fire') {
+            for (let i = 0; i < 3; i++) {
+                this.time.delayedCall(i * 30, () => {
+                    const spark = this.add.circle(spawnX, spawnY, 3, 0xff6600, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(1198);
+                    this.tweens.add({
+                        targets: spark, x: spawnX + Phaser.Math.Between(-12, 12), y: spawnY + Phaser.Math.Between(-12, 12),
+                        alpha: 0, scale: 0.2, duration: 200, onComplete: () => spark.destroy()
+                    });
+                });
+            }
+        }
 
         this.tweens.add({
-            targets: [projectile, flare],
-            x: target.x,
-            y: target.y,
-            duration: isHarpoon ? 180 : 220,
-            ease: 'Sine.Out',
-            onUpdate: () => {
-                flare.alpha = projectile.alpha * 0.7;
-            },
+            targets: [projectile, trail], x: target.x, y: target.y, duration: vis.duration, ease: 'Sine.Out',
+            onUpdate: () => { trail.setPosition(projectile.x, projectile.y); trail.alpha = projectile.alpha * 0.5; },
             onComplete: () => {
-                const effect = this.add.image(projectile.x, projectile.y, isHarpoon ? 'water-splash' : 'explosion');
-                effect.setScale(isHarpoon ? 0.22 : impactScale);
-                effect.setTint(isHarpoon ? 0xdff9ff : (ammoConfig?.glowColor ?? 0xffffff));
-                effect.setBlendMode(isHarpoon ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD);
-
-                if (!isHarpoon && ammoConfig && ammoConfig.key !== 'cannonball') {
-                    const aura = this.add.circle(projectile.x, projectile.y, 12, ammoConfig.uiColor, 0.26)
-                        .setBlendMode(Phaser.BlendModes.ADD)
-                        .setDepth(1201);
-                    this.tweens.add({
-                        targets: aura,
-                        radius: 34,
-                        alpha: 0,
-                        duration: 280,
-                        onComplete: () => aura.destroy()
-                    });
-                }
-
-                this.time.delayedCall(220, () => effect.destroy());
-                flare.destroy();
-                projectile.destroy();
+                trail.destroy(); projectile.destroy();
+                this._spawnImpact(target.x, target.y, vis, ammoKey !== 'cannonball');
             }
         });
     }
 
+    _spawnImpact(x, y, vis, large = false) {
+        const r = large ? vis.impactR : vis.impactR * 0.6;
+        const ring = this.add.circle(x, y, 4, vis.impactColor, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(1202);
+        this.tweens.add({
+            targets: ring, scaleX: r / 4, scaleY: r / 4, alpha: 0, duration: large ? 320 : 220,
+            onComplete: () => ring.destroy()
+        });
+        const flash = this.add.circle(x, y, large ? 16 : 10, vis.impactColor, 0.55).setBlendMode(Phaser.BlendModes.ADD).setDepth(1201);
+        this.tweens.add({ targets: flash, alpha: 0, scale: 0.1, duration: 180, onComplete: () => flash.destroy() });
+
+        const count = vis.impactParticles ?? 4;
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2 + Phaser.Math.FloatBetween(-0.3, 0.3);
+            const dist = Phaser.Math.Between(large ? 16 : 8, large ? 32 : 18);
+            const spark = this.add.circle(x, y, Phaser.Math.Between(2, 4), vis.particleColor, 1)
+                .setBlendMode(Phaser.BlendModes.ADD).setDepth(1203);
+            this.tweens.add({
+                targets: spark,
+                x: x + Math.cos(angle) * dist, y: y + Math.sin(angle) * dist,
+                alpha: 0, scale: 0.2, duration: Phaser.Math.Between(180, 320),
+                onComplete: () => spark.destroy()
+            });
+        }
+
+        try {
+            const exp = this.add.image(x, y, 'explosion')
+                .setScale(large ? 0.22 : 0.12)
+                .setTint(vis.impactColor)
+                .setBlendMode(Phaser.BlendModes.ADD)
+                .setDepth(1200);
+            this.time.delayedCall(180, () => exp.destroy());
+        } catch {}
+    }
+
     showDamagePopup(x, y, damage) {
-        const critLike = damage >= 25;
-        const text = this.add.text(x, y, `-${damage}`, {
-            fontSize: critLike ? '36px' : '32px',
+        if (damage === 0 || damage === '0') return;
+        const isDodge = damage === 'DODGE';
+        const critLike = !isDodge && damage >= 25;
+        const label = isDodge ? 'DODGE!' : `-${damage}`;
+        const text = this.add.text(x, y, label, {
+            fontSize: isDodge ? '28px' : critLike ? '36px' : '32px',
             fontFamily: 'Arial',
             fontStyle: 'bold',
-            fill: critLike ? '#ff5b5b' : '#ffd95c',
+            fill: isDodge ? '#63d6ff' : critLike ? '#ff5b5b' : '#ffd95c',
             stroke: '#000000',
             strokeThickness: 5,
             shadow: {
