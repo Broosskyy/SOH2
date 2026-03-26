@@ -56,10 +56,17 @@ export default class ChatPanel {
             touch-action:manipulation; outline:none;
         `;
 
+        input.addEventListener('focus', () => {
+            if (this.scene?.input?.keyboard) this.scene.input.keyboard.enabled = false;
+        });
+        input.addEventListener('blur', () => {
+            if (this.scene?.input?.keyboard) this.scene.input.keyboard.enabled = true;
+        });
         input.addEventListener('keydown', (e) => {
             e.stopPropagation();
+            e.stopImmediatePropagation();
             if (e.key === 'Enter') { e.preventDefault(); this._submit(); }
-            if (e.key === 'Escape') this.hide();
+            if (e.key === 'Escape') { this.hide(); input.blur(); }
         });
         sendBtn.addEventListener('click', () => this._submit());
         sendBtn.addEventListener('touchend', (e) => { e.preventDefault(); this._submit(); }, { passive: false });

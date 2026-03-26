@@ -398,14 +398,35 @@ export default class GameScene extends Phaser.Scene {
         });
         this.events.on('guild-tower-clicked', ({ island, index }) => {
             if (!this.player?.active) return;
+            const tower = island.towers[index];
+            if (!tower?.active) { this.showStatusMsg('Dieser Turm ist bereits zerstört!', 0x888888); return; }
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
-            if (dist > 600) { this.showStatusMsg('Zu weit entfernt! Näher an die Gildeninsel heranfahren.', 0xff8844); return; }
+            if (dist > 700) { this.showStatusMsg('Zu weit entfernt! Näher heranfahren. (Max. 700)', 0xff8844); return; }
+            const now = this.time.now;
+            if (now < (this._lastTowerAttack ?? 0) + (this.player.reloadTime ?? 1500)) {
+                this.showStatusMsg('Nachladen…', 0x8888ff);
+                return;
+            }
+            this._lastTowerAttack = now;
+            const towerWorldX = island.x + tower.tx;
+            const towerWorldY = island.y + tower.ty;
+            const ammoConfig = this._currentAmmoConfig ?? null;
             const dmg = Math.round((this.player.damagePerCannon ?? 80) * (this.player.ammoMultiplier ?? 1));
             island.attackTower(index, dmg, this.player.guildName ?? window._loginUsername ?? 'Spieler');
-            this.showStatusMsg(`Turm getroffen! -${dmg} HP ⚑`, 0xd4aa40);
+            this.playSound('shoot');
+            try {
+                const fakeTarget = { x: towerWorldX, y: towerWorldY, active: true };
+                this.spawnProjectile(fakeTarget, false, ammoConfig);
+            } catch (e) {}
+            this.showStatusMsg(`Turm ${index + 1} getroffen! -${dmg} HP ⚑`, 0xd4aa40);
+            if (!tower.active) {
+                this.showStatusMsg(`💥 Turm ${index + 1} zerstört!`, 0xff4422);
+            }
             if (this.player.guildName) {
-                const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
-                if (gData) { gData.battles = (gData.battles ?? 0) + 1; localStorage.setItem('ahc_my_guild', JSON.stringify(gData)); }
+                try {
+                    const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
+                    if (gData) { gData.battles = (gData.battles ?? 0) + 1; localStorage.setItem('ahc_my_guild', JSON.stringify(gData)); }
+                } catch {}
             }
         });
         this.events.on('guild-island-captured', ({ island, guild }) => {
@@ -2499,7 +2520,7 @@ handleResize(gameSize) {
         this.topHpBarFill.fillRoundedRect(48, 44, 160 * hpPercent, 10, 5);
         this.expValueText.setText(`${Math.floor(this.player.xp)}/${100 * this.player.level}`);
         this.hpTopValueText.setText(`${Math.ceil(this.player.hp)}/${this.player.maxHP}`);
-        this.domNavBar?.updateStats(this.player.xp, 100 * this.player.level, this.player.hp, this.player.maxHP);
+        this.domNavBar?.updateStats(this.player.xp, 100 * this.player.level, this.player.hp, this.player.maxHP, this.player.goldDeckSlots, this.player.pearlDeckSlots);
         this.chartBadgeBg.clear();
         this.chartBadgeBg.fillStyle(0x0a1a2a, 0.78);
         this.chartBadgeBg.lineStyle(1, 0xe6cb79, 0.9);
@@ -3236,7 +3257,6 @@ handleResize(gameSize) {
 
         this.lastAttackTime = now;
         this.playSound('shoot');
-        this.spawnProjectile(target, isHarpoon, ammoConfig);
 
         let appliedDamage = isHarpoon
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
@@ -3244,6 +3264,8 @@ handleResize(gameSize) {
         appliedDamage = this.player.applyCritBonus?.(appliedDamage) ?? appliedDamage;
         target.takeDamage(appliedDamage);
         this.events.emit('damage-dealt', appliedDamage);
+
+        try { this.spawnProjectile(target, isHarpoon, ammoConfig); } catch (e) {}
 
         if (!target.active || target.hp <= 0) {
             this.clearTargetAndAttackState();
