@@ -5,6 +5,9 @@ import Monster from '../entities/Monster.js';
 import Island from '../entities/Island.js';
 import Minimap from '../ui/Minimap.js';
 import PremiumShopPanel from '../ui/PremiumShopPanel.js';
+import GuildPanel from '../ui/GuildPanel.js';
+import ShipEventPanel from '../ui/ShipEventPanel.js';
+import GuildIsland from '../entities/GuildIsland.js';
 import MissionPanel from '../ui/MissionPanel.js';
 import BonusPanel from '../ui/BonusPanel.js';
 import EventsPanel from '../ui/EventsPanel.js';
@@ -143,6 +146,11 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('island-volcanic', 'assets/island_volcanic.png');
         this.load.image('island-frozen',   'assets/island_frozen.png');
         this.load.image('island-ruins',    'assets/island_ruins.png');
+        this.load.image('island-guild',    'assets/island_guild.png');
+        this.load.image('guild-tower',     'assets/guild_tower.png');
+        this.load.image('ship-event-ghost',    'assets/ship_event_ghost.png');
+        this.load.image('ship-event-flagship', 'assets/ship_event_flagship.png');
+        this.load.image('ship-event-galleon',  'assets/ship_event_galleon.png');
         this.load.image('gift-chest', 'assets/loot_treasure_chest_gold.webp');
         this.load.image('gold-bag', 'assets/loot_gold_bag_pro.webp');
         this.load.image('xp-orb', 'assets/loot_xp_orb_pro.webp');
@@ -181,6 +189,7 @@ export default class GameScene extends Phaser.Scene {
         this.islands = this.add.group({ runChildUpdate: false });
         this.buildIslandSpawnPoints(this.currentChartConfig.islandCount, worldWidth, worldHeight);
         this.spawnIslands();
+        this._spawnGuildIsland(worldWidth, worldHeight);
 
         this.player = new PlayerShip(this, this.playerSpawnX, this.playerSpawnY);
         this.createPlayerVisualEffects();
@@ -334,7 +343,9 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
-        this.premiumShopPanel = new PremiumShopPanel(this);
+        this.premiumShopPanel  = new PremiumShopPanel(this);
+        this.guildPanel        = new GuildPanel(this);
+        this.shipEventPanel    = new ShipEventPanel(this);
         this.missionPanel    = new MissionPanel(this);
         this.bonusPanel      = new BonusPanel(this);
         this.eventsPanel     = new EventsPanel(this);
@@ -351,9 +362,9 @@ export default class GameScene extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
-            [this.premiumShopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel,
-             this.boardPanel, this.combatPanel, this.ammoBar, this.chartNav, this.domNavBar,
-             this.shipDesignPanel]
+            [this.premiumShopPanel, this.guildPanel, this.shipEventPanel, this.missionPanel, this.bonusPanel,
+             this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
+             this.chartNav, this.domNavBar, this.shipDesignPanel]
                 .forEach(p => p?.destroy());
         });
 
@@ -373,6 +384,24 @@ export default class GameScene extends Phaser.Scene {
             } else if (npc instanceof Monster) {
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
+        });
+        this.events.on('guild-tower-clicked', ({ island, index }) => {
+            if (!this.player?.active) return;
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
+            if (dist > 600) { this.showStatusMsg('Zu weit entfernt! Näher an die Gildeninsel heranfahren.', 0xff8844); return; }
+            const dmg = Math.round((this.player.damagePerCannon ?? 80) * (this.player.ammoMultiplier ?? 1));
+            island.attackTower(index, dmg, this.player.guildName ?? window._loginUsername ?? 'Spieler');
+            this.showStatusMsg(`Turm getroffen! -${dmg} HP ⚑`, 0xd4aa40);
+            if (this.player.guildName) {
+                const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
+                if (gData) { gData.battles = (gData.battles ?? 0) + 1; localStorage.setItem('ahc_my_guild', JSON.stringify(gData)); }
+            }
+        });
+        this.events.on('guild-island-captured', ({ island, guild }) => {
+            this.guildPanel?._saveGuild && (() => {
+                const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
+                if (gData && gData.name === guild) { gData.ownedIslands = ['current']; localStorage.setItem('ahc_my_guild', JSON.stringify(gData)); }
+            })();
         });
         this.events.on('player-died', () => {
             this.showStatusMsg('Ship Sunk!', 0xff0000);
@@ -877,13 +906,77 @@ handleResize(gameSize) {
 
     spawnIslands() {
         if (!this.islands) return;
-
         this.islands.clear(true, true);
-
         this.islandSpawnPoints.forEach((point) => {
             const island = new Island(this, point.x, point.y, point.texture);
             this.islands.add(island);
         });
+    }
+
+    _spawnGuildIsland(worldWidth, worldHeight) {
+        if (this.guildIsland) { try { this.guildIsland.destroy(); } catch {} this.guildIsland = null; }
+        const gx = Phaser.Math.Between(worldWidth * 0.35, worldWidth * 0.65);
+        const gy = Phaser.Math.Between(worldHeight * 0.35, worldHeight * 0.65);
+        try {
+            this.guildIsland = new GuildIsland(this, gx, gy);
+            const proxy = this.add.image(gx, gy, 'island-guild').setAlpha(0);
+            proxy.setData('isGuildIsland', true);
+            proxy.setData('minimapRadius', 22);
+            this.islands.add(proxy);
+        } catch(e) { console.warn('GuildIsland spawn error:', e); }
+    }
+
+    startShipEvent(eventId) {
+        if (this._activeEventShips?.length) return;
+        this._activeEventShips = [];
+        const eventMap = {
+            'konvoi':       ['ship-event-galleon','ship-event-galleon','ship-event-flagship'],
+            'geisterschiff':['ship-event-ghost'],
+            'admiralsjagd': ['ship-event-flagship']
+        };
+        const textures = eventMap[eventId] ?? eventMap['konvoi'];
+        const cx = this.player.x + Phaser.Math.Between(600, 1000) * (Math.random() < 0.5 ? 1 : -1);
+        const cy = this.player.y + Phaser.Math.Between(300, 600) * (Math.random() < 0.5 ? 1 : -1);
+
+        this.showStatusMsg(`⚔ EVENT: ${eventId === 'geisterschiff' ? 'Das Geisterschiff' : eventId === 'admiralsjagd' ? 'Admiralsjagd' : 'Schiffsdesign-Konvoi'} erscheint!`, 0xd4aa40);
+
+        textures.forEach((tex, i) => {
+            const ex = Phaser.Math.Clamp(cx + i * 220 - textures.length * 110, 300, this.mapWidth - 300);
+            const ey = Phaser.Math.Clamp(cy, 300, this.mapHeight - 300);
+            try {
+                const npc = new NPCShip(this, ex, ey);
+                if (this.textures.exists(tex)) { npc.sprite?.setTexture(tex); npc.sprite?.setScale(0.12); }
+                npc.npcTier = 3;
+                npc.npcName = eventId === 'geisterschiff' ? '[GEIST] Phantom' : eventId === 'admiralsjagd' ? '[ADM] Admiral' : `[KONVOI] Händler`;
+                npc._isEventShip = true;
+                npc._eventId = eventId;
+                this.npcGroup.add(npc);
+                this._activeEventShips.push(npc);
+            } catch(e) { console.warn('Event ship spawn error:', e); }
+        });
+
+        const checkDone = () => {
+            const allDead = this._activeEventShips.every(s => !s?.active);
+            if (allDead && this._activeEventShips.length > 0) {
+                this._activeEventShips = [];
+                const rewards = { 'konvoi': 1000, 'geisterschiff': 2000, 'admiralsjagd': 3500 };
+                const goldReward = rewards[eventId] ?? 1000;
+                if (this.player) {
+                    this.player.gold += goldReward;
+                    this.player.gems = (this.player.gems ?? 0) + 3;
+                    const bp = eventId === 'geisterschiff' ? '👻 Geisterschiff-Schiffsplan' : eventId === 'admiralsjagd' ? '👑 Flaggschiff-Schiffsplan' : '⚓ Konvoi-Schiffsplan';
+                    try {
+                        const designs = JSON.parse(localStorage.getItem('ahc_ship_blueprints') || '[]');
+                        if (!designs.includes(eventId)) { designs.push(eventId); localStorage.setItem('ahc_ship_blueprints', JSON.stringify(designs)); }
+                    } catch {}
+                }
+                this.showStatusMsg(`🏆 EVENT gewonnen! +${goldReward} Gold +3 💎 +Schiffsplan!`, 0xd4aa40);
+                this.updateUIBars?.();
+                clearInterval(doneCheck);
+            }
+        };
+        const doneCheck = setInterval(checkDone, 2000);
+        this.time.delayedCall(60000, () => clearInterval(doneCheck));
     }
 
     getNPCClusterCenter(index) {
@@ -2092,6 +2185,14 @@ handleResize(gameSize) {
         }
         if (action === 'shop') {
             this.premiumShopPanel?.toggle();
+            return;
+        }
+        if (action === 'guild') {
+            this.guildPanel?.toggle();
+            return;
+        }
+        if (action === 'shipevents') {
+            this.shipEventPanel?.toggle();
             return;
         }
         if (action === 'board') {

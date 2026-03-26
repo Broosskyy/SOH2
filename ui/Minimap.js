@@ -290,16 +290,26 @@ export default class Minimap extends Phaser.GameObjects.Container {
         this.overlayLayer.clear();
 
         if (islands) {
-            this.islandLayer.fillStyle(0xb69a62, 0.95);
-            this.islandLayer.lineStyle(1, 0xe6d19a, 0.85);
-
             islands.getChildren().forEach(island => {
                 const mapPos = this.worldToMap(island.x, island.y);
-                const radiusScale = island.getData && island.getData('minimapRadiusScale') ? island.getData('minimapRadiusScale') : 0.5;
-                const radiusX = Phaser.Math.Clamp(((island.displayWidth || island.width) / this.worldWidth) * this.mapSize * radiusScale, 6, 18);
-                const radiusY = Phaser.Math.Clamp(((island.displayHeight || island.height) / this.worldHeight) * this.mapSize * radiusScale, 6, 18);
-                this.islandLayer.fillEllipse(mapPos.x, mapPos.y, radiusX * 2, radiusY * 2);
-                this.islandLayer.strokeEllipse(mapPos.x, mapPos.y, radiusX * 2, radiusY * 2);
+                const isGuild = island.getData?.('isGuildIsland');
+                const r = island.getData?.('minimapRadius') ?? 14;
+
+                if (isGuild) {
+                    this.islandLayer.lineStyle(2.5, 0xd4aa40, 1);
+                    this.islandLayer.fillStyle(0xd4aa40, 0.25);
+                    this.islandLayer.strokeCircle(mapPos.x, mapPos.y, r + 4);
+                    this.islandLayer.fillCircle(mapPos.x, mapPos.y, r + 4);
+                    this.islandLayer.fillStyle(0xd4aa40, 1);
+                    this.islandLayer.fillCircle(mapPos.x, mapPos.y, 3.5);
+                } else {
+                    this.islandLayer.fillStyle(0xc8b27a, 0.95);
+                    this.islandLayer.lineStyle(1.5, 0xe8d8a0, 0.85);
+                    this.islandLayer.fillCircle(mapPos.x, mapPos.y, r);
+                    this.islandLayer.strokeCircle(mapPos.x, mapPos.y, r);
+                    this.islandLayer.fillStyle(0x8fa844, 0.7);
+                    this.islandLayer.fillCircle(mapPos.x, mapPos.y, r * 0.55);
+                }
             });
         }
 

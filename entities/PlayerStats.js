@@ -3,6 +3,7 @@ export default class PlayerStats {
         this.resources = {
             gold: 1400,
             materials: 32,
+            gems: 5,
             xp: 0,
             level: 1
         };

@@ -78,6 +78,7 @@ export default class PlayerShip extends Ship {
         this.levelHpPerLevel = this.stats.tuning.levelHpPerLevel;
 
         this.gold = this.stats.resources.gold;
+        this.gems = this.stats.resources.gems ?? 5;
         this.materials = this.stats.resources.materials;
         this.xp = this.stats.resources.xp;
         this.level = this.stats.resources.level;
