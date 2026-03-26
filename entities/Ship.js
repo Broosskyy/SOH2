@@ -6,6 +6,11 @@ export default class Ship extends Phaser.GameObjects.Container {
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
+        this.waterHaloGfx = scene.add.graphics();
+        this.waterHaloGfx.fillStyle(0x55ccff, 0.07);
+        this.waterHaloGfx.fillEllipse(0, 8, 100, 44);
+        this.add(this.waterHaloGfx);
+
         this.sprite = scene.add.sprite(0, 0, texture);
         this.sprite.setScale(0.12); 
         this.add(this.sprite);

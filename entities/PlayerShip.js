@@ -5,7 +5,7 @@ import PlayerStats from './PlayerStats.js';
 export default class PlayerShip extends Ship {
     constructor(scene, x, y) {
         super(scene, x, y, 'player-ship');
-        this.sprite.setScale(0.05);
+        this.sprite.setScale(0.11);
 
         this.stats = new PlayerStats();
         this.syncStatsFromModel();
@@ -21,9 +21,9 @@ export default class PlayerShip extends Ship {
             chainshot: false,
             grapeshot: false
         };
-        this.healthBarWidth = 44;
-        this.healthBarHeight = 4;
-        this.healthBarOffsetY = -26;
+        this.healthBarWidth = 64;
+        this.healthBarHeight = 5;
+        this.healthBarOffsetY = -52;
         this.captainTag = '[SEA]';
         this.captainName = 'Rosie Corsair';
         this.playerId = '784211';
@@ -34,8 +34,8 @@ export default class PlayerShip extends Ship {
         this.refreshShipInfoPanel(true);
 
         if (this.wake) {
-            this.wake.setScale(0.024);
-            this.wake.y = 7;
+            this.wake.setScale(0.055);
+            this.wake.y = 15;
         }
 
         this.moveTarget = null;
@@ -46,8 +46,8 @@ export default class PlayerShip extends Ship {
         this.combatFacingTarget = null;
 
         this.body.setCollideWorldBounds(true);
-        this.body.setCircle(11);
-        this.body.setOffset(-11, -11);
+        this.body.setCircle(22);
+        this.body.setOffset(-22, -22);
     }
 
     syncStatsFromModel() {
@@ -516,42 +516,40 @@ export default class PlayerShip extends Ship {
     }
 
     createUnderShipInfoPanel() {
-        this.shipInfoPanel = this.scene.add.container(0, 58).setDepth(23);
+        this.shipInfoPanel = this.scene.add.container(0, 68).setDepth(23);
         this.add(this.shipInfoPanel);
 
-        this.shipInfoGlow = this.scene.add.graphics();
-        this.shipInfoBg = this.scene.add.graphics();
-        this.shipInfoPanel.add([this.shipInfoGlow, this.shipInfoBg]);
+        this.waterHalo = this.scene.add.graphics();
+        this.waterHalo.fillStyle(0x55ccff, 0.07);
+        this.waterHalo.fillEllipse(0, -68, 90, 40);
+        this.shipInfoPanel.add(this.waterHalo);
 
         this.nameText = this.scene.add.text(0, 0, '', {
-            fontSize: '14px',
+            fontSize: '13px',
             fontFamily: 'Arial',
             fontStyle: 'bold',
-            color: '#f7e39a',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5, 0.5);
+
+        this.clanTagText = this.scene.add.text(-40, 0, '', {
+            fontSize: '11px',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            color: '#f7e349',
             stroke: '#000000',
             strokeThickness: 3,
             align: 'center'
         }).setOrigin(0.5, 0.5);
 
-        this.idText = this.scene.add.text(0, 16, '', {
-            fontSize: '11px',
-            fontFamily: 'Arial',
-            color: '#9fdfff',
-            stroke: '#000000',
-            strokeThickness: 2,
-            align: 'center'
-        }).setOrigin(0.5, 0.5);
+        this.rankIconGfx = this.scene.add.graphics();
 
-        this.hpInfoText = this.scene.add.text(0, 32, '', {
-            fontSize: '11px',
-            fontFamily: 'Arial',
-            color: '#e6f8ff',
-            stroke: '#000000',
-            strokeThickness: 2,
-            align: 'center'
-        }).setOrigin(0.5, 0.5);
+        this.hpBar = this.scene.add.graphics();
+        this.xpBar = this.scene.add.graphics();
 
-        this.shipInfoPanel.add([this.nameText, this.idText, this.hpInfoText]);
+        this.shipInfoPanel.add([this.nameText, this.clanTagText, this.rankIconGfx, this.hpBar, this.xpBar]);
 
         this.statDisplayRows = [
             { key: 'decks', label: 'DECK', color: 0x6ce6dd, textColor: '#d7fffc', valueGetter: () => `${this.deckCount}` },
@@ -562,11 +560,10 @@ export default class PlayerShip extends Ship {
 
         this.statDisplayRows.forEach((row, index) => {
             const slotX = -90 + (index * 60);
-            const slot = this.scene.add.container(slotX, 58);
-            const glow = this.scene.add.graphics();
+            const slot = this.scene.add.container(slotX, 40);
             const icon = this.scene.add.graphics();
-            const valueText = this.scene.add.text(0, 15, '', {
-                fontSize: '12px',
+            const valueText = this.scene.add.text(0, 12, '', {
+                fontSize: '11px',
                 fontFamily: 'Arial',
                 fontStyle: 'bold',
                 color: row.textColor,
@@ -574,7 +571,7 @@ export default class PlayerShip extends Ship {
                 strokeThickness: 2,
                 align: 'center'
             }).setOrigin(0.5, 0.5);
-            const labelText = this.scene.add.text(0, 29, row.label, {
+            const labelText = this.scene.add.text(0, 24, row.label, {
                 fontSize: '9px',
                 fontFamily: 'Arial',
                 color: '#9fb8c8',
@@ -583,10 +580,9 @@ export default class PlayerShip extends Ship {
                 align: 'center'
             }).setOrigin(0.5, 0.5);
 
-            slot.add([glow, icon, valueText, labelText]);
+            slot.add([icon, valueText, labelText]);
             this.shipInfoPanel.add(slot);
             row.slot = slot;
-            row.glow = glow;
             row.icon = icon;
             row.valueText = valueText;
             row.labelText = labelText;
@@ -649,44 +645,62 @@ export default class PlayerShip extends Ship {
             this.cannonCount,
             this.getTotalDamagePerShot(this.ammoMultiplier ?? 1),
             this.scene.currentAmmoType ?? 'cannonball',
-            this.getAmmoDisplayCount(this.scene.currentAmmoType ?? 'cannonball')
+            this.getAmmoDisplayCount(this.scene.currentAmmoType ?? 'cannonball'),
+            this.level ?? 1,
+            this.xp ?? 0
         ].join('|');
 
         if (!force && this.shipInfoStateKey === stateKey) return;
         this.shipInfoStateKey = stateKey;
 
-        const displayName = `${this.captainTag} ${this.captainName}`;
-        this.nameText.setText(displayName);
-        this.idText.setText(`ID ${this.playerId}`);
-        this.hpInfoText.setText(hpText);
+        this.clanTagText.setText(this.captainTag ?? '');
+        const nameWidth = this.clanTagText.width;
+        this.clanTagText.setX(-(nameWidth / 2 + 4));
+        this.nameText.setText(this.captainName ?? '');
+        this.nameText.setX((nameWidth / 2 + 4));
 
-        const width = Math.max(232, this.nameText.width + 48);
-        const height = 104;
-        const x = -width / 2;
-
-        this.shipInfoGlow.clear();
-        this.shipInfoGlow.fillStyle(0x7fd3ff, 0.08);
-        this.shipInfoGlow.fillRoundedRect(x - 3, -14, width + 6, height + 6, 18);
-
-        this.shipInfoBg.clear();
-        this.shipInfoBg.fillStyle(0x071722, 0.78);
-        this.shipInfoBg.lineStyle(2, 0x6dd7ff, 0.92);
-        this.shipInfoBg.fillRoundedRect(x, -12, width, height, 16);
-        this.shipInfoBg.strokeRoundedRect(x, -12, width, height, 16);
-
-        const hpBarWidth = width - 38;
+        const barWidth = 120;
         const hpPercent = Phaser.Math.Clamp(this.hp / this.maxHP, 0, 1);
         const hpColor = hpPercent > 0.5 ? 0x38f287 : hpPercent > 0.25 ? 0xffd45c : 0xff6f6f;
-        this.shipInfoBg.fillStyle(0x000000, 0.5);
-        this.shipInfoBg.fillRoundedRect(-(hpBarWidth / 2), 39, hpBarWidth, 6, 3);
-        this.shipInfoBg.fillStyle(hpColor, 1);
-        this.shipInfoBg.fillRoundedRect(-(hpBarWidth / 2), 39, hpBarWidth * hpPercent, 6, 3);
+        this.hpBar.clear();
+        this.hpBar.fillStyle(0x000000, 0.45);
+        this.hpBar.fillRoundedRect(-(barWidth / 2), 12, barWidth, 6, 3);
+        this.hpBar.fillStyle(hpColor, 1);
+        this.hpBar.fillRoundedRect(-(barWidth / 2), 12, barWidth * hpPercent, 6, 3);
+
+        const xpMax = 100 * (this.level ?? 1);
+        const xpPercent = Phaser.Math.Clamp((this.xp ?? 0) / xpMax, 0, 1);
+        this.xpBar.clear();
+        this.xpBar.fillStyle(0x000000, 0.45);
+        this.xpBar.fillRoundedRect(-(barWidth / 2), 20, barWidth, 4, 2);
+        this.xpBar.fillStyle(0xa855f7, 1);
+        this.xpBar.fillRoundedRect(-(barWidth / 2), 20, barWidth * xpPercent, 4, 2);
+
+        const level = this.level ?? 1;
+        this.rankIconGfx.clear();
+        const rankColor = level >= 20 ? 0xffd700 : level >= 10 ? 0xc0c0c0 : level >= 5 ? 0xcd7f32 : 0x8899aa;
+        const iconX = 68;
+        const iconY = 0;
+        this.rankIconGfx.fillStyle(rankColor, 0.9);
+        this.rankIconGfx.lineStyle(1, rankColor, 1);
+        if (level >= 20) {
+            for (let i = 0; i < 5; i++) {
+                const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+                const px = iconX + Math.cos(a) * 7;
+                const py = iconY + Math.sin(a) * 7;
+                this.rankIconGfx.fillCircle(px, py, 2);
+            }
+        } else if (level >= 10) {
+            this.rankIconGfx.strokeTriangle(iconX - 6, iconY + 4, iconX + 6, iconY + 4, iconX, iconY - 6);
+            this.rankIconGfx.fillTriangle(iconX - 5, iconY + 3, iconX + 5, iconY + 3, iconX, iconY - 5);
+        } else if (level >= 5) {
+            this.rankIconGfx.fillRect(iconX - 5, iconY - 5, 10, 10);
+        } else {
+            this.rankIconGfx.fillCircle(iconX, iconY, 5);
+        }
 
         this.statDisplayRows.forEach((row) => {
             row.valueText.setText(row.valueGetter());
-            row.glow.clear();
-            row.glow.fillStyle(row.color, 0.1);
-            row.glow.fillRoundedRect(-20, -12, 40, 42, 12);
             this.drawShipInfoIcon(row.key, row.icon, row.color);
         });
     }

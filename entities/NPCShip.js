@@ -11,25 +11,25 @@ export default class NPCShip extends Ship {
         let type, scale, maxHP, speed, xpValue, colliderRadius;
         if (rand < 0.6) {
             type = Phaser.Utils.Array.GetRandom(smallShips);
-            scale = 0.038;
+            scale = 0.07;
             maxHP = 260;
             speed = 7;
             xpValue = 55;
-            colliderRadius = 10;
+            colliderRadius = 18;
         } else if (rand < 0.9) {
             type = Phaser.Utils.Array.GetRandom(mediumShips);
-            scale = 0.042;
+            scale = 0.085;
             maxHP = 560;
             speed = 5;
             xpValue = 150;
-            colliderRadius = 10;
+            colliderRadius = 22;
         } else {
             type = Phaser.Utils.Array.GetRandom(largeShips);
-            scale = 0.0448;
+            scale = 0.10;
             maxHP = 1040;
             speed = 4;
             xpValue = 320;
-            colliderRadius = 11;
+            colliderRadius = 26;
         }
 
         super(scene, x, y, type);
@@ -40,14 +40,14 @@ export default class NPCShip extends Ship {
         this.sprite.setScale(scale);
         this.shipType = type;
         this.hp = this.maxHP;
-        this.healthBarWidth = 38;
-        this.healthBarHeight = 4;
-        this.healthBarOffsetY = -36;
+        this.healthBarWidth = rand < 0.6 ? 50 : rand < 0.9 ? 62 : 74;
+        this.healthBarHeight = 5;
+        this.healthBarOffsetY = rand < 0.6 ? -55 : rand < 0.9 ? -68 : -80;
         this.updateHealthBar();
 
         // Containers need a size to be interactive
-        this.setSize(120, 120);
-        this.setInteractive(new Phaser.Geom.Rectangle(-60, -60, 120, 120), Phaser.Geom.Rectangle.Contains);
+        this.setSize(180, 180);
+        this.setInteractive(new Phaser.Geom.Rectangle(-90, -90, 180, 180), Phaser.Geom.Rectangle.Contains);
 
         this.selectionRadius = 76;
 

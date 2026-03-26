@@ -29,6 +29,22 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - Upgrade-System: Rumpf, Segel, Kanonen, Decks, Munitionstechnik
 - Gold und Materialien als Ressourcen
 
+## Schiffs-Assets
+
+- `assets/player_ship_frigate_1.png` – KI-generierte dunkle Fregatte I
+- `assets/player_ship_frigate_2.png` – KI-generierte dunkle Fregatte II
+- `assets/player_ship_frigate_3.png` – KI-generierter Schwarzer Geist Fregatte
+- `assets/ship_cutter_1-5.png` – KI-generierte Kutter (klein/schnell)
+- `assets/ship_brig_1-3.png` – KI-generierte Brigantinen (mittel)
+- `assets/ship_manwar_1-2.png` – KI-generierte Linienschiffe (groß/schwer)
+
+## Schiffs-Größen & Skalierung
+
+- Spielerschiff: scale 0.11 (vorher 0.05), Kollisionsradius 22
+- NPC-Klein: scale 0.07, Kollisionsradius 18
+- NPC-Mittel: scale 0.085, Kollisionsradius 22
+- NPC-Groß: scale 0.10, Kollisionsradius 26
+
 ## Server
 
 - Statischer Dateiserver via `npx serve . -p 5000`

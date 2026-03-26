@@ -111,22 +111,25 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('player-ship',      'assets/player_ship_royal_crimson_v1.webp');
-        this.load.image('player-ship-neon', 'assets/player_ship_neon_pro.webp');
-        this.load.image('player-ship-pro',  'assets/player_ship_pro.webp');
+        this.load.image('player-ship',         'assets/player_ship_royal_crimson_v1.webp');
+        this.load.image('player-ship-neon',    'assets/player_ship_neon_pro.webp');
+        this.load.image('player-ship-pro',     'assets/player_ship_pro.webp');
+        this.load.image('player-ship-frigate1','assets/player_ship_frigate_1.png');
+        this.load.image('player-ship-frigate2','assets/player_ship_frigate_2.png');
+        this.load.image('player-ship-frigate3','assets/player_ship_frigate_3.png');
 
-        this.load.image('ship-small-1', 'assets/ship_small_neon_1.webp');
-        this.load.image('ship-small-2', 'assets/ship_small_neon_2.webp');
-        this.load.image('ship-small-3', 'assets/ship_small_neon_3.webp');
-        this.load.image('ship-small-4', 'assets/ship_small_neon_4.webp');
-        this.load.image('ship-small-5', 'assets/ship_small_neon_5.webp');
+        this.load.image('ship-small-1', 'assets/ship_cutter_1.png');
+        this.load.image('ship-small-2', 'assets/ship_cutter_2.png');
+        this.load.image('ship-small-3', 'assets/ship_cutter_3.png');
+        this.load.image('ship-small-4', 'assets/ship_cutter_4.png');
+        this.load.image('ship-small-5', 'assets/ship_cutter_5.png');
 
-        this.load.image('ship-medium-1', 'assets/ship_medium_neon_1.webp');
-        this.load.image('ship-medium-2', 'assets/ship_medium_neon_2.webp');
-        this.load.image('ship-medium-3', 'assets/ship_medium_neon_3.webp');
+        this.load.image('ship-medium-1', 'assets/ship_brig_1.png');
+        this.load.image('ship-medium-2', 'assets/ship_brig_2.png');
+        this.load.image('ship-medium-3', 'assets/ship_brig_3.png');
 
-        this.load.image('ship-large-1', 'assets/ship_large_neon_1.webp');
-        this.load.image('ship-large-2', 'assets/ship_large_neon_2.webp');
+        this.load.image('ship-large-1', 'assets/ship_manwar_1.png');
+        this.load.image('ship-large-2', 'assets/ship_manwar_2.png');
 
         this.load.image('monster-kraken', 'assets/monster_kraken_tentacle.webp');
         this.load.image('monster-leviathan', 'assets/monster_leviathan.webp');

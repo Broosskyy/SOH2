@@ -8,19 +8,22 @@ export default class ShipDesignPanel {
 
     _designs() {
         return [
-            { key: 'player-ship',        src: 'assets/player_ship_royal_crimson_v1.webp', name: 'Royal Crimson',   class: 'Fregatte',    cost: 0 },
-            { key: 'player-ship-neon',   src: 'assets/player_ship_neon_pro.webp',          name: 'Neon Phantom',    class: 'Fregatte',    cost: 1200 },
-            { key: 'player-ship-pro',    src: 'assets/player_ship_pro.webp',               name: 'Sea Hawk Pro',    class: 'Fregatte',    cost: 800 },
-            { key: 'ship-small-1',       src: 'assets/ship_small_neon_1.webp',             name: 'Dart I',          class: 'Kutter',      cost: 200 },
-            { key: 'ship-small-2',       src: 'assets/ship_small_neon_2.webp',             name: 'Dart II',         class: 'Kutter',      cost: 300 },
-            { key: 'ship-small-3',       src: 'assets/ship_small_neon_3.webp',             name: 'Dart III',        class: 'Kutter',      cost: 400 },
-            { key: 'ship-small-4',       src: 'assets/ship_small_neon_4.webp',             name: 'Dart IV',         class: 'Kutter',      cost: 500 },
-            { key: 'ship-small-5',       src: 'assets/ship_small_neon_5.webp',             name: 'Dart V',          class: 'Kutter',      cost: 600 },
-            { key: 'ship-medium-1',      src: 'assets/ship_medium_neon_1.webp',            name: 'Brigantine I',    class: 'Brigantine',  cost: 1500 },
-            { key: 'ship-medium-2',      src: 'assets/ship_medium_neon_2.webp',            name: 'Brigantine II',   class: 'Brigantine',  cost: 1800 },
-            { key: 'ship-medium-3',      src: 'assets/ship_medium_neon_3.webp',            name: 'Brigantine III',  class: 'Brigantine',  cost: 2200 },
-            { key: 'ship-large-1',       src: 'assets/ship_large_neon_1.webp',             name: 'Man-o-War I',     class: 'Linienschiff',cost: 4000 },
-            { key: 'ship-large-2',       src: 'assets/ship_large_neon_2.webp',             name: 'Man-o-War II',    class: 'Linienschiff',cost: 5500 },
+            { key: 'player-ship',         src: 'assets/player_ship_royal_crimson_v1.webp', name: 'Royal Crimson',   class: 'Fregatte',    cost: 0 },
+            { key: 'player-ship-neon',    src: 'assets/player_ship_neon_pro.webp',          name: 'Neon Phantom',    class: 'Fregatte',    cost: 1200 },
+            { key: 'player-ship-pro',     src: 'assets/player_ship_pro.webp',               name: 'Sea Hawk Pro',    class: 'Fregatte',    cost: 800 },
+            { key: 'player-ship-frigate1',src: 'assets/player_ship_frigate_1.png',          name: 'Dark Fregatte I', class: 'Fregatte',    cost: 1600 },
+            { key: 'player-ship-frigate2',src: 'assets/player_ship_frigate_2.png',          name: 'Dark Fregatte II',class: 'Fregatte',    cost: 2000 },
+            { key: 'player-ship-frigate3',src: 'assets/player_ship_frigate_3.png',          name: 'Schwarzer Geist', class: 'Fregatte',    cost: 2800 },
+            { key: 'ship-small-1',        src: 'assets/ship_cutter_1.png',                  name: 'Kutter I',        class: 'Kutter',      cost: 200 },
+            { key: 'ship-small-2',        src: 'assets/ship_cutter_2.png',                  name: 'Kutter II',       class: 'Kutter',      cost: 300 },
+            { key: 'ship-small-3',        src: 'assets/ship_cutter_3.png',                  name: 'Kutter III',      class: 'Kutter',      cost: 400 },
+            { key: 'ship-small-4',        src: 'assets/ship_cutter_4.png',                  name: 'Kutter IV',       class: 'Kutter',      cost: 500 },
+            { key: 'ship-small-5',        src: 'assets/ship_cutter_5.png',                  name: 'Kutter V',        class: 'Kutter',      cost: 600 },
+            { key: 'ship-medium-1',       src: 'assets/ship_brig_1.png',                    name: 'Brigantine I',    class: 'Brigantine',  cost: 1500 },
+            { key: 'ship-medium-2',       src: 'assets/ship_brig_2.png',                    name: 'Brigantine II',   class: 'Brigantine',  cost: 1800 },
+            { key: 'ship-medium-3',       src: 'assets/ship_brig_3.png',                    name: 'Brigantine III',  class: 'Brigantine',  cost: 2200 },
+            { key: 'ship-large-1',        src: 'assets/ship_manwar_1.png',                  name: 'Man-o-War I',     class: 'Linienschiff',cost: 4000 },
+            { key: 'ship-large-2',        src: 'assets/ship_manwar_2.png',                  name: 'Man-o-War II',    class: 'Linienschiff',cost: 5500 },
         ];
     }
 
@@ -237,14 +240,14 @@ export default class ShipDesignPanel {
             s.load.image(design.key, design.src);
             s.load.once('complete', () => {
                 s.player.sprite.setTexture(design.key);
-                s.player.sprite.setScale(0.05);
+                s.player.sprite.setScale(0.11);
                 s.playerShipDesign = design.key;
                 s.showStatusMsg?.(`Schiff geändert: ${design.name}`, 0xd4aa40);
             });
             s.load.start();
         } else {
             s.player.sprite.setTexture(design.key);
-            s.player.sprite.setScale(0.05);
+            s.player.sprite.setScale(0.11);
             s.playerShipDesign = design.key;
             s.showStatusMsg?.(`Schiff geändert: ${design.name}`, 0xd4aa40);
         }
