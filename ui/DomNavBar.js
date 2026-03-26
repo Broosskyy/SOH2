@@ -21,6 +21,7 @@ export default class DomNavBar {
             { label: 'Kampf',    icon: '⚔',  action: () => this.scene.handleMenuAction('combat') },
             { label: 'Board',    icon: '🗺️', action: () => this.scene.handleMenuAction('board') },
             { label: 'Ausfahrt', icon: '⛵', action: () => this.scene.handleMenuAction('sail') },
+            { label: 'Feed',     icon: '📋', action: () => this.scene.handleMenuAction('feed') },
             { label: 'Talente',  icon: '🌟', action: () => this.scene.handleMenuAction('talent') },
             { label: 'Multi',    icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
         ];
@@ -96,6 +97,10 @@ export default class DomNavBar {
             }, { passive: true });
             el.appendChild(b);
         });
+
+        const spacer = document.createElement('div');
+        spacer.style.cssText = 'min-width:250px;flex-shrink:0;';
+        el.appendChild(spacer);
 
         document.body.appendChild(el);
         this._el = el;

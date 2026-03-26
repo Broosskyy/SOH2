@@ -2429,6 +2429,10 @@ handleResize(gameSize) {
             this.combatPanel?.toggle();
             return;
         }
+        if (action === 'feed') {
+            this.toggleStatusFeedSize();
+            return;
+        }
         if (action === 'sail') {
             this.handleReturnToShipPressed();
             return;
@@ -3681,15 +3685,18 @@ handleResize(gameSize) {
 
     playSound(type) {
         if (!this.soundInitialized) return;
-        if (type === 'shoot') {
-            this.synth.triggerAttackRelease('C2', '8n');
-            this.noiseSynth.triggerAttackRelease('8n');
-        } else if (type === 'collect') {
-            this.synth.triggerAttackRelease('G4', '16n');
-            this.synth.triggerAttackRelease('C5', '16n', '+16n');
-        } else if (type === 'hit') {
-            this.noiseSynth.triggerAttackRelease('16n');
-        }
+        try {
+            const now = Tone.now();
+            if (type === 'shoot') {
+                this.synth.triggerAttackRelease('C2', '8n', now);
+                this.noiseSynth.triggerAttackRelease('8n', now + 0.001);
+            } else if (type === 'collect') {
+                this.synth.triggerAttackRelease('G4', '16n', now);
+                this.synth.triggerAttackRelease('C5', '16n', now + 0.1);
+            } else if (type === 'hit') {
+                this.noiseSynth.triggerAttackRelease('16n', now);
+            }
+        } catch (_e) {}
     }
 
     updatePlayerVisualEffects(time) {
