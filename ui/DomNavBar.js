@@ -16,6 +16,7 @@ export default class DomNavBar {
             { label: 'Events',   icon: '⚔',  action: () => this.scene.handleMenuAction('shipevents') },
             { label: 'Mission',  icon: '⇪',  action: () => this.scene.handleMenuAction('missions') },
             { label: 'Bonus',    icon: '◎',  action: () => this.scene.handleMenuAction('bonus') },
+            { label: 'Quests',   icon: '📋', action: () => this.scene.handleMenuAction('quests') },
             { label: 'Geschäft', icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
             { label: 'Rang',     icon: '♛',  action: () => this.scene.handleMenuAction('rank') },
             { label: 'Kampf',    icon: '⚔',  action: () => this.scene.handleMenuAction('combat') },

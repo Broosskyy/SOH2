@@ -22,6 +22,9 @@ import ChatPanel from '../ui/ChatPanel.js';
 import AdminPanel from '../ui/AdminPanel.js';
 import TalentPanel from '../ui/TalentPanel.js';
 import MultiplayerPanel from '../ui/MultiplayerPanel.js';
+import ItemBar from '../ui/ItemBar.js';
+import PirateTrialPanel, { PIRATE_TRIALS } from '../ui/PirateTrialPanel.js';
+import DailyQuestPanel from '../ui/DailyQuestPanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -196,6 +199,8 @@ export default class GameScene extends Phaser.Scene {
         this._spawnGuildIsland(worldWidth, worldHeight);
 
         this.player = new PlayerShip(this, this.playerSpawnX, this.playerSpawnY);
+        this._initItemSystem();
+        this._initTrialSystem();
         this.createPlayerVisualEffects();
         this._loadProgress();
         this.time.delayedCall(200, () => { this.talentPanel?.applyAllToPlayer(); });
@@ -366,6 +371,9 @@ export default class GameScene extends Phaser.Scene {
         this.adminPanel       = new AdminPanel(this);
         this.talentPanel      = new TalentPanel(this);
         this.multiplayerPanel = new MultiplayerPanel(this);
+        this.itemBar          = new ItemBar(this);
+        this.pirateTrialPanel = new PirateTrialPanel(this);
+        this.dailyQuestPanel  = new DailyQuestPanel(this);
 
         this.navBar.setVisible(false);
 
@@ -375,7 +383,8 @@ export default class GameScene extends Phaser.Scene {
             [this.premiumShopPanel, this.guildPanel, this.shipEventPanel, this.missionPanel, this.bonusPanel,
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
              this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
-             this.adminPanel, this.talentPanel, this.multiplayerPanel]
+             this.adminPanel, this.talentPanel, this.multiplayerPanel,
+             this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
         });
@@ -392,8 +401,14 @@ export default class GameScene extends Phaser.Scene {
             this.spawnLootFromDefeat(npc);
             this.missionPanel?.trackKill();
             if (npc instanceof NPCShip) {
+                this.dailyQuestPanel?.addProgress('npc_kills', 1);
+                this._updateTrialProgress('npc_kills', 1);
+                this._dropRandomItem(npc.x, npc.y, 0.12);
                 this.time.delayedCall(10000, () => this.spawnNPC());
             } else if (npc instanceof Monster) {
+                this.dailyQuestPanel?.addProgress('monsters', 1);
+                this._updateTrialProgress('monsters', 1);
+                this._dropRandomItem(npc.x, npc.y, 0.30);
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
         });
@@ -440,12 +455,19 @@ export default class GameScene extends Phaser.Scene {
             this.showStatusMsg('Ship Sunk!', 0xff0000);
             this.time.delayedCall(2000, () => this.scene.restart({ chartIndex: this.currentChartIndex, entryDirection: 'center', travelRatioY: 0.5 }));
         });
-        this.events.on('xp-gain', () => this.updateUIBars(), this);
+        this.events.on('xp-gain', (amount) => {
+            this.updateUIBars();
+            if (amount > 0) {
+                const xpGain = this._rumActive ? amount * 2 : amount;
+                this.dailyQuestPanel?.addProgress('xp_gained', xpGain);
+            }
+        }, this);
         this.events.on('level-up', (level) => {
             this.updateUIBars();
-            this.showStatusMsg(`Level Up! Current Level: ${level} • +1 Skillpunkt`, 0xffff00);
+            this.showStatusMsg(`⭐ Level Up! Level ${level} erreicht! • +1 Skillpunkt`, 0xffff00);
             this.refreshSeaGateUI();
             this.talentPanel?.addSkillPoint(1);
+            this._checkPirateTrial(level);
         });
         this.events.on('player-upgraded', (type) => {
             this.attackInterval = this.player.reloadTime;
@@ -1337,6 +1359,17 @@ handleResize(gameSize) {
         player.gold += goldGained;
         player.materials += gift.materialValue ?? 0;
         this.events.emit('gold-collected', goldGained);
+        if (goldGained > 0) {
+            this.dailyQuestPanel?.addProgress('gold_collected', goldGained);
+            this._updateTrialProgress('gold_collected', goldGained);
+        }
+        if ((gift.materialValue ?? 0) > 0) {
+            this.dailyQuestPanel?.addProgress('mats_collected', gift.materialValue);
+            this._updateTrialProgress('mats_collected', gift.materialValue);
+        }
+        if (gift.dropCategory === 'treasure') {
+            this.dailyQuestPanel?.addProgress('treasures', 1);
+        }
 
         if (gift.giftType === 'gift-chest') {
             player.addAmmoCharges('flare', Phaser.Math.Between(1, 3));
@@ -2445,6 +2478,10 @@ handleResize(gameSize) {
             this.bonusPanel?.toggle();
             return;
         }
+        if (action === 'quests') {
+            this.dailyQuestPanel?.toggle();
+            return;
+        }
         if (action === 'events') {
             this.eventsPanel?.toggle();
             return;
@@ -2593,6 +2630,7 @@ handleResize(gameSize) {
         this.expValueText.setText(`${Math.floor(this.player.xp)}/${100 * this.player.level}`);
         this.hpTopValueText.setText(`${Math.ceil(this.player.hp)}/${this.player.maxHP}`);
         this.domNavBar?.updateStats(this.player.xp, 100 * this.player.level, this.player.hp, this.player.maxHP, this.player.goldDeckSlots, this.player.pearlDeckSlots, this.player.gold, this.player.materials);
+        this._updateItemBar();
         this.chartBadgeBg.clear();
         this.chartBadgeBg.fillStyle(0x0a1a2a, 0.78);
         this.chartBadgeBg.lineStyle(1, 0xe6cb79, 0.9);
@@ -3334,6 +3372,16 @@ handleResize(gameSize) {
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
             : resolvedDamage;
         appliedDamage = this.player.applyCritBonus?.(appliedDamage) ?? appliedDamage;
+        if (this._blitzpulverActive && !isHarpoon) {
+            appliedDamage = Math.round(appliedDamage * 3);
+            this._blitzpulverActive = false;
+            delete this.player.activeEffects?.blitzpulver;
+            this.showStatusMsg('⚡ BLITZSCHUSS! 3× Schaden!', 0xffe84a);
+        }
+        if (this._rumActive) {
+            const xpBonus = Math.round(appliedDamage * 0.05);
+            if (xpBonus > 0) this.dailyQuestPanel?.addProgress('xp_gained', xpBonus);
+        }
         target.takeDamage(appliedDamage);
         this.events.emit('damage-dealt', appliedDamage);
 
@@ -3832,4 +3880,305 @@ handleResize(gameSize) {
 
         this.updateUIBars();
     }
+
+    /* ═══════════════════ ITEM SYSTEM ═══════════════════ */
+
+    _initItemSystem() {
+        if (!this.player.inventory) this.player.inventory = {};
+        if (!this.player.activeEffects) this.player.activeEffects = {};
+        this._blitzpulverActive = false;
+        this._rumActive = false;
+        this._rumExpiry = 0;
+        this._grogActive = false;
+        this._grogExpiry = 0;
+        this._initStormSystem();
+        this._startTreasureChestTimer();
+    }
+
+    addItem(type, count = 1) {
+        if (!this.player?.inventory) return;
+        this.player.inventory[type] = Math.min(99, (this.player.inventory[type] ?? 0) + count);
+        this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
+        this.itemBar?.showPickupFlash(type);
+        const names = { heiltrunk:'Heiltrunk', grog:'Grog', blitzpulver:'Blitzpulver', rum:'Rum-Fass', fernrohr:'Fernrohr' };
+        this.showStatusMsg(`📦 +${count}× ${names[type] ?? type} erhalten!`, 0xd4af37);
+    }
+
+    useItem(type) {
+        if (!this.player?.inventory) return;
+        const count = this.player.inventory[type] ?? 0;
+        if (count <= 0) { this.showStatusMsg('Keine Items dieser Art!', 0xff6644); return; }
+
+        this.player.inventory[type] = count - 1;
+        this.dailyQuestPanel?.addProgress('items_used', 1);
+
+        if (type === 'heiltrunk') {
+            const heal = Math.ceil(this.player.maxHP * 0.30);
+            this.player.heal(heal);
+            this.showStatusMsg(`🧪 Heiltrunk getrunken! +${heal} HP`, 0xff6b6b);
+
+        } else if (type === 'grog') {
+            const prevSpeed = this.player.speed;
+            this._grogOrigSpeed = this.player.speed;
+            this.player.speed = Math.round(this.player.speed * 1.5);
+            this._grogActive = true;
+            this._grogExpiry = this.time.now + 30000;
+            this.player.activeEffects = this.player.activeEffects ?? {};
+            this.player.activeEffects.grog = true;
+            this.showStatusMsg('🍺 Grog wirkt! +50% Geschwindigkeit für 30s', 0xffa040);
+            this.time.delayedCall(30000, () => {
+                if (this._grogActive) {
+                    this.player.speed = this._grogOrigSpeed;
+                    this._grogActive = false;
+                    delete this.player.activeEffects?.grog;
+                    this.showStatusMsg('🍺 Grog-Effekt abgelaufen.', 0x888888);
+                }
+            });
+
+        } else if (type === 'blitzpulver') {
+            this._blitzpulverActive = true;
+            this.player.activeEffects = this.player.activeEffects ?? {};
+            this.player.activeEffects.blitzpulver = true;
+            this.showStatusMsg('⚡ Blitzpulver bereit! Nächster Schuss: 3× Schaden', 0xffe84a);
+
+        } else if (type === 'rum') {
+            this._rumActive = true;
+            this._rumExpiry = this.time.now + 60000;
+            this.player.activeEffects = this.player.activeEffects ?? {};
+            this.player.activeEffects.rum = true;
+            this.showStatusMsg('🛢 Rum-Fass geöffnet! +100% XP für 60s', 0xc88040);
+            this.time.delayedCall(60000, () => {
+                this._rumActive = false;
+                delete this.player.activeEffects?.rum;
+                this.showStatusMsg('🛢 Rum-Effekt abgelaufen.', 0x888888);
+            });
+
+        } else if (type === 'fernrohr') {
+            this._locateNearestTreasure();
+        }
+
+        this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
+    }
+
+    _locateNearestTreasure() {
+        const chests = this.gifts?.getChildren().filter(g => g.dropCategory === 'treasure');
+        if (!chests || chests.length === 0) {
+            this.showStatusMsg('🔭 Fernrohr: Keine Schatztruhen in Sichtweite gefunden.', 0x9370db);
+            return;
+        }
+        const nearest = chests.reduce((best, c) => {
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, c.x, c.y);
+            return (!best || d < best.d) ? { c, d } : best;
+        }, null);
+        if (nearest) {
+            const dx = nearest.c.x - this.player.x;
+            const dy = nearest.c.y - this.player.y;
+            const angle = Math.atan2(dy, dx);
+            const dir = angle < -Math.PI*0.75 ? 'W' : angle < -Math.PI*0.25 ? 'N' : angle < Math.PI*0.25 ? 'O' : angle < Math.PI*0.75 ? 'S' : 'W';
+            this.showStatusMsg(`🔭 Fernrohr: Schatztruhe ~${Math.round(nearest.d)}px Richtung ${dir}!`, 0x9370db);
+            const marker = this.add.text(nearest.c.x, nearest.c.y - 36, '★ SCHATZ', {
+                fontSize: '14px', fontFamily: 'Arial', fontStyle: 'bold',
+                color: '#d4af37', stroke: '#000', strokeThickness: 4
+            }).setOrigin(0.5).setDepth(3000);
+            this.tweens.add({ targets: marker, y: nearest.c.y - 60, alpha: 0, duration: 3500, onComplete: () => marker.destroy() });
+        }
+    }
+
+    /* ═══════════════════ PIRATE TRIAL SYSTEM ═══════════════════ */
+
+    _initTrialSystem() {
+        this._activeTrial = null;
+        this._trialProgress = {};
+        const saved = localStorage.getItem(`ahc_trials_${window._loginUsername ?? 'player'}`);
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this._trialProgress = data.progress ?? {};
+                this._completedTrials = new Set(data.completed ?? []);
+            } catch {}
+        }
+        this._completedTrials = this._completedTrials ?? new Set();
+    }
+
+    _saveTrialData() {
+        localStorage.setItem(`ahc_trials_${window._loginUsername ?? 'player'}`, JSON.stringify({
+            progress: this._trialProgress,
+            completed: [...(this._completedTrials ?? [])]
+        }));
+    }
+
+    _checkPirateTrial(level) {
+        const trial = PIRATE_TRIALS.find(t => t.level === level && !this._completedTrials?.has(t.level));
+        if (!trial) return;
+        this._activeTrial = { ...trial, progress: this._trialProgress[trial.level] ?? 0 };
+        this.time.delayedCall(800, () => {
+            this.pirateTrialPanel?.show(this._activeTrial);
+        });
+    }
+
+    startPirateTrial(trial) {
+        this._activeTrial = trial;
+        this.showStatusMsg(`⚔ Piratenprüfung gestartet: ${trial.name}! ${trial.desc}`, 0xd4af37);
+        this.pushStatusFeedMessage(`PRÜFUNG: ${trial.name}`, '#d4af37');
+    }
+
+    _updateTrialProgress(type, amount) {
+        if (!this._activeTrial || this._activeTrial.type !== type) return;
+        const trial = this._activeTrial;
+        const prev = this._trialProgress[trial.level] ?? 0;
+        if (prev >= trial.target) return;
+        this._trialProgress[trial.level] = prev + amount;
+        trial.progress = this._trialProgress[trial.level];
+        this.pirateTrialPanel?.updateProgress(trial.progress, trial.target);
+        this._saveTrialData();
+        if (trial.progress >= trial.target) {
+            this._completePirateTrial(trial);
+        }
+    }
+
+    _completePirateTrial(trial) {
+        if (this._completedTrials?.has(trial.level)) return;
+        this._completedTrials?.add(trial.level);
+        this._activeTrial = null;
+        if (this.player) {
+            this.player.gold += trial.goldReward ?? 0;
+            this.player.gems = (this.player.gems ?? 0) + (trial.gemReward ?? 0);
+            if (trial.itemReward) {
+                Object.entries(trial.itemReward).forEach(([t, c]) => this.addItem(t, c));
+            }
+        }
+        if (trial.skillReward) this.talentPanel?.addSkillPoint(trial.skillReward);
+        this.updateUIBars();
+        this._saveTrialData();
+        this.showStatusMsg(`🏆 PRÜFUNG BESTANDEN: ${trial.name}! ${trial.rewardText}`, 0xffd700);
+        this.pushStatusFeedMessage(`✓ ${trial.name} bestanden!`, '#ffd700');
+        const banner = this.add.text(this.cameras.main.scrollX + this.scale.width / 2, this.cameras.main.scrollY + this.scale.height / 2, `🏆 PRÜFUNG BESTANDEN!\n${trial.name}`, {
+            fontSize: '28px', fontFamily: 'Arial', fontStyle: 'bold',
+            color: '#ffd700', stroke: '#000000', strokeThickness: 6, align: 'center'
+        }).setOrigin(0.5).setDepth(9000).setScrollFactor(0);
+        this.tweens.add({
+            targets: banner, y: '-=80', alpha: 0, duration: 3500,
+            delay: 1200, onComplete: () => banner.destroy()
+        });
+    }
+
+    /* ═══════════════════ DROP ITEMS FROM ENEMIES ═══════════════════ */
+
+    _dropRandomItem(x, y, chance = 0.15) {
+        if (Math.random() > chance) return;
+        const pool = ['heiltrunk', 'heiltrunk', 'grog', 'blitzpulver', 'rum', 'fernrohr'];
+        const type = pool[Math.floor(Math.random() * pool.length)];
+        const delay = Phaser.Math.Between(200, 600);
+        this.time.delayedCall(delay, () => {
+            if (!this.player?.active) return;
+            this.addItem(type, 1);
+        });
+    }
+
+    /* ═══════════════════ TREASURE CHEST TIMER ═══════════════════ */
+
+    _startTreasureChestTimer() {
+        const spawnChest = () => {
+            this._spawnTreasureChest();
+            const next = Phaser.Math.Between(90000, 150000);
+            this._treasureTimer = this.time.delayedCall(next, spawnChest);
+        };
+        this._treasureTimer = this.time.delayedCall(Phaser.Math.Between(30000, 60000), spawnChest);
+    }
+
+    _spawnTreasureChest(x, y) {
+        const { worldWidth, worldHeight } = this.currentChartConfig ?? { worldWidth: 4000, worldHeight: 4000 };
+        const cx = x ?? Phaser.Math.Between(200, worldWidth - 200);
+        const cy = y ?? Phaser.Math.Between(200, worldHeight - 200);
+
+        const chest = new Gift(this, cx, cy, {
+            type: 'gift-chest',
+            scale: 0.13,
+            goldValue: Phaser.Math.Between(80, 220),
+            materialValue: Phaser.Math.Between(15, 40),
+            hpValue: 30,
+            xpValue: 60,
+            dropCategory: 'treasure'
+        });
+        if (this.gifts) this.gifts.add(chest);
+        this.showStatusMsg('💰 Eine Schatztruhe ist erschienen!', 0xd4af37);
+        this.pushStatusFeedMessage('💰 Schatztruhe erschienen!', '#d4af37');
+
+        const glow = this.add.circle(cx, cy, 28, 0xd4af37, 0.18).setDepth(900);
+        this.tweens.add({ targets: glow, scaleX: 1.4, scaleY: 1.4, alpha: 0, duration: 1200, yoyo: true, repeat: -1 });
+        chest.glowCircle = glow;
+
+        this.time.delayedCall(120000, () => {
+            if (chest?.active) { chest.destroy(); }
+            if (glow?.active) { glow.destroy(); }
+        });
+    }
+
+    /* ═══════════════════ STORM EVENT SYSTEM ═══════════════════ */
+
+    _initStormSystem() {
+        this._stormActive = false;
+        this._stormOverlay = null;
+        const nextStorm = Phaser.Math.Between(180000, 360000);
+        this._stormTimer = this.time.delayedCall(nextStorm, () => this._triggerStorm());
+    }
+
+    _triggerStorm() {
+        if (this._stormActive) return;
+        this._stormActive = true;
+        this.showStatusMsg('🌩 STURM aufgezogen! Bewegung verlangsamt — bleibt wachsam!', 0x6688ff);
+        this.pushStatusFeedMessage('🌩 Sturm aufgezogen!', '#6688ff');
+
+        this._stormOverlay = this.add.rectangle(0, 0, 20000, 20000, 0x000044, 0.28)
+            .setScrollFactor(0).setDepth(10).setOrigin(0);
+        this._stormRain = [];
+        for (let i = 0; i < 18; i++) {
+            const rain = this.add.rectangle(
+                Phaser.Math.Between(0, this.scale.width),
+                Phaser.Math.Between(0, this.scale.height),
+                2, Phaser.Math.Between(20, 40), 0x99ccff, 0.55
+            ).setScrollFactor(0).setDepth(11).setRotation(0.2);
+            this._stormRain.push(rain);
+            this.tweens.add({
+                targets: rain,
+                y: this.scale.height + 50,
+                x: `-=${Phaser.Math.Between(40, 80)}`,
+                duration: Phaser.Math.Between(500, 900),
+                repeat: -1,
+                onRepeat: () => { rain.y = -50; rain.x = Phaser.Math.Between(0, this.scale.width); }
+            });
+        }
+        if (this.player) {
+            this._stormOrigSpeed = this.player.speed;
+            this.player.speed = Math.round(this.player.speed * 0.65);
+        }
+        const duration = Phaser.Math.Between(35000, 60000);
+        this.time.delayedCall(duration, () => this._clearStorm());
+    }
+
+    _clearStorm() {
+        if (!this._stormActive) return;
+        this._stormActive = false;
+        this._stormOverlay?.destroy();
+        this._stormRain?.forEach(r => r.destroy());
+        this._stormRain = [];
+        if (this.player && this._stormOrigSpeed) {
+            this.player.speed = this._stormOrigSpeed;
+        }
+        this.showStatusMsg('☀ Der Sturm zieht ab. Belohnung im Wasser!', 0x88ccff);
+        if (this.player?.active) {
+            this._dropRandomItem(this.player.x + Phaser.Math.Between(-200, 200), this.player.y + Phaser.Math.Between(-200, 200), 1.0);
+        }
+        this.spawnGift();
+        const nextStorm = Phaser.Math.Between(200000, 400000);
+        this._stormTimer = this.time.delayedCall(nextStorm, () => this._triggerStorm());
+    }
+
+    /* ═══════════════════ ITEM BAR UPDATE ═══════════════════ */
+
+    _updateItemBar() {
+        if (!this.player || !this.itemBar) return;
+        this.itemBar.update(this.player.inventory ?? {}, this.player.activeEffects ?? {});
+    }
 }
+
