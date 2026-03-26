@@ -9,6 +9,7 @@ import MissionPanel from '../ui/MissionPanel.js';
 import BonusPanel from '../ui/BonusPanel.js';
 import EventsPanel from '../ui/EventsPanel.js';
 import RangPanel from '../ui/RangPanel.js';
+import DomNavBar from '../ui/DomNavBar.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -210,6 +211,11 @@ export default class GameScene extends Phaser.Scene {
         this.input.setTopOnly(true);
 
         this.input.on('pointerdown', (pointer, gameObjects) => {
+            if (this._anyPanelOpen()) {
+                this.cameraDragState = null;
+                return;
+            }
+
             const panelDragObject = gameObjects.find(obj => obj.getData && obj.getData('panelDragHandle'));
             if (panelDragObject) {
                 const panelKey = panelDragObject.getData('panelKey');
@@ -319,11 +325,14 @@ export default class GameScene extends Phaser.Scene {
         this.bonusPanel   = new BonusPanel(this);
         this.eventsPanel  = new EventsPanel(this);
         this.rangPanel    = new RangPanel(this);
+        this.domNavBar    = new DomNavBar(this);
+
+        this.navBar.setVisible(false);
 
         this.scale.on('resize', this.handleResize, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.scale.off('resize', this.handleResize, this);
-            [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel]
+            [this.shopPanel, this.missionPanel, this.bonusPanel, this.eventsPanel, this.rangPanel, this.domNavBar]
                 .forEach(p => p?.destroy());
         });
 
@@ -2032,11 +2041,19 @@ handleResize(gameSize) {
         handle.bg.strokeRoundedRect(0, 0, handle.width, handle.height, 8);
     }
 
+    _anyPanelOpen() {
+        return !!(
+            this.shopPanel?.visible ||
+            this.missionPanel?.visible ||
+            this.bonusPanel?.visible ||
+            this.eventsPanel?.visible ||
+            this.rangPanel?.visible
+        );
+    }
+
     handleMenuAction(action) {
         if (action === 'menu') {
-            this.isNavBarVisible = !this.isNavBarVisible;
-            this.showStatusMsg(this.isNavBarVisible ? 'Navigation menu expanded' : 'Navigation menu minimized', 0xbfe8ff);
-            this.updateUIBars();
+            this.domNavBar?.toggle();
             return;
         }
         if (action === 'shipyard') {
@@ -2107,10 +2124,11 @@ const statusFeedPos = this.getPanelPosition('statusFeed');
 const upgradePos = this.getPanelPosition('upgrade');
 const isLandscape = width > height;
 
-this.goldContainer.setPosition(12, 8);
+const navH = (this.domNavBar?.visible !== false) ? 66 : 4;
+this.goldContainer.setPosition(12, navH);
 
 if (isLandscape) {
-    this.progressContainer.setPosition(width - 248, 10);
+    this.progressContainer.setPosition(width - 248, navH);
 
     this.targetHUD.x = 150;
     this.targetHUD.y = 82;
@@ -2138,7 +2156,7 @@ if (isLandscape) {
 
     this.navBar.setPosition(width / 2, 10);
 } else {
-    this.progressContainer.setPosition(width - 248, 10);
+    this.progressContainer.setPosition(width - 248, navH);
 
     this.targetHUD.x = width / 2;
     this.targetHUD.y = 102;
@@ -2164,7 +2182,7 @@ if (isLandscape) {
 
     this.navBar.setPosition(width / 2, 10);
 }
-        this.navBar.setVisible(shouldShowNavBar);
+        this.navBar.setVisible(false);
 
         this.goldText.setText(`${this.player.gold}`);
         this.materialText.setText(`${this.player.materials} mats`);
