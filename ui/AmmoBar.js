@@ -32,8 +32,8 @@ export default class AmmoBar {
         bar.id = 'ammo-bar';
         bar.style.cssText = `
             position: fixed;
-            right: 8px;
-            bottom: 80px;
+            right: env(safe-area-inset-right, 8px);
+            bottom: 72px;
             z-index: 8000;
             display: flex;
             flex-direction: column;
@@ -42,6 +42,8 @@ export default class AmmoBar {
             pointer-events: auto;
             user-select: none;
             -webkit-user-select: none;
+            padding-right: 8px;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
         `;
 
         const skillRow = document.createElement('div');

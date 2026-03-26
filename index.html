@@ -2,8 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Game Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Azure Horizon Captain</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -17,7 +20,36 @@
       }
     </script>
     <style>
-      html, body { margin: 0; padding: 0; background-color: black; }
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
+        background: #000;
+        overflow: hidden;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: none;
+        text-size-adjust: none;
+      }
+
+      canvas {
+        display: block;
+        touch-action: none;
+      }
+
+      /* Landscape mode: give the game the full screen */
+      @media screen and (orientation: landscape) {
+        #dom-nav-bar { height: 52px !important; }
+      }
+      @media screen and (orientation: portrait) {
+        #dom-nav-bar { height: 62px !important; }
+      }
+
+      /* Hide scrollbars everywhere */
+      ::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
     </style>
   </head>
   <body>
@@ -26,5 +58,20 @@
     <script src="https://storage.googleapis.com/rosebud_staticfiles/ImageGenerator.js"></script>
     <script src="https://storage.googleapis.com/rosebud_staticfiles/ProgressLogger.js"></script>
     <script src="https://storage.googleapis.com/rosebud_staticfiles/OGP.js"></script>
+    <script>
+      // Request fullscreen on first touch for mobile
+      (function() {
+        let fsRequested = false;
+        function requestFS() {
+          if (fsRequested) return;
+          fsRequested = true;
+          const el = document.documentElement;
+          const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+          if (fn) fn.call(el).catch(() => {});
+        }
+        document.addEventListener('touchend', requestFS, { once: true, passive: true });
+        document.addEventListener('click', requestFS, { once: true });
+      })();
+    </script>
   </body>
 </html>

@@ -2119,14 +2119,19 @@ handleResize(gameSize) {
         const shouldShowSeaGate = this.isSeaGateVisible;
         const shouldShowReturnToShip = this.isReturnToShipVisible;
 
+        const isLandscape = width > height;
+        const navBarH = isLandscape ? 52 : 62;
+        const navH = (this.domNavBar?.visible !== false) ? (navBarH + 4) : 4;
+
         if (this.minimap) {
-            const minimapMargin = 20;
+            const minimapMargin = 12;
             const toggleGap = 8;
             const toggleSize = 32;
             const minimapDefaultX = width - this.minimap.getRenderWidth() - minimapMargin;
+            const minimapDefaultY = navH + 6;
             const minimapPos = this.getPanelPosition('minimap');
             if (!this.uiPanelPositions.minimap) {
-                this.setPanelPosition('minimap', minimapDefaultX, 92);
+                this.setPanelPosition('minimap', minimapDefaultX, minimapDefaultY);
             }
             this.minimap.setPosition(minimapPos.x, minimapPos.y);
             this.minimapToggleBtn.setPosition(minimapPos.x - toggleGap - toggleSize, minimapPos.y);
@@ -2138,68 +2143,67 @@ handleResize(gameSize) {
         }
 
         const chatPos = this.getPanelPosition('chat');
-const statusFeedPos = this.getPanelPosition('statusFeed');
-const upgradePos = this.getPanelPosition('upgrade');
-const isLandscape = width > height;
+        const statusFeedPos = this.getPanelPosition('statusFeed');
+        const upgradePos = this.getPanelPosition('upgrade');
 
-const navH = (this.domNavBar?.visible !== false) ? 66 : 4;
-this.goldContainer.setPosition(12, navH);
+        this.goldContainer.setPosition(12, navH);
 
-if (isLandscape) {
-    this.progressContainer.setPosition(width - 248, navH);
+        if (isLandscape) {
+            this.progressContainer.setPosition(width - 248, navH);
 
-    this.targetHUD.x = 150;
-    this.targetHUD.y = 82;
+            this.targetHUD.x = width / 2;
+            this.targetHUD.y = navH + 18;
 
-    this.returnToShipBtn.setPosition(24, height - 156);
-    this.returnToShipBtn.setVisible(true);
-    this.returnToShipHit.setPosition(-6, -6);
-    this.returnToShipHit.setSize(196, 76);
+            const chatH = this.isChatMinimized ? 44 : 168;
+            const feedH = this.isStatusFeedMinimized ? 44 : 120;
 
-    this.chatPanel.setPosition(24, height - (this.isChatMinimized ? 210 : 330));
-    this.chatPanel.setPosition(24, height - (this.isChatMinimized ? 210 : 330));
-    this.chatPanel.setPosition(24, height - (this.isChatMinimized ? 210 : 330));
-    this.chatPanel.setVisible(true);
-    this.chatDragHandle.container.setPosition(166, 8);
-    this.chatToggleHit.setPosition(202, -4);
-    this.chatToggleHit.setSize(44, 40);
+            this.chatPanel.setPosition(16, height - chatH - 6);
+            this.chatPanel.setVisible(true);
+            this.chatDragHandle.container.setPosition(166, 8);
+            this.chatToggleHit.setPosition(202, -4);
+            this.chatToggleHit.setSize(44, 40);
 
-    this.statusFeedPanel.setPosition(24, 88);
-    this.statusFeedDragHandle.container.setPosition(130, 8);
+            this.statusFeedPanel.setPosition(16, height - chatH - feedH - 12);
+            this.statusFeedDragHandle.container.setPosition(130, 8);
 
-    this.actionsContainer.setPosition(width - 178, height - 138);
+            this.returnToShipBtn.setPosition(16, height - chatH - feedH - 76 - 20);
+            this.returnToShipBtn.setVisible(true);
+            this.returnToShipHit.setPosition(-6, -6);
+            this.returnToShipHit.setSize(196, 76);
 
-    this.upgradePanel.setPosition(width - 404, 96);
-    this.upgradePanelDragHandle.container.setPosition(248, 10);
+            this.actionsContainer.setPosition(width - 178, height - 138);
 
-    this.navBar.setPosition(width / 2, 10);
-} else {
-    this.progressContainer.setPosition(width - 248, navH);
+            this.upgradePanel.setPosition(width - 404, navH + 44);
+            this.upgradePanelDragHandle.container.setPosition(248, 10);
 
-    this.targetHUD.x = width / 2;
-    this.targetHUD.y = 102;
+            this.navBar.setPosition(width / 2, 10);
+        } else {
+            this.progressContainer.setPosition(width - 248, navH);
 
-    this.returnToShipBtn.setPosition(24, height - 156);
-    this.returnToShipBtn.setVisible(true);
-    this.returnToShipHit.setPosition(-6, -6);
-    this.returnToShipHit.setSize(196, 76);
+            this.targetHUD.x = width / 2;
+            this.targetHUD.y = navH + 40;
 
-    this.chatPanel.setPosition(24, height - 200);
-    this.chatPanel.setVisible(true);
-    this.chatDragHandle.container.setPosition(166, 8);
-    this.chatToggleHit.setPosition(202, -4);
-    this.chatToggleHit.setSize(44, 40);
+            this.returnToShipBtn.setPosition(24, height - 156);
+            this.returnToShipBtn.setVisible(true);
+            this.returnToShipHit.setPosition(-6, -6);
+            this.returnToShipHit.setSize(196, 76);
 
-    this.statusFeedPanel.setPosition(statusFeedPos.x, statusFeedPos.y);
-    this.statusFeedDragHandle.container.setPosition(130, 8);
+            this.chatPanel.setPosition(24, height - 200);
+            this.chatPanel.setVisible(true);
+            this.chatDragHandle.container.setPosition(166, 8);
+            this.chatToggleHit.setPosition(202, -4);
+            this.chatToggleHit.setSize(44, 40);
 
-    this.actionsContainer.setPosition(width - 192, height - 164);
+            this.statusFeedPanel.setPosition(statusFeedPos.x, statusFeedPos.y);
+            this.statusFeedDragHandle.container.setPosition(130, 8);
 
-    this.upgradePanel.setPosition(upgradePos.x, upgradePos.y);
-    this.upgradePanelDragHandle.container.setPosition(248, 10);
+            this.actionsContainer.setPosition(width - 192, height - 164);
 
-    this.navBar.setPosition(width / 2, 10);
-}
+            this.upgradePanel.setPosition(upgradePos.x, upgradePos.y);
+            this.upgradePanelDragHandle.container.setPosition(248, 10);
+
+            this.navBar.setPosition(width / 2, 10);
+        }
         this.navBar.setVisible(false);
 
         this.goldText.setText(`${this.player.gold}`);

@@ -10,7 +10,7 @@ export default class ChartNav {
         nav.id = 'chart-nav';
         nav.style.cssText = `
             position: fixed;
-            bottom: 18px;
+            bottom: calc(14px + env(safe-area-inset-bottom, 0px));
             left: 50%;
             transform: translateX(-50%);
             z-index: 8000;

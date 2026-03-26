@@ -44,8 +44,9 @@ export default class DomNavBar {
             user-select: none;
             -webkit-user-select: none;
             touch-action: pan-x;
-            height: 62px;
+            height: 52px;
             flex-shrink: 0;
+            padding-top: env(safe-area-inset-top, 0px);
         `;
         el.style.setProperty('scrollbar-width', 'none');
 
