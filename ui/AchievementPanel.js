@@ -85,7 +85,7 @@ export default class AchievementPanel {
         const el = document.createElement('div');
         el.id = 'achievement-panel';
         el.style.cssText = `
-            position:fixed;top:64px;right:10px;
+            position:fixed;top:52px;right:10px;
             width:min(380px,96vw);z-index:12000;
             display:none;flex-direction:column;
             background:linear-gradient(180deg,rgba(8,20,44,0.97),rgba(4,12,28,0.97));

@@ -230,7 +230,7 @@ export default class ChatPanel {
             badge = document.createElement('div');
             badge.id = 'multiplier-badge';
             badge.style.cssText = `
-                position:fixed; top:60px; right:220px; z-index:19500;
+                position:fixed; top:52px; right:220px; z-index:19500;
                 background:linear-gradient(135deg,#7f3f00,#ff8800);
                 border:2px solid #ffd36a; border-radius:20px;
                 padding:4px 12px; font-family:Arial,sans-serif;

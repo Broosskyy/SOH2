@@ -13,21 +13,23 @@ export default class DomNavBar {
     }
 
     _buttons() {
+        /* Ordered by usage frequency — most-used come first so they're
+           reachable without scrolling on small screens */
         return [
-            { label: 'Admin',    icon: '🛡', action: () => this.scene.handleMenuAction('admin'), adminBtn: true },
-            { label: 'Werft',    icon: '⚓', action: () => this.scene.handleMenuAction('shipyard') },
-            { label: 'Gilde',    icon: '⚑',  action: () => this.scene.handleMenuAction('guild') },
-            { label: 'Chat',     icon: '💬', action: () => this.scene.handleMenuAction('chat') },
-            { label: 'Events',   icon: '⚔',  action: () => this.scene.handleMenuAction('shipevents') },
-            { label: 'Mission',  icon: '⇪',  action: () => this.scene.handleMenuAction('missions') },
-            { label: 'Bonus',    icon: '◎',  action: () => this.scene.handleMenuAction('bonus') },
-            { label: 'Quests',   icon: '📋', action: () => this.scene.handleMenuAction('quests') },
-            { label: 'Shop',     icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
-            { label: 'Rang',     icon: '♛',  action: () => this.scene.handleMenuAction('rank') },
-            { label: 'Hafen',    icon: '⚓', action: () => this.scene.handleMenuAction('hafen') },
-            { label: 'Erfolge',  icon: '🏆', action: () => this.scene.handleMenuAction('achievements') },
-            { label: 'Logbuch',  icon: '📜', action: () => this.scene.handleMenuAction('logbook') },
-            { label: 'Multi',    icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
+            { label: 'Werft',   icon: '⚓', action: () => this.scene.handleMenuAction('shipyard') },
+            { label: 'Hafen',   icon: '🏴', action: () => this.scene.handleMenuAction('hafen') },
+            { label: 'Events',  icon: '⚔', action: () => this.scene.handleMenuAction('shipevents') },
+            { label: 'Quests',  icon: '📋', action: () => this.scene.handleMenuAction('quests') },
+            { label: 'Shop',    icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
+            { label: 'Gilde',   icon: '⚑',  action: () => this.scene.handleMenuAction('guild') },
+            { label: 'Chat',    icon: '💬', action: () => this.scene.handleMenuAction('chat') },
+            { label: 'Erfolge', icon: '🏆', action: () => this.scene.handleMenuAction('achievements') },
+            { label: 'Logbuch', icon: '📜', action: () => this.scene.handleMenuAction('logbook') },
+            { label: 'Rang',    icon: '♛',  action: () => this.scene.handleMenuAction('rank') },
+            { label: 'Bonus',   icon: '◎',  action: () => this.scene.handleMenuAction('bonus') },
+            { label: 'Mission', icon: '⇪',  action: () => this.scene.handleMenuAction('missions') },
+            { label: 'Multi',   icon: '🌐', action: () => this.scene.handleMenuAction('multiplayer') },
+            { label: 'Admin',   icon: '🛡', action: () => this.scene.handleMenuAction('admin'), adminBtn: true },
         ];
     }
 
@@ -54,7 +56,7 @@ export default class DomNavBar {
             user-select: none;
             -webkit-user-select: none;
             touch-action: pan-x;
-            height: 56px;
+            height: 46px;
             flex-shrink: 0;
             padding-top: env(safe-area-inset-top, 0px);
         `;
@@ -63,7 +65,7 @@ export default class DomNavBar {
         /* Linker Abstand — reserviert Platz für das Player-Info-Panel */
         const lSpacer = document.createElement('div');
         lSpacer.id = 'nav-left-spacer';
-        lSpacer.style.cssText = 'min-width:168px;flex-shrink:0;pointer-events:none;';
+        lSpacer.style.cssText = 'min-width:140px;flex-shrink:0;pointer-events:none;';
         el.appendChild(lSpacer);
 
         this._buttons().forEach(btn => {
@@ -74,25 +76,25 @@ export default class DomNavBar {
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                min-width: 62px;
-                padding: 4px 6px;
+                min-width: 48px;
+                padding: 3px 4px;
                 background: ${isAdmin ? 'rgba(170,68,255,0.2)' : 'transparent'};
                 border: none;
-                border-right: 1px solid ${isAdmin ? 'rgba(170,68,255,0.4)' : 'rgba(74,200,255,0.12)'};
+                border-right: 1px solid ${isAdmin ? 'rgba(170,68,255,0.4)' : 'rgba(74,200,255,0.10)'};
                 color: ${isAdmin ? '#cc88ff' : '#dff8ff'};
                 cursor: pointer;
                 -webkit-tap-highlight-color: transparent;
                 touch-action: manipulation;
                 flex-shrink: 0;
                 transition: background 0.12s;
-                gap: 2px;
+                gap: 1px;
                 outline: none;
-                min-height: 56px;
+                min-height: 46px;
                 ${isAdmin ? 'box-shadow: inset 0 0 10px rgba(170,68,255,0.15);' : ''}
             `;
             b.innerHTML = `
-                <span style="font-size:20px;line-height:1.1;">${btn.icon}</span>
-                <span style="font-size:10px;color:${isAdmin ? '#cc88ff' : '#9fdcff'};letter-spacing:0.3px;">${btn.label}</span>
+                <span style="font-size:16px;line-height:1.1;">${btn.icon}</span>
+                <span style="font-size:8px;color:${isAdmin ? '#cc88ff' : '#9fdcff'};letter-spacing:0.2px;">${btn.label}</span>
             `;
             const activate = (e) => {
                 e.preventDefault(); e.stopPropagation();
@@ -126,13 +128,13 @@ export default class DomNavBar {
             position: fixed;
             top: 0;
             left: 0;
-            width: 166px;
-            height: 56px;
+            width: 138px;
+            height: 46px;
             z-index: 9002;
             display: flex;
             align-items: center;
-            padding: 0 8px;
-            gap: 7px;
+            padding: 0 6px;
+            gap: 5px;
             background: linear-gradient(135deg, rgba(3,10,24,0.99) 0%, rgba(5,16,36,0.97) 100%);
             border-bottom: 2px solid rgba(212,175,55,0.6);
             border-right: 1px solid rgba(212,175,55,0.22);
@@ -144,29 +146,29 @@ export default class DomNavBar {
         `;
         el.innerHTML = `
             <div id="nav-avatar" style="
-                width:36px;height:36px;border-radius:50%;flex-shrink:0;
+                width:28px;height:28px;border-radius:50%;flex-shrink:0;
                 background:linear-gradient(135deg,#1a3a6a,#0d2040);
                 border:2px solid rgba(212,175,55,0.75);
                 display:flex;align-items:center;justify-content:center;
-                font-size:18px;box-shadow:0 0 10px rgba(212,175,55,0.3);
+                font-size:14px;box-shadow:0 0 8px rgba(212,175,55,0.3);
             ">⚓</div>
             <div style="flex:1;min-width:0;overflow:hidden;">
-                <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;">
+                <div style="display:flex;align-items:center;gap:3px;flex-wrap:nowrap;">
                     <span id="nav-player-name" style="
-                        font-size:12px;font-weight:bold;color:#ffd36a;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:76px;
+                        font-size:10px;font-weight:bold;color:#ffd36a;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;
                     ">Kapitän</span>
                     <span id="nav-level-badge" style="
-                        font-size:9px;font-weight:bold;color:#fff;
+                        font-size:8px;font-weight:bold;color:#fff;
                         background:linear-gradient(135deg,#1a5a9a,#0d3a6a);
                         border:1px solid rgba(74,200,255,0.5);
-                        border-radius:4px;padding:1px 4px;flex-shrink:0;
+                        border-radius:3px;padding:1px 3px;flex-shrink:0;
                     ">Lv.1</span>
                 </div>
-                <div style="margin-top:2px;">
+                <div style="margin-top:1px;">
                     <span id="nav-guild-tag" style="
-                        font-size:9px;color:#c8a060;white-space:nowrap;overflow:hidden;
-                        text-overflow:ellipsis;display:block;max-width:108px;
+                        font-size:8px;color:#c8a060;white-space:nowrap;overflow:hidden;
+                        text-overflow:ellipsis;display:block;max-width:90px;
                     ">Kein Gildenverband</span>
                 </div>
             </div>
@@ -181,7 +183,7 @@ export default class DomNavBar {
         stats.id = 'nav-stats';
         stats.style.cssText = `
             position: fixed;
-            top: 56px;
+            top: 46px;
             left: 0;
             width: 166px;
             z-index: 9001;

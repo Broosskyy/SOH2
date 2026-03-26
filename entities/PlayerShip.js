@@ -851,7 +851,8 @@ export default class PlayerShip extends Ship {
     }
 
     update() {
-        /* Seafight-style: rotation always follows movement direction, never snaps to enemy */
+        /* Seafight/NPC-style: rotation ALWAYS follows the actual velocity vector,
+           never snaps to click target — ship visually steers into the turn */
         this.rotationSpeed = this.navigationRotationSpeed;
 
         super.update();
@@ -859,36 +860,46 @@ export default class PlayerShip extends Ship {
 
         const vx = this.body.velocity.x;
         const vy = this.body.velocity.y;
+        const spd = this.speed ?? 160;
+
+        /* Steering lerp: 0.04 = smooth like NPCs but ~4× more responsive */
+        const STEER = 0.04;
+        const DRAG  = 0.06;
 
         if (this.moveTarget) {
-            const distance = Phaser.Math.Distance.Between(this.x, this.y, this.moveTarget.x, this.moveTarget.y);
+            const distance = Phaser.Math.Distance.Between(
+                this.x, this.y, this.moveTarget.x, this.moveTarget.y);
 
-            if (distance > 20) {
-                const angle = Phaser.Math.Angle.Between(this.x, this.y, this.moveTarget.x, this.moveTarget.y);
-                const targetVx = Math.cos(angle) * this.speed;
-                const targetVy = Math.sin(angle) * this.speed;
+            if (distance > 22) {
+                const angle   = Phaser.Math.Angle.Between(
+                    this.x, this.y, this.moveTarget.x, this.moveTarget.y);
 
-                this.body.setVelocityX(Phaser.Math.Linear(vx, targetVx, 0.08));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, targetVy, 0.08));
+                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(angle) * spd, STEER));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(angle) * spd, STEER));
                 this.setWakeVisible(true);
 
-                /* Always rotate toward movement direction — never toward combat target */
-                this.targetAngle = angle;
+                /* Rotation follows ACTUAL velocity direction — same as NPCs */
+                if (this.body.velocity.length() > 8) {
+                    this.targetAngle = Math.atan2(this.body.velocity.y, this.body.velocity.x);
+                }
             } else {
-                this.body.setVelocityX(Phaser.Math.Linear(vx, 0, 0.1));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, 0, 0.1));
-
-                if (this.body.velocity.length() < 5) {
+                /* Arrived — brake smoothly */
+                this.body.setVelocityX(Phaser.Math.Linear(vx, 0, 0.08));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, 0, 0.08));
+                if (this.body.velocity.length() < 6) {
                     this.body.setVelocity(0, 0);
                     this.moveTarget = null;
                     this.setWakeVisible(false);
                 }
             }
         } else {
-            this.body.setVelocityX(Phaser.Math.Linear(vx, 0, 0.05));
-            this.body.setVelocityY(Phaser.Math.Linear(vy, 0, 0.05));
-
-            if (this.body.velocity.length() < 1) {
+            /* No target — coast to stop */
+            this.body.setVelocityX(Phaser.Math.Linear(vx, 0, DRAG));
+            this.body.setVelocityY(Phaser.Math.Linear(vy, 0, DRAG));
+            if (this.body.velocity.length() > 6) {
+                this.targetAngle = Math.atan2(this.body.velocity.y, this.body.velocity.x);
+            }
+            if (this.body.velocity.length() < 2) {
                 this.body.setVelocity(0, 0);
                 this.setWakeVisible(false);
             }

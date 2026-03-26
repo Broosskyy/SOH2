@@ -790,7 +790,7 @@ export default class GameScene extends Phaser.Scene {
     _showStreakToast(msg) {
         const el = document.createElement('div');
         el.style.cssText = `
-            position:fixed;top:64px;left:50%;transform:translateX(-50%) scale(0.8);
+            position:fixed;top:52px;left:50%;transform:translateX(-50%) scale(0.8);
             z-index:19001;pointer-events:none;
             background:rgba(10,10,20,0.9);border:2px solid rgba(255,150,0,0.7);
             border-radius:12px;padding:8px 18px;

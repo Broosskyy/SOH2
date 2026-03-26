@@ -9,7 +9,7 @@ export default class LogbookPanel {
         const el = document.createElement('div');
         el.id = 'logbook-panel';
         el.style.cssText = `
-            position:fixed;top:64px;right:10px;
+            position:fixed;top:52px;right:10px;
             width:min(360px,96vw);z-index:12000;
             display:none;flex-direction:column;
             background:linear-gradient(180deg,rgba(6,16,38,0.97),rgba(3,10,24,0.97));
