@@ -6,7 +6,7 @@ export default class Minimap extends Phaser.GameObjects.Container {
 
         this.scene = scene;
         this.fullSize = size;
-        this.minimizedScale = 0.32;
+        this.minimizedScale = 0.55;
         this.worldWidth = worldWidth;
         this.worldHeight = worldHeight;
         this.isMinimized = false;

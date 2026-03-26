@@ -45,7 +45,7 @@ export default class GameScene extends Phaser.Scene {
         this.uiPanelPositions = {};
         this.cameraReturnTween = null;
         this.cameraDefaultZoom = 1;
-        this.isMinimapMinimized = true;
+        this.isMinimapMinimized = false;
         this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
         this.isReturnToShipVisible = false;
@@ -330,7 +330,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.gifts, this.collectGift, null, this);
 
         this.createUI();
-        this.minimap = new Minimap(this, width - 208, 92, 190, worldWidth, worldHeight);
+        this.minimap = new Minimap(this, width - 238, 92, 220, worldWidth, worldHeight);
         this.minimap.setWorldMetrics(worldWidth, worldHeight);
         this.minimap.setChartInfo(this.currentChartIndex, this.currentChartConfig.name);
         this.minimap.setMinimized(this.isMinimapMinimized);
