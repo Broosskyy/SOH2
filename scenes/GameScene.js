@@ -231,10 +231,9 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        /* Nahtlose Ozean-Textur generieren (Sinus-Wellen mit ganzzahligen Frequenzen → keine Kanten) */
+        /* Ocean background — ocean_deep_tile.png is a proper seamless texture */
         this.cameras.main.setBackgroundColor(0x0a2a48);
-        this._generateOceanTexture();
-        const _bgKey = this.textures.exists('ocean-generated') ? 'ocean-generated' : 'ocean-bg';
+        const _bgKey = this.textures.exists('ocean-deep-bg') ? 'ocean-deep-bg' : 'ocean-bg';
         this.background = this.add.tileSprite(0, 0, width + 64, height + 64, _bgKey)
             .setOrigin(0, 0)
             .setDepth(-100)
@@ -519,22 +518,25 @@ export default class GameScene extends Phaser.Scene {
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
         });
-        /* ── Guild tower click → start dedicated timer-based attack ── */
-        this.events.on('guild-tower-clicked', ({ island, index }) => {
+        /* ── Guild tower click (old tiny-button) OR fortress-image tap → start attack ── */
+        const _startAttackIfInRange = (island) => {
             if (!this.player?.active) return;
-            const tower = island.towers[index];
-            if (!tower?.active) {
-                this.showStatusMsg('💥 Turm bereits zerstört!', 0x888888);
-                return;
+            if (island.capturedBy) {
+                this.showStatusMsg('⚑ Insel bereits eingenommen!', 0x88ddff); return;
+            }
+            const activeTowers = island.towers.filter(t => t.active).length;
+            if (activeTowers === 0) {
+                this.showStatusMsg('💥 Alle Türme bereits zerstört!', 0x888888); return;
             }
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
             if (dist > 700) {
-                this.showStatusMsg('⚓ Näher heranfahren! (Max. 700)', 0xff8844);
-                return;
+                this.showStatusMsg('⚓ Näher heranfahren! (Max. 700)', 0xff8844); return;
             }
             this._startGuildTowerCombat(island);
-            this.showStatusMsg(`🏰 Gildeninsel angreifen! Türme: ${island.towers.filter(t => t.active).length}/6`, 0xffaa44);
-        });
+            this.showStatusMsg(`🏰 Gildeninsel angreifen! Türme: ${activeTowers}/6`, 0xffaa44);
+        };
+        this.events.on('guild-tower-clicked',    ({ island }) => _startAttackIfInRange(island));
+        this.events.on('guild-island-attack-tap', ({ island }) => _startAttackIfInRange(island));
 
         /* ── After conquest: save guild data + auto-reset towers after 90 s ── */
         this.events.on('guild-island-captured', ({ island, guild }) => {
@@ -598,7 +600,11 @@ export default class GameScene extends Phaser.Scene {
 
         this.finalizeChartEntryPosition();
 
-        this.events.on('shutdown', () => this._saveProgress());
+        this.events.on('shutdown', () => {
+            this._saveProgress();
+            this._guildAttackBtnEl?.remove(); this._guildAttackBtnEl = null;
+            this._stopGuildTowerCombat?.();
+        });
         const _saveFn = () => this._saveProgress();
         window.addEventListener('beforeunload', _saveFn);
         window.addEventListener('pagehide', _saveFn);
@@ -1894,6 +1900,47 @@ handleResize(gameSize) {
         this._guildCombatTimer   = null;
         this._guildCombatIsland  = null;
         this._hideGuildCombatHUD();
+    }
+
+    /* ── DOM button: appears when near guild island, hides when out of range ── */
+    _updateGuildAttackBtn(distToGuild) {
+        const gi = this.guildIsland;
+        const inRange     = distToGuild < 680;
+        const alreadyFighting = !!this._guildCombatTimer;
+        const conquered   = gi?.capturedBy != null;
+        const noTowers    = gi && gi.towers.every(t => !t.active);
+        const shouldShow  = inRange && !alreadyFighting && !conquered && !noTowers;
+
+        if (shouldShow && !this._guildAttackBtnEl) {
+            const btn = document.createElement('button');
+            btn.id = 'guild-attack-btn';
+            btn.textContent = '🏰 Gildeninsel ANGREIFEN';
+            btn.style.cssText = `
+                position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
+                z-index:14600;
+                background:linear-gradient(180deg,#8b2010 0%,#5a1008 100%);
+                border:2px solid rgba(255,120,50,0.85);border-radius:14px;
+                color:#fff;font-size:13px;font-weight:bold;
+                padding:10px 28px;letter-spacing:1px;
+                box-shadow:0 0 20px rgba(255,80,30,0.55);
+                cursor:pointer;touch-action:manipulation;
+                font-family:Arial,sans-serif;
+                animation:pulse 1s infinite alternate;
+            `;
+            btn.addEventListener('click', () => {
+                if (gi) { this.events.emit('guild-island-attack-tap', { island: gi }); }
+            });
+            document.body.appendChild(btn);
+            this._guildAttackBtnEl = btn;
+        } else if (!shouldShow && this._guildAttackBtnEl) {
+            this._guildAttackBtnEl.remove();
+            this._guildAttackBtnEl = null;
+        }
+        /* Update label when actively fighting */
+        if (alreadyFighting && this._guildAttackBtnEl) {
+            this._guildAttackBtnEl.remove();
+            this._guildAttackBtnEl = null;
+        }
     }
 
     _checkIslandConquest(island) {
@@ -4883,6 +4930,9 @@ handleResize(gameSize) {
                     this.player.body.velocity.y = Math.sin(angle) * 200;
                 }
             }
+            this._updateGuildAttackBtn(d);
+        } else {
+            this._updateGuildAttackBtn(Infinity);
         }
 
         this.updatePlayerVisualEffects(time);

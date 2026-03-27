@@ -25,7 +25,13 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
 
         /* New fortress graphic — bigger, with harbor entrance */
         this._islandImg = scene.add.image(0, 0, 'island-guild-fortress')
-            .setScale(0.45).setDepth(10);
+            .setScale(0.45).setDepth(10)
+            .setInteractive({ useHandCursor: true,
+                hitArea: new Phaser.Geom.Circle(0, 0, 280),
+                hitAreaCallback: Phaser.Geom.Circle.Contains });
+        this._islandImg.on('pointerdown', () => {
+            scene.events.emit('guild-island-attack-tap', { island: this });
+        });
         this.add(this._islandImg);
 
         this.towers = [];
