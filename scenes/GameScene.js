@@ -4960,10 +4960,10 @@ handleResize(gameSize) {
             this.playerReturnHighlightBlend.setPosition(this.player.x, this.player.y);
         }
 
-        /* Wasser komplett kamerafixiert — nur sanfte Eigenanimation über Zeit */
+        /* TilePosition 1:1 mit Kamera → Wasser scrollt mit Welt, UI bleibt fixiert */
         if (this.background) {
-            this.background.tilePositionX = time * 0.010;
-            this.background.tilePositionY = time * 0.005;
+            this.background.tilePositionX = this.cameras.main.scrollX;
+            this.background.tilePositionY = this.cameras.main.scrollY;
         }
 
         this.updateUIBars();
