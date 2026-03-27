@@ -5,6 +5,11 @@ import GameScene from './scenes/GameScene.js';
 
 const config = {
     type: Phaser.AUTO,
+    antialias: true,
+    antialiasGL: true,
+    pixelArt: false,
+    roundPixels: false,
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
     scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,

@@ -59,7 +59,7 @@ export default class GameScene extends Phaser.Scene {
         this.panelDragState = null;
         this.uiPanelPositions = {};
         this.cameraReturnTween = null;
-        this.cameraDefaultZoom = 1;
+        this.cameraDefaultZoom = 1.3;
         this.isMinimapMinimized = true;
         this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
@@ -144,6 +144,8 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('player-ship-frigate1','assets/player_ship_frigate_1.png');
         this.load.image('player-ship-frigate2','assets/player_ship_frigate_2.png');
         this.load.image('player-ship-frigate3','assets/player_ship_frigate_3.png');
+        this.load.image('player-ship-dark-galleon', 'assets/ship_dark_galleon.png');
+        this.load.image('player-ship-neon-galleon',  'assets/ship_neon_galleon.png');
 
         this.load.image('ship-small-1', 'assets/ship_cutter_1.png');
         this.load.image('ship-small-2', 'assets/ship_cutter_2.png');
@@ -229,7 +231,8 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        this.background = this.add.tileSprite(0, 0, width, height, 'ocean-bg');
+        this._generateOceanTexture();
+        this.background = this.add.tileSprite(0, 0, width, height, 'ocean-generated');
         this.background.setOrigin(0, 0);
         this.background.setScrollFactor(0);
         this.syncOceanBackground();
@@ -1271,6 +1274,39 @@ export default class GameScene extends Phaser.Scene {
         return entryMap[direction] ?? 'center';
     }
 
+    _generateOceanTexture() {
+        if (this.textures.exists('ocean-generated')) return;
+        const SIZE = 512;
+        const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+        g.fillGradientStyle(0x051220, 0x051220, 0x0c2240, 0x0c2240, 1);
+        g.fillRect(0, 0, SIZE, SIZE);
+
+        for (let row = 0; row < 36; row++) {
+            const y = row * 14 + 4;
+            const alpha = Phaser.Math.FloatBetween(0.04, 0.13);
+            g.lineStyle(1, 0x1e5090, alpha);
+            g.beginPath();
+            g.moveTo(0, y);
+            for (let x = 0; x <= SIZE; x += 6) {
+                const wy = y + Math.sin(x * 0.065 + row * 0.9) * 2.2;
+                g.lineTo(x, wy);
+            }
+            g.strokePath();
+        }
+
+        for (let i = 0; i < 90; i++) {
+            const px = Math.random() * SIZE;
+            const py = Math.random() * SIZE;
+            const a = Math.random() * 0.14 + 0.03;
+            g.fillStyle(0x3a80c8, a);
+            g.fillCircle(px, py, Math.random() * 1.8 + 0.4);
+        }
+
+        g.generateTexture('ocean-generated', SIZE, SIZE);
+        g.destroy();
+    }
+
     syncOceanBackground() {
         if (!this.background) return;
         const width  = this.scale.width;
@@ -1278,14 +1314,8 @@ export default class GameScene extends Phaser.Scene {
         const tileScale = Math.max(0.72, Math.min(1.18, Math.max(width / 1600, height / 900)));
         const chart = this.currentChartIndex ?? 1;
 
-        /* Switch texture + tint depending on chart depth */
-        const useDeep = chart >= 5 && this.textures.exists('ocean-deep-bg');
-        const texKey  = useDeep ? 'ocean-deep-bg' : 'ocean-bg';
-        if (this.background.texture?.key !== texKey) {
-            this.background.setTexture(texKey);
-        }
-        /* Tint: shallow=teal, mid=dark-blue, deep=very-dark-navy */
-        const tints = [0x4ec8c8, 0x2a8aa8, 0x1a5580, 0x0d3355, 0x08203a];
+        /* Always use our generated ocean texture, tint by chart depth */
+        const tints = [0x6ab4c8, 0x3a8ab4, 0x1e6090, 0x0e3860, 0x071e38];
         const tintIdx = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
         this.background.setTint(tints[tintIdx]);
 

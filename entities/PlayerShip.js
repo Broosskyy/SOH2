@@ -5,7 +5,7 @@ import PlayerStats from './PlayerStats.js';
 export default class PlayerShip extends Ship {
     constructor(scene, x, y) {
         super(scene, x, y, 'player-ship');
-        this.sprite.setScale(0.11);
+        this.sprite.setScale(0.15);
 
         this.stats = new PlayerStats();
         this.syncStatsFromModel();
@@ -46,8 +46,8 @@ export default class PlayerShip extends Ship {
         this.refreshShipInfoPanel(true);
 
         if (this.wake) {
-            this.wake.setScale(0.055);
-            this.wake.y = 15;
+            this.wake.setScale(0.075);
+            this.wake.y = 20;
         }
 
         this.moveTarget = null;

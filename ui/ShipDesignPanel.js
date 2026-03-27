@@ -18,7 +18,9 @@ export default class ShipDesignPanel {
             { key: 'player-ship-pro',      src: 'assets/player_ship_pro.webp',               name: 'Sea Hawk Pro',     class: 'Fregatte',     cost: 800  },
             { key: 'player-ship-frigate1', src: 'assets/player_ship_frigate_1.png',           name: 'Dark Fregatte I',  class: 'Fregatte',     cost: 1600 },
             { key: 'player-ship-frigate2', src: 'assets/player_ship_frigate_2.png',           name: 'Dark Fregatte II', class: 'Fregatte',     cost: 2000 },
-            { key: 'player-ship-frigate3', src: 'assets/player_ship_frigate_3.png',           name: 'Schwarzer Geist',  class: 'Fregatte',     cost: 2800 },
+            { key: 'player-ship-frigate3',     src: 'assets/player_ship_frigate_3.png',    name: 'Schwarzer Geist',   class: 'Fregatte',     cost: 2800 },
+            { key: 'player-ship-dark-galleon', src: 'assets/ship_dark_galleon.png',       name: 'Dunkle Galeone',    class: 'Galeone',      cost: 3800 },
+            { key: 'player-ship-neon-galleon', src: 'assets/ship_neon_galleon.png',       name: 'Neongaleone',       class: 'Galeone',      cost: 5200 },
             { key: 'ship-small-1',         src: 'assets/ship_cutter_1.png',                   name: 'Kutter I',         class: 'Kutter',       cost: 200  },
             { key: 'ship-small-2',         src: 'assets/ship_cutter_2.png',                   name: 'Kutter II',        class: 'Kutter',       cost: 300  },
             { key: 'ship-small-3',         src: 'assets/ship_cutter_3.png',                   name: 'Kutter III',       class: 'Kutter',       cost: 400  },
@@ -701,11 +703,12 @@ export default class ShipDesignPanel {
 
     _scaleForClass(cls) {
         switch (cls) {
-            case 'Kutter':       return 0.082;
-            case 'Brigantine':   return 0.095;
-            case 'Linienschiff': return 0.13;
-            case 'Beutedesigns': return 0.11;
-            default:             return 0.10;
+            case 'Kutter':       return 0.110;
+            case 'Brigantine':   return 0.130;
+            case 'Linienschiff': return 0.165;
+            case 'Galeone':      return 0.150;
+            case 'Beutedesigns': return 0.145;
+            default:             return 0.140;
         }
     }
 
