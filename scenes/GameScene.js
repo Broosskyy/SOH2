@@ -231,11 +231,12 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        /* Robuster Ozean-Hintergrund: Camera-Hintergrundfarbe + Rectangle in Weltkoordinaten */
-        this.cameras.main.setBackgroundColor(0x071828);
-        this.background = this.add.rectangle(0, 0, worldWidth + 2000, worldHeight + 2000, 0x071828)
+        /* Ozean-Hintergrund: TileSprite in Weltkoordinaten mit echtem PNG-Asset (kein procedural) */
+        this.cameras.main.setBackgroundColor(0x0a3a5a);
+        this.background = this.add.tileSprite(0, 0, worldWidth, worldHeight, 'ocean-bg')
             .setOrigin(0, 0)
-            .setDepth(-100);
+            .setDepth(-100)
+            .setScrollFactor(1);
         this.syncOceanBackground();
 
         this.islands = this.add.group({ runChildUpdate: false });
@@ -724,11 +725,15 @@ export default class GameScene extends Phaser.Scene {
             try {
                 const shipSave = JSON.parse(localStorage.getItem(`ahc_ship_${window._loginUsername ?? 'player'}`) || 'null');
                 if (shipSave?.key && this.textures.exists(shipSave.key)) {
+                    /* Clamp old inflated scales (>0.105) to new balanced class defaults */
+                    const CLASS_SCALE = { Kutter:0.068, Brigantine:0.080, Fregatte:0.082, Linienschiff:0.100, Galeone:0.092 };
+                    const rawSc = shipSave.scale ?? 0.082;
+                    const scale = rawSc > 0.105 ? (CLASS_SCALE[shipSave.cls] ?? 0.082) : rawSc;
                     p.sprite?.setTexture(shipSave.key);
-                    p.sprite?.setScale(shipSave.scale ?? 0.10);
+                    p.sprite?.setScale(scale);
                     this.playerShipDesign = shipSave.key;
                     this.playerShipClass  = shipSave.cls ?? 'Fregatte';
-                    this.playerShipScale  = shipSave.scale ?? 0.10;
+                    this.playerShipScale  = scale;
                     this.playerShipBonus  = shipSave.bonus ?? {};
                 }
             } catch {}
@@ -1334,14 +1339,10 @@ export default class GameScene extends Phaser.Scene {
     syncOceanBackground() {
         if (!this.background) return;
         const chart = this.currentChartIndex ?? 1;
-        /* Deep-sea color per chart — darker as you go deeper */
-        const colors = [0x0a3a5a, 0x072e4e, 0x052342, 0x031836, 0x020e26, 0x010820];
-        const idx = Math.min(colors.length - 1, Math.floor((chart - 1) / 2));
-        if (this.background.setFillStyle) {
-            this.background.setFillStyle(colors[idx]);
-        } else {
-            this.background.fillColor = colors[idx];
-        }
+        /* Tint the ocean tile darker per chart depth */
+        const tints = [0xffffff, 0xe0eeff, 0xc8dcf0, 0xacc8e0, 0x90b0cc, 0x7098b4];
+        const idx   = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
+        this.background.setTint(tints[idx]);
     }
 
 handleResize(gameSize) {

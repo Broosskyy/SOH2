@@ -133,16 +133,22 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 
 ## Ozean-Hintergrund
 
-- Kein TileSprite (war inkompatibel mit mobilen Canvas-Renderern)
-- Stattdessen: `cameras.main.setBackgroundColor(0x071828)` + Phaser Rectangle in Weltkoordinaten (Depth -100)
-- `syncOceanBackground()` ändert nur die Füllfarbe je nach Karten-Tiefe
+- TileSprite in Weltkoordinaten (scrollFactor=1, Depth -100) mit `ocean-bg` (echtes PNG-Asset, kein procedural generate)
+- `cameras.main.setBackgroundColor(0x0a3a5a)` + `backgroundColor: '#0a3a5a'` in main.js als Fallback gegen Transparenz-Artefakte
+- `syncOceanBackground()` setzt Tint je nach Karten-Tiefe (heller → dunkler mit steigender Karte)
 
 ## Schiffs-Größen & Skalierung
 
-- Spielerschiff: scale 0.11 (vorher 0.05), Kollisionsradius 22
+- Spielerschiff Initial: scale 0.082 (PlayerShip.js Konstruktor)
+- Kutter-Klasse: 0.068 — Brigantine: 0.080 — Fregatte: 0.082 — Linienschiff: 0.100 — Galeone: 0.092
+- Altes Scales > 0.105 werden beim Laden automatisch auf Klassen-Defaults korrigiert
 - NPC-Klein: scale 0.07, Kollisionsradius 18
 - NPC-Mittel: scale 0.085, Kollisionsradius 22
 - NPC-Groß: scale 0.10, Kollisionsradius 26
+
+## Insel-Scales (Island.js)
+
+- atoll: 0.68 — reef: 0.60 — tropical: 0.45 — volcanic: 0.40 — frozen: 0.42 — ruins: 0.35 — temple: 0.45 — guild: 0.50
 
 ## Kill-Streak System
 

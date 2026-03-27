@@ -5,6 +5,7 @@ import GameScene from './scenes/GameScene.js';
 
 const config = {
     type: Phaser.AUTO,
+    backgroundColor: '#0a3a5a',
     antialias: true,
     antialiasGL: true,
     pixelArt: false,

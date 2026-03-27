@@ -1,14 +1,14 @@
 import Phaser from 'phaser';
 
 const ISLAND_CONFIG = {
-    'island-atoll':    { scale: 0.55, minimapRadius: 9,  collisionRadius: 105 },
-    'island-reef':     { scale: 0.48, minimapRadius: 9,  collisionRadius: 105 },
-    'island-tropical': { scale: 0.32, minimapRadius: 10, collisionRadius: 108 },
-    'island-volcanic': { scale: 0.28, minimapRadius: 8,  collisionRadius:  95 },
-    'island-frozen':   { scale: 0.30, minimapRadius: 9,  collisionRadius: 102 },
-    'island-ruins':    { scale: 0.24, minimapRadius: 7,  collisionRadius:  80 },
-    'island-temple':   { scale: 0.32, minimapRadius: 10, collisionRadius: 102 },
-    'island-guild':    { scale: 0.42, minimapRadius: 13, collisionRadius: 145 }
+    'island-atoll':    { scale: 0.68, minimapRadius: 12, collisionRadius: 130 },
+    'island-reef':     { scale: 0.60, minimapRadius: 11, collisionRadius: 120 },
+    'island-tropical': { scale: 0.45, minimapRadius: 12, collisionRadius: 128 },
+    'island-volcanic': { scale: 0.40, minimapRadius: 11, collisionRadius: 118 },
+    'island-frozen':   { scale: 0.42, minimapRadius: 11, collisionRadius: 122 },
+    'island-ruins':    { scale: 0.35, minimapRadius: 10, collisionRadius: 105 },
+    'island-temple':   { scale: 0.45, minimapRadius: 12, collisionRadius: 122 },
+    'island-guild':    { scale: 0.50, minimapRadius: 15, collisionRadius: 168 }
 };
 
 export default class Island extends Phaser.GameObjects.Image {

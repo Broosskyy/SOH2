@@ -703,12 +703,12 @@ export default class ShipDesignPanel {
 
     _scaleForClass(cls) {
         switch (cls) {
-            case 'Kutter':       return 0.110;
-            case 'Brigantine':   return 0.130;
-            case 'Linienschiff': return 0.165;
-            case 'Galeone':      return 0.150;
-            case 'Beutedesigns': return 0.145;
-            default:             return 0.140;
+            case 'Kutter':       return 0.068;
+            case 'Brigantine':   return 0.080;
+            case 'Linienschiff': return 0.100;
+            case 'Galeone':      return 0.092;
+            case 'Beutedesigns': return 0.088;
+            default:             return 0.082; // Fregatte
         }
     }
 
