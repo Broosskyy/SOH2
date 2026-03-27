@@ -1659,6 +1659,11 @@ handleResize(gameSize) {
         };
 
         this.islandSpawnPoints.forEach((point) => {
+            /* Opaque ocean-coloured background for transparent-PNG islands (e.g. temple) */
+            if (point.texture === 'island-temple') {
+                this.add.circle(point.x, point.y, 105, 0x1a4a3a, 1).setDepth(11);
+            }
+
             const island = new Island(this, point.x, point.y, point.texture);
             this.islands.add(island);
             island.setInteractive({ useHandCursor: true });
@@ -1676,6 +1681,39 @@ handleResize(gameSize) {
                 this._islandDownPtr = null;
             });
         });
+    }
+
+    /* Auto-select next active guild tower after current one is destroyed */
+    _trySelectNextGuildTower(island, destroyedIndex) {
+        if (!island) { this.clearTargetAndAttackState(); return; }
+        const attackerGuild = this.player?.guildName ?? window._loginUsername ?? 'Spieler';
+        const count = island.towers.length;
+        for (let i = 1; i <= count; i++) {
+            const idx = (destroyedIndex + i) % count;
+            const tower = island.towers[idx];
+            if (tower?.active) {
+                const proxy = {
+                    isGuildTowerProxy: true,
+                    guildIsland: island,
+                    towerIndex: idx,
+                    captainName: `🏰 Turm ${idx + 1}`,
+                    displayName: `Gildeninsel-Turm ${idx + 1}`,
+                    get x() { return island.x + tower.tx; },
+                    get y() { return island.y + tower.ty; },
+                    get active() { return tower.active; },
+                    get hp() { return tower.hp; },
+                    get maxHP() { return tower.maxHp; },
+                    takeDamage(dmg) { island.attackTower(idx, dmg, attackerGuild); }
+                };
+                this.selectedTarget = proxy;
+                this.TargetEnemy    = proxy;
+                this.lastAttackTime = -Number.MAX_SAFE_INTEGER;
+                this.showStatusMsg(`💥 Turm ${destroyedIndex + 1} zerstört! → Turm ${idx + 1}`, 0xff6622);
+                return;
+            }
+        }
+        /* All towers gone — conquest handled by GuildIsland._checkCapture */
+        this.clearTargetAndAttackState();
     }
 
     _checkIslandConquest(island) {
@@ -1804,6 +1842,12 @@ handleResize(gameSize) {
             const gx = Math.round(worldWidth * 0.5 + (Math.random() - 0.5) * worldWidth * 0.3);
             const gy = Math.round(worldHeight * 0.5 + (Math.random() - 0.5) * worldHeight * 0.3);
             this.guildIsland = new GuildIsland(this, gx, gy);
+
+            /* Collider so the player ship can't sail through the guild island */
+            if (this.player && this.guildIsland.body) {
+                this.physics.add.collider(this.player, this.guildIsland);
+            }
+
             const proxy = this.add.image(gx, gy, 'island-guild').setAlpha(0);
             proxy.setData('isGuildIsland', true);
             proxy.setData('minimapRadius', 22);
@@ -4220,7 +4264,12 @@ handleResize(gameSize) {
         try { this.spawnProjectile(target, isHarpoon, ammoConfig); } catch (e) {}
 
         if (!target.active || target.hp <= 0) {
-            this.clearTargetAndAttackState();
+            /* Guild tower: try to auto-select next active tower instead of aborting */
+            if (target.isGuildTowerProxy) {
+                this._trySelectNextGuildTower(target.guildIsland, target.towerIndex);
+            } else {
+                this.clearTargetAndAttackState();
+            }
             return true;
         }
 
@@ -4672,14 +4721,9 @@ handleResize(gameSize) {
 
             this.targetIndicatorReticle?.setVisible(true);
             this.targetIndicatorReticle?.clear();
-            this.targetIndicatorReticle?.lineStyle(3, 0xffe49a, 0.95);
-            this.targetIndicatorReticle?.strokeRoundedRect(
-                activeCombatTarget.x - (worldLabelWidth / 2),
-                activeCombatTarget.y - (worldLabelHeight / 2),
-                worldLabelWidth,
-                worldLabelHeight,
-                12
-            );
+            /* Small circle reticle only — no large box */
+            this.targetIndicatorReticle?.lineStyle(2, 0xffe49a, 0.88);
+            this.targetIndicatorReticle?.strokeCircle(activeCombatTarget.x, activeCombatTarget.y, indicatorRadius + cornerGap + 4);
             this.targetIndicatorReticle?.lineStyle(2, 0xffd166, 0.95);
             this.targetIndicatorReticle?.beginPath();
             this.targetIndicatorReticle?.moveTo(activeCombatTarget.x - (indicatorRadius + cornerGap + cornerLength), activeCombatTarget.y - (indicatorRadius + cornerGap));

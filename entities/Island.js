@@ -7,6 +7,7 @@ const ISLAND_CONFIG = {
     'island-volcanic': { scale: 0.28, minimapRadius: 8,  collisionRadius:  95 },
     'island-frozen':   { scale: 0.30, minimapRadius: 9,  collisionRadius: 102 },
     'island-ruins':    { scale: 0.24, minimapRadius: 7,  collisionRadius:  80 },
+    'island-temple':   { scale: 0.32, minimapRadius: 10, collisionRadius: 102 },
     'island-guild':    { scale: 0.42, minimapRadius: 13, collisionRadius: 145 }
 };
 
