@@ -1343,8 +1343,8 @@ export default class GameScene extends Phaser.Scene {
         const tints = [0xffffff, 0xe0eeff, 0xc8dcf0, 0xacc8e0, 0x90b0cc, 0x7098b4];
         const idx   = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
         this.background.setTint(tints[idx]);
-        /* Use a large tile scale so individual tiles are bigger → seams less noticeable */
-        this.background.setTileScale(2.4, 2.4);
+        /* Natürliche Tile-Größe — kein Strecken */
+        this.background.setTileScale(1.0, 1.0);
     }
 
 handleResize(gameSize) {
@@ -4960,10 +4960,10 @@ handleResize(gameSize) {
             this.playerReturnHighlightBlend.setPosition(this.player.x, this.player.y);
         }
 
-        /* Sanfter Parallax: Wasser bewegt sich kaum mit der Kamera (~5%) → fließend ohne Zieheeffekt */
+        /* Wasser komplett kamerafixiert — nur sanfte Eigenanimation über Zeit */
         if (this.background) {
-            this.background.tilePositionX = this.cameras.main.scrollX * 0.05 + (time * 0.008);
-            this.background.tilePositionY = this.cameras.main.scrollY * 0.05 + (time * 0.004);
+            this.background.tilePositionX = time * 0.010;
+            this.background.tilePositionY = time * 0.005;
         }
 
         this.updateUIBars();
