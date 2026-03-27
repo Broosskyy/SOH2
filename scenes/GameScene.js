@@ -192,8 +192,9 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('island-volcanic', 'assets/island_volcanic.png');
         this.load.image('island-frozen',   'assets/island_frozen.png');
         this.load.image('island-ruins',    'assets/island_ruins.png');
-        this.load.image('island-guild',    'assets/island_guild.png');
-        this.load.image('guild-tower',     'assets/guild_tower.png');
+        this.load.image('island-guild',          'assets/island_guild.png');
+        this.load.image('island-guild-fortress', 'assets/island_guild_fortress.png');
+        this.load.image('guild-tower',           'assets/guild_tower.png');
         this.load.image('ship-event-ghost',    'assets/ship_event_ghost.png');
         this.load.image('ship-event-flagship', 'assets/ship_event_flagship.png');
         this.load.image('ship-event-galleon',  'assets/ship_event_galleon.png');
@@ -509,7 +510,7 @@ export default class GameScene extends Phaser.Scene {
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
         });
-        /* ── Guild tower click → create a combat proxy and lock-on ── */
+        /* ── Guild tower click → start dedicated timer-based attack ── */
         this.events.on('guild-tower-clicked', ({ island, index }) => {
             if (!this.player?.active) return;
             const tower = island.towers[index];
@@ -518,41 +519,17 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
-            if (dist > 800) {
-                this.showStatusMsg('⚓ Näher heranfahren! (Max. 800)', 0xff8844);
+            if (dist > 700) {
+                this.showStatusMsg('⚓ Näher heranfahren! (Max. 700)', 0xff8844);
                 return;
             }
-
-            /* Build a proxy that quacks like an NPCShip for the combat system */
-            const attackerGuild = this.player.guildName ?? window._loginUsername ?? 'Spieler';
-            const proxy = {
-                isGuildTowerProxy: true,
-                guildIsland: island,
-                towerIndex: index,
-                captainName: `🏰 Turm ${index + 1}`,
-                displayName: `Gildeninsel-Turm ${index + 1}`,
-                get x() { return island.x + tower.tx; },
-                get y() { return island.y + tower.ty; },
-                get active() { return tower.active; },
-                get hp() { return tower.hp; },
-                get maxHP() { return tower.maxHp; },
-                takeDamage(dmg) {
-                    island.attackTower(index, dmg, attackerGuild);
-                }
-            };
-
-            this.selectedTarget = proxy;
-            this.TargetEnemy    = proxy;
-            this.player?.setCombatFacingTarget?.(proxy);
-            this.autoAttackEnabled = true;
-            this.autoAttackMode    = 'cannon';
-            this.lastAttackTime    = -Number.MAX_SAFE_INTEGER;
-            this.showStatusMsg(`🏰 Turm ${index + 1} anvisiert — Feuer frei!`, 0xffaa44);
+            this._startGuildTowerCombat(island);
+            this.showStatusMsg(`🏰 Gildeninsel angreifen! Türme: ${island.towers.filter(t => t.active).length}/6`, 0xffaa44);
         });
 
-        /* ── After conquest: save guild data + auto-reset towers after 60 s ── */
+        /* ── After conquest: save guild data + auto-reset towers after 90 s ── */
         this.events.on('guild-island-captured', ({ island, guild }) => {
-            /* Save to guild data */
+            this._stopGuildTowerCombat();
             try {
                 const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
                 if (gData && gData.name === guild) {
@@ -563,15 +540,10 @@ export default class GameScene extends Phaser.Scene {
             } catch {}
             this._addRuf?.(120, 'Gildeninsel erobert');
             this.dailyQuestPanel?.addProgress?.('kills', 1);
-
-            /* Reset after 60 seconds so the island can be contested again */
-            this.time.delayedCall(60000, () => {
+            this.time.delayedCall(90000, () => {
                 if (!island?.scene) return;
                 island.resetTowers();
-                this.showStatusMsg('🔄 Gildeninsel Türme wiederhergestellt — neue Runde!', 0x88ddff);
-                if (this.selectedTarget?.isGuildTowerProxy && this.selectedTarget.guildIsland === island) {
-                    this.clearTargetAndAttackState?.();
-                }
+                this.showStatusMsg('🔄 Gildeninsel Türme wiederhergestellt — Insel angreifbar!', 0x88ddff);
             });
         });
         this.events.on('player-died', () => {
@@ -733,31 +705,40 @@ export default class GameScene extends Phaser.Scene {
     /* ═══════════════════ LEVEL-UP REWARDS ═══════════════════ */
 
     _getLevelUpRewards(level) {
-        const labels = ['Max HP +20', '+1 Skillpunkt'];
+        const labels = [`Max HP +${20 + Math.floor(level / 5) * 5}`, '+1 Skillpunkt'];
         const items  = {};
-        let gold = 20 + level * 5;
+        let gold = 30 + level * 8;
 
+        /* Every 5 levels — milestone */
         if (level % 5 === 0) {
-            /* Milestone every 5 levels */
-            gold += 50;
-            labels.push(`🎖 Meilenstein Lv.${level}: +50 Bonus-Gold`);
-            const milestoneItem = level === 5  ? { id: 'rum', qty: 2 }
-                                : level === 10 ? { id: 'grog', qty: 2 }
-                                : level === 15 ? { id: 'repair_kit', qty: 1 }
-                                : level === 20 ? { id: 'thunder_powder', qty: 1 }
-                                : { id: 'rum', qty: 1 };
+            gold += 80 + level * 5;
+            labels.push(`🎖 Meilenstein Lv.${level}: +${80 + level * 5} Bonus-Gold`);
+            const milestoneItem =
+                  level === 5  ? { id: 'grog',         qty: 3 }
+                : level === 10 ? { id: 'blitzpulver',  qty: 2 }
+                : level === 15 ? { id: 'heiltrunk',    qty: 3 }
+                : level === 20 ? { id: 'fernrohr',     qty: 2 }
+                : level === 25 ? { id: 'rum',          qty: 3 }
+                : { id: 'heiltrunk', qty: 2 };
             items[milestoneItem.id] = (items[milestoneItem.id] ?? 0) + milestoneItem.qty;
-            labels.push(`🎁 Freischalte: ${this._itemLabel(milestoneItem.id)} ×${milestoneItem.qty}`);
+            labels.push(`🎁 ${this._itemLabel(milestoneItem.id)} ×${milestoneItem.qty}`);
         }
 
-        if (level % 3 === 0) {
-            const roll = ['rum', 'grog', 'repair_kit'][level % 3];
+        /* Every 3 levels — bonus item */
+        if (level % 3 === 0 && level % 5 !== 0) {
+            const opts  = ['heiltrunk','grog','blitzpulver','rum','fernrohr'];
+            const roll  = opts[Math.floor(level / 3) % opts.length];
             items[roll] = (items[roll] ?? 0) + 1;
-            labels.push(`+1 ${this._itemLabel(roll)} (alle 3 Level)`);
+            labels.push(`+1 ${this._itemLabel(roll)}`);
+        }
+
+        /* Every 2 levels — small gold bonus */
+        if (level % 2 === 0) {
+            gold += level * 3;
         }
 
         labels.push(`+${gold} Gold`);
-        return { labels, gold, items };
+        return { labels, gold, items, hpBonus: 20 + Math.floor(level / 5) * 5 };
     }
 
     _itemLabel(id) {
@@ -769,9 +750,14 @@ export default class GameScene extends Phaser.Scene {
         const p = this.player;
         if (!p) return;
         p.gold = (p.gold ?? 0) + (rewards.gold ?? 0);
+        /* Apply max HP bonus */
+        const hpBonus = rewards.hpBonus ?? 20;
+        p.maxHP = (p.maxHP ?? 200) + hpBonus;
+        p.hp    = Math.min((p.hp ?? p.maxHP), p.maxHP);
+        p.updateHealthBar?.();
+        /* Grant items */
         Object.entries(rewards.items ?? {}).forEach(([id, qty]) => {
-            if (!p.inventory) p.inventory = {};
-            p.inventory[id] = (p.inventory[id] ?? 0) + qty;
+            this.addItem(id, qty);
         });
         this._updateItemBar?.();
     }
@@ -1683,37 +1669,110 @@ handleResize(gameSize) {
         });
     }
 
-    /* Auto-select next active guild tower after current one is destroyed */
-    _trySelectNextGuildTower(island, destroyedIndex) {
-        if (!island) { this.clearTargetAndAttackState(); return; }
-        const attackerGuild = this.player?.guildName ?? window._loginUsername ?? 'Spieler';
-        const count = island.towers.length;
-        for (let i = 1; i <= count; i++) {
-            const idx = (destroyedIndex + i) % count;
-            const tower = island.towers[idx];
-            if (tower?.active) {
-                const proxy = {
-                    isGuildTowerProxy: true,
-                    guildIsland: island,
-                    towerIndex: idx,
-                    captainName: `🏰 Turm ${idx + 1}`,
-                    displayName: `Gildeninsel-Turm ${idx + 1}`,
-                    get x() { return island.x + tower.tx; },
-                    get y() { return island.y + tower.ty; },
-                    get active() { return tower.active; },
-                    get hp() { return tower.hp; },
-                    get maxHP() { return tower.maxHp; },
-                    takeDamage(dmg) { island.attackTower(idx, dmg, attackerGuild); }
-                };
-                this.selectedTarget = proxy;
-                this.TargetEnemy    = proxy;
-                this.lastAttackTime = -Number.MAX_SAFE_INTEGER;
-                this.showStatusMsg(`💥 Turm ${destroyedIndex + 1} zerstört! → Turm ${idx + 1}`, 0xff6622);
-                return;
+    /* ── Dedicated guild tower combat — independent timer, no proxy ── */
+    _startGuildTowerCombat(island) {
+        this._stopGuildTowerCombat();
+        this._guildCombatIsland = island;
+        const reloadMs = Math.max(800, this.player?.reloadTime ?? 1500);
+        this._showGuildCombatHUD();
+
+        this._guildCombatTimer = this.time.addEvent({
+            delay: reloadMs,
+            loop: true,
+            callback: () => {
+                if (!this.player?.active || !island?.scene || !this._guildCombatIsland) {
+                    this._stopGuildTowerCombat(); return;
+                }
+                const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
+                if (dist > 700) {
+                    this.showStatusMsg('⚓ Zu weit von der Gildeninsel!', 0xff8844); return;
+                }
+                /* Find nearest active tower */
+                const { tower, index } = island.getNearestActiveTower(this.player.x, this.player.y);
+                if (!tower) { this._stopGuildTowerCombat(); return; }
+
+                const guild = this.player.guildName ?? window._loginUsername ?? 'Spieler';
+                const cannonStats = this.getCannonCombatStats?.() ?? {};
+                const dmg = Math.round((cannonStats.totalDamagePerShot ?? this.player?.damagePerCannon ?? 80) * 1.0);
+                const wx = island.x + tower.tx;
+                const wy = island.y + tower.ty;
+
+                island.attackTower(index, dmg, guild);
+                this.playSound('shoot');
+                this._logbookAdd?.('shots_fired');
+                try { this.spawnProjectile({ x: wx, y: wy, active: true }, false, cannonStats.ammo ?? null); } catch {}
+                this.showEnemyDamageFloat?.(wx, wy, dmg, false);
+
+                /* Tower counter-attack */
+                if (tower.active) {
+                    this.time.delayedCall(320, () => {
+                        if (!this.player?.active) return;
+                        const counter = Phaser.Math.Between(30, 55);
+                        this.player.takeDamage(counter);
+                        this.showEnemyDamageFloat?.(this.player.x, this.player.y - 18, counter, false);
+                    });
+                }
+
+                const remaining = island.towers.filter(t => t.active).length;
+                const hudStatus = document.getElementById('guild-combat-status');
+                if (remaining > 0) {
+                    if (hudStatus) hudStatus.textContent = `Turm ${index + 1}: -${dmg} HP  •  ${remaining}/6 aktiv`;
+                    this.showStatusMsg(`🏰 Turm ${index + 1} getroffen! -${dmg} HP  •  ${remaining}/6 aktiv`, 0xffaa44);
+                } else {
+                    if (hudStatus) hudStatus.textContent = '⚑ Alle Türme zerstört!';
+                    this.showStatusMsg(`💥 Alle Türme zerstört! Gildeninsel eingenommen!`, 0xd4aa40);
+                    this._stopGuildTowerCombat();
+                }
             }
-        }
-        /* All towers gone — conquest handled by GuildIsland._checkCapture */
-        this.clearTargetAndAttackState();
+        });
+        /* Immediately fire first shot after short delay */
+        this.time.delayedCall(200, () => { this._guildCombatTimer && this._guildCombatTimer.elapsed > 0 ? null : null; });
+    }
+
+    _showGuildCombatHUD() {
+        if (this._guildCombatHudEl) return;
+        const el = document.createElement('div');
+        el.id = 'guild-combat-hud';
+        el.style.cssText = `
+            position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+            z-index:14500;background:rgba(8,14,28,0.94);
+            border:2px solid rgba(255,100,50,0.8);border-radius:12px;
+            padding:8px 20px;font-family:Arial,sans-serif;
+            display:flex;align-items:center;gap:12px;
+            box-shadow:0 0 24px rgba(255,80,30,0.4);pointer-events:auto;
+        `;
+        el.innerHTML = `
+            <span style="font-size:18px;animation:pulse 0.8s infinite alternate;">🏰</span>
+            <div>
+                <div style="font-size:10px;color:#ffaa55;letter-spacing:1.5px;font-weight:bold;">GILDENINSEL — ANGRIFF LÄUFT</div>
+                <div id="guild-combat-status" style="font-size:11px;color:#fff;">Türme werden beschossen...</div>
+            </div>
+            <button id="guild-stop-btn" style="
+                background:linear-gradient(180deg,#8b2010,#5a1008);
+                border:1px solid rgba(255,80,30,0.6);border-radius:8px;
+                color:#fff;font-size:11px;font-weight:bold;padding:6px 12px;
+                cursor:pointer;touch-action:manipulation;white-space:nowrap;
+            ">✕ Stop</button>
+        `;
+        document.body.appendChild(el);
+        this._guildCombatHudEl = el;
+        document.getElementById('guild-stop-btn').addEventListener('click', () => {
+            this._stopGuildTowerCombat();
+            this.showStatusMsg('⚓ Gilden-Angriff abgebrochen.', 0x888888);
+        });
+    }
+
+    _hideGuildCombatHUD() {
+        if (!this._guildCombatHudEl) return;
+        this._guildCombatHudEl.remove();
+        this._guildCombatHudEl = null;
+    }
+
+    _stopGuildTowerCombat() {
+        this._guildCombatTimer?.remove();
+        this._guildCombatTimer   = null;
+        this._guildCombatIsland  = null;
+        this._hideGuildCombatHUD();
     }
 
     _checkIslandConquest(island) {
@@ -1826,6 +1885,8 @@ handleResize(gameSize) {
         }
         this.player.gold -= cost;
         this.player.heal(missingHP);
+        this.dailyQuestPanel?.addProgress('hp_healed', missingHP);
+        this._logbookAdd('hp_healed', missingHP);
         this.updateUIBars();
         this.showStatusMsg(`⚓ Schiff repariert! -${cost} Gold, +${missingHP} HP`, 0x7fffb0);
         this.pushStatusFeedMessage('⚓ Schiff repariert!', '#7fffb0');
@@ -4661,7 +4722,7 @@ handleResize(gameSize) {
 
     update(time, delta) {
         if (!this._lastAutoSave) this._lastAutoSave = time;
-        if (time - this._lastAutoSave > 300000) {
+        if (time - this._lastAutoSave > 60000) {
             this._lastAutoSave = time;
             this._saveProgress();
         }
@@ -4686,6 +4747,22 @@ handleResize(gameSize) {
         if (this.chatToggleHit?.input) this.chatToggleHit.input.enabled = true;
         if (this.chatSendHit?.input) this.chatSendHit.input.enabled = !this.isChatMinimized;
         if (this.statusFeedToggleHit?.input) this.statusFeedToggleHit.input.enabled = true;
+
+        /* ── Guild island push-back: prevent ship from sailing inside fortress ── */
+        if (this.guildIsland && this.player?.active) {
+            const gi = this.guildIsland;
+            const EXCLUSION_RADIUS = 185;
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, gi.x, gi.y);
+            if (d < EXCLUSION_RADIUS) {
+                const angle = Phaser.Math.Angle.Between(gi.x, gi.y, this.player.x, this.player.y);
+                this.player.x = gi.x + Math.cos(angle) * EXCLUSION_RADIUS;
+                this.player.y = gi.y + Math.sin(angle) * EXCLUSION_RADIUS;
+                if (this.player.body) {
+                    this.player.body.velocity.x = Math.cos(angle) * 200;
+                    this.player.body.velocity.y = Math.sin(angle) * 200;
+                }
+            }
+        }
 
         this.updatePlayerVisualEffects(time);
 
@@ -4806,8 +4883,10 @@ handleResize(gameSize) {
         const base  = this._playerBaseSpeed ?? this.player.speed;
         const bonus = this.playerShipBonus ?? {};
         let s = base;
-        if (this._grogActive)                              s = Math.round(s * 1.50);
-        if (this._stormActive && !bonus.stormImmune)       s = Math.round(Math.max(this._playerBaseSpeed * 0.72, s * 0.65));
+        /* Storm applied FIRST to base — grog cannot fully negate storm penalty */
+        if (this._stormActive && !bonus.stormImmune)       s = Math.round(Math.max(base * 0.72, s * 0.65));
+        /* Grog boosts the storm-slowed speed, but capped at base * 1.5 */
+        if (this._grogActive)                              s = Math.round(Math.min(s * 1.40, base * 1.50));
         if (bonus.speedMult && bonus.speedMult !== 1)      s = Math.round(s * bonus.speedMult);
         this.player.speed = s;
     }
@@ -5029,6 +5108,8 @@ handleResize(gameSize) {
         if (type === 'heiltrunk') {
             const heal = Math.ceil(this.player.maxHP * 0.30);
             this.player.heal(heal);
+            this.dailyQuestPanel?.addProgress('hp_healed', heal);
+            this._logbookAdd('hp_healed', heal);
             this.showStatusMsg(`🧪 Heiltrunk getrunken! +${heal} HP`, 0xff6b6b);
 
         } else if (type === 'grog') {
@@ -5180,12 +5261,22 @@ handleResize(gameSize) {
 
     _dropRandomItem(x, y, chance = 0.15) {
         if (Math.random() > chance) return;
-        const pool = ['heiltrunk', 'heiltrunk', 'grog', 'blitzpulver', 'rum', 'fernrohr'];
+        /* Weighted drop pool — common items appear more often */
+        const pool = [
+            'heiltrunk', 'heiltrunk', 'heiltrunk',   // 3× — common heal
+            'grog', 'grog',                           // 2× — speed boost
+            'blitzpulver',                            // 1× — damage
+            'rum',                                    // 1× — xp
+            'fernrohr',                               // 1× — locate treasure
+            'heiltrunk',                              // extra weight for heals
+        ];
         const type = pool[Math.floor(Math.random() * pool.length)];
-        const delay = Phaser.Math.Between(200, 600);
+        const qty  = (type === 'heiltrunk' && Math.random() < 0.15) ? 2 : 1;
+        const delay = Phaser.Math.Between(100, 400);
         this.time.delayedCall(delay, () => {
             if (!this.player?.active) return;
-            this.addItem(type, 1);
+            this.addItem(type, qty);
+            if (qty > 1) this.showStatusMsg(`🎁 Doppelter Drop: ${qty}× Item!`, 0xffcc44);
         });
     }
 
@@ -5238,22 +5329,64 @@ handleResize(gameSize) {
 
     _scheduleNextStorm() {
         const nextStorm = Phaser.Math.Between(180000, 360000);
-        const warnAt = Math.max(0, nextStorm - 15000);
+        const WARN_SECS = 15;
+        const warnAt    = Math.max(0, nextStorm - WARN_SECS * 1000);
         this._stormWarnTimer = this.time.delayedCall(warnAt, () => {
-            if (!this._stormActive) {
-                this.showStatusMsg('⚠ STURMWARNUNG — Schifft euch! Sturm in 15 Sekunden!', 0xffaa22);
-                this.pushStatusFeedMessage('⚠ Sturmwarnung!', '#ffaa22');
-                const flash = this.add.rectangle(0, 0, 20000, 20000, 0xff8800, 0.08)
-                    .setScrollFactor(0).setDepth(9).setOrigin(0);
-                this.tweens.add({ targets: flash, alpha: 0, duration: 1200, yoyo: true, repeat: 2, onComplete: () => flash.destroy() });
-            }
+            if (this._stormActive) return;
+            this.showStatusMsg(`⚠ STURMWARNUNG — Sturm in ${WARN_SECS} Sekunden!`, 0xffaa22);
+            this.pushStatusFeedMessage('⚠ Sturmwarnung!', '#ffaa22');
+            const flash = this.add.rectangle(0, 0, 20000, 20000, 0xff8800, 0.08)
+                .setScrollFactor(0).setDepth(9).setOrigin(0);
+            this.tweens.add({ targets: flash, alpha: 0, duration: 1200, yoyo: true, repeat: 2, onComplete: () => flash.destroy() });
+            /* Visual countdown bar */
+            this._showStormCountdown(WARN_SECS);
         });
         this._stormTimer = this.time.delayedCall(nextStorm, () => this._triggerStorm());
+    }
+
+    _showStormCountdown(seconds) {
+        if (this._stormCdEl) { this._stormCdEl.remove(); this._stormCdEl = null; }
+        const el = document.createElement('div');
+        el.style.cssText = `
+            position:fixed;top:52px;left:50%;transform:translateX(-50%);
+            z-index:14000;background:rgba(8,14,28,0.92);
+            border:2px solid rgba(255,140,0,0.8);border-radius:10px;
+            padding:7px 18px;font-family:Arial,sans-serif;text-align:center;
+            box-shadow:0 0 20px rgba(255,140,0,0.4);pointer-events:none;
+            display:flex;align-items:center;gap:10px;min-width:200px;
+        `;
+        el.innerHTML = `
+            <span style="font-size:18px;">⛈</span>
+            <div style="flex:1;">
+                <div style="font-size:10px;color:#ffaa22;font-weight:bold;letter-spacing:1px;">STURMWARNUNG</div>
+                <div style="background:rgba(255,255,255,0.1);border-radius:4px;height:5px;margin-top:3px;overflow:hidden;">
+                    <div id="storm-cd-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#ff4400,#ffaa22);border-radius:4px;transition:width 1s linear;"></div>
+                </div>
+                <div id="storm-cd-text" style="font-size:11px;color:#fff;font-weight:bold;margin-top:2px;">${seconds}s</div>
+            </div>
+        `;
+        document.body.appendChild(el);
+        this._stormCdEl = el;
+        let remaining = seconds;
+        this._stormCdInterval = setInterval(() => {
+            remaining--;
+            const bar  = document.getElementById('storm-cd-bar');
+            const text = document.getElementById('storm-cd-text');
+            if (bar)  bar.style.width  = `${(remaining / seconds) * 100}%`;
+            if (text) text.textContent  = remaining <= 0 ? '⚡ JETZT!' : `${remaining}s`;
+            if (remaining <= 0) {
+                clearInterval(this._stormCdInterval);
+                setTimeout(() => { el.remove(); if (this._stormCdEl === el) this._stormCdEl = null; }, 1500);
+            }
+        }, 1000);
     }
 
     _triggerStorm() {
         if (this._stormActive) return;
         this._stormActive = true;
+        /* Clear countdown bar if still showing */
+        if (this._stormCdInterval) { clearInterval(this._stormCdInterval); this._stormCdInterval = null; }
+        if (this._stormCdEl) { this._stormCdEl.remove(); this._stormCdEl = null; }
         this.showStatusMsg('🌩 STURM aufgezogen! Bewegung verlangsamt — bleibt wachsam!', 0x6688ff);
         this.pushStatusFeedMessage('🌩 Sturm aufgezogen!', '#6688ff');
 

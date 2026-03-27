@@ -30,8 +30,22 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
   - `AchievementPanel.js` – 15 Erfolge (NPC-Kills, Monster, Gold, Schüsse, HP, Items, Karten)
   - `LogbookPanel.js` – Schiffslogbuch mit vollständigen Statistiken (persistiert)
   - `MissionPanel.js`, `BonusPanel.js`, `EventsPanel.js`, `RangPanel.js`, `BoardPanel.js`, `CombatPanel.js`
-  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js` (14 Buttons: Admin, Werft, Gilde, Chat, Events, Mission, Bonus, Quests, Shop, Rang, Hafen, Erfolge, Logbuch, Multi)
+  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js` (15 Buttons: Admin, Werft, Gilde, Chat, Events, Mission, Bonus, Quests, Shop, Rang, Hafen, Erfolge, Logbuch, Multi, Kanone)
 - `assets/` – Alle Bild-Assets (WebP, PNG, JPG)
+  - `island_guild_fortress.png` – KI-generierte Gildeninsel Festung (top-down, mit Hafeneinfahrt Süd)
+
+## Gildeninsel-System (GuildIsland.js)
+
+- Kreisförmige Steinfestung, 6 Kanonentürme um den Rand (verteilt, Lücke im Süden = Hafeneinfahrt)
+- Türme bei Winkeln: NE, E, SE, SW, W, NW — Einfahrt bei S (π/2)
+- Turmradius 148px, Festungs-Physik-Radius 168px
+- Dedizierter Kampf-Timer (`_startGuildTowerCombat` / `_stopGuildTowerCombat`) — unabhängig vom Haupt-Auto-Feuer-System
+- `getNearestActiveTower(px, py)` — gibt nächsten aktiven Turm zurück
+- Angriff: Player klickt Turm → Timer feuert alle reloadMs → nächsten aktiven Turm beschießen
+- Push-Back: Update-Loop verhindert Eindringen in die Festung (EXCLUSION_RADIUS 185px)
+- Conquest: Alle 6 Türme zerstört → `guild-island-captured` Event → 90s Reset-Timer
+- Gold-Bonus: Alle 30s +120 Gold nach Einnahme
+- In-Game HUD: "GILDENINSEL — ANGRIFF LÄUFT" mit Stop-Button
 
 ## Szenen-Fluss
 
