@@ -231,9 +231,11 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        /* Ocean background — ocean_deep_tile.png is a proper seamless texture */
-        this.cameras.main.setBackgroundColor(0x0a2a48);
-        const _bgKey = this.textures.exists('ocean-deep-bg') ? 'ocean-deep-bg' : 'ocean-bg';
+        /* Seamless ocean: generate via Canvas 2D (each blob drawn at 9 positions → zero visible seams) */
+        this.cameras.main.setBackgroundColor(0x0e2d4a);
+        this._generateOceanTexture();
+        const _bgKey = this.textures.exists('ocean-seamless') ? 'ocean-seamless'
+                     : this.textures.exists('ocean-deep-bg')  ? 'ocean-deep-bg' : 'ocean-bg';
         this.background = this.add.tileSprite(0, 0, width + 64, height + 64, _bgKey)
             .setOrigin(0, 0)
             .setDepth(-100)
@@ -1309,51 +1311,63 @@ export default class GameScene extends Phaser.Scene {
     }
 
     _generateOceanTexture() {
-        if (this.textures.exists('ocean-generated')) return;
+        if (this.textures.exists('ocean-seamless')) return;
         try {
             const SIZE = 512;
-            const TWO_PI = Math.PI * 2;
-            const g = this.make.graphics({ x: 0, y: 0, add: false });
+            const canvas = document.createElement('canvas');
+            canvas.width = SIZE; canvas.height = SIZE;
+            const ctx = canvas.getContext('2d');
 
-            /* Deep ocean base */
-            g.fillStyle(0x0a2a48, 1);
-            g.fillRect(0, 0, SIZE, SIZE);
+            /* Deep BOS-style navy base */
+            ctx.fillStyle = '#0e2d4a';
+            ctx.fillRect(0, 0, SIZE, SIZE);
 
-            /* Nahtlose Wellenmuster: Perioden teilen SIZE glatt → sin(0) = sin(SIZE) → keine Kanten */
-            const WAVE_CONFIGS = [
-                { freq: 3, amp: 2.5, color: 0x1a4a78, alpha: 0.18, step: 14, count: 36 },
-                { freq: 5, amp: 1.8, color: 0x1e5a90, alpha: 0.14, step: 16, count: 32 },
-                { freq: 7, amp: 1.2, color: 0x2470b0, alpha: 0.10, step: 18, count: 28 },
-            ];
-
-            for (const cfg of WAVE_CONFIGS) {
-                for (let row = 0; row < cfg.count; row++) {
-                    const baseY = (row / cfg.count) * SIZE;
-                    const phaseShift = (row * 1.3) % TWO_PI;
-                    g.lineStyle(1, cfg.color, cfg.alpha + (row % 3) * 0.015);
-                    g.beginPath();
-                    g.moveTo(0, baseY);
-                    for (let x = 0; x <= SIZE; x += 4) {
-                        /* freq is integer → sin period is SIZE/freq → tiles perfectly */
-                        const wy = baseY + Math.sin((x / SIZE) * TWO_PI * cfg.freq + phaseShift) * cfg.amp;
-                        g.lineTo(x, wy);
+            /* Seamless radial light patches — each blob is drawn at 9 positions
+               (original + 8 tiled neighbours) so left/right/top/bottom edges match perfectly */
+            const blobs = [];
+            for (let i = 0; i < 28; i++) {
+                blobs.push({
+                    cx: Math.random() * SIZE,
+                    cy: Math.random() * SIZE,
+                    r:  55 + Math.random() * 90,
+                    a:  0.06 + Math.random() * 0.10,
+                    hue: Math.random() < 0.5 ? '#1e5a8a' : '#163c60'
+                });
+            }
+            blobs.forEach(({ cx, cy, r, a, hue }) => {
+                for (const ox of [-SIZE, 0, SIZE]) {
+                    for (const oy of [-SIZE, 0, SIZE]) {
+                        ctx.save();
+                        ctx.globalAlpha = a;
+                        const gr = ctx.createRadialGradient(cx+ox, cy+oy, 0, cx+ox, cy+oy, r);
+                        gr.addColorStop(0, hue);
+                        gr.addColorStop(1, 'transparent');
+                        ctx.fillStyle = gr;
+                        ctx.beginPath();
+                        ctx.arc(cx+ox, cy+oy, r, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
                     }
-                    g.strokePath();
                 }
+            });
+
+            /* Subtle dark veins — very soft horizontal bands for depth */
+            for (let b = 0; b < 8; b++) {
+                const by = (b / 8) * SIZE;
+                const bh = 18 + Math.random() * 30;
+                const bg = ctx.createLinearGradient(0, by, 0, by + bh);
+                bg.addColorStop(0,   'rgba(5,18,34,0)');
+                bg.addColorStop(0.5, `rgba(5,18,34,${(0.04 + Math.random() * 0.05).toFixed(2)})`);
+                bg.addColorStop(1,   'rgba(5,18,34,0)');
+                ctx.fillStyle = bg;
+                ctx.fillRect(0, by, SIZE, bh);
+                /* also wrap — draw at by - SIZE so top band matches bottom */
+                ctx.fillRect(0, by - SIZE, SIZE, bh);
             }
 
-            /* Nahtlose Glanzpunkte — zufällig aber ausreichend dicht für optische Gleichmäßigkeit */
-            for (let i = 0; i < 120; i++) {
-                const px = Math.random() * SIZE;
-                const py = Math.random() * SIZE;
-                g.fillStyle(0x5ab4e0, Math.random() * 0.10 + 0.02);
-                g.fillCircle(px, py, Math.random() * 1.8 + 0.3);
-            }
-
-            g.generateTexture('ocean-generated', SIZE, SIZE);
-            g.destroy();
+            this.textures.addCanvas('ocean-seamless', canvas);
         } catch (e) {
-            console.warn('[Ocean] Textur-Generierung fehlgeschlagen, Fallback auf ocean-bg:', e);
+            console.warn('[Ocean] Canvas-Textur fehlgeschlagen:', e);
         }
     }
 
