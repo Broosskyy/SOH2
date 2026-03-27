@@ -231,9 +231,11 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        /* Ozean-Hintergrund: TileSprite bildschirmfixiert (scrollFactor 0) mit Parallax-Offset */
-        this.cameras.main.setBackgroundColor(0x0a3a5a);
-        this.background = this.add.tileSprite(0, 0, width + 64, height + 64, 'ocean-bg')
+        /* Nahtlose Ozean-Textur generieren (Sinus-Wellen mit ganzzahligen Frequenzen → keine Kanten) */
+        this.cameras.main.setBackgroundColor(0x0a2a48);
+        this._generateOceanTexture();
+        const _bgKey = this.textures.exists('ocean-generated') ? 'ocean-generated' : 'ocean-bg';
+        this.background = this.add.tileSprite(0, 0, width + 64, height + 64, _bgKey)
             .setOrigin(0, 0)
             .setDepth(-100)
             .setScrollFactor(0);
@@ -1304,35 +1306,48 @@ export default class GameScene extends Phaser.Scene {
         if (this.textures.exists('ocean-generated')) return;
         try {
             const SIZE = 512;
+            const TWO_PI = Math.PI * 2;
             const g = this.make.graphics({ x: 0, y: 0, add: false });
 
-            g.fillStyle(0x071828, 1);
+            /* Deep ocean base */
+            g.fillStyle(0x0a2a48, 1);
             g.fillRect(0, 0, SIZE, SIZE);
 
-            for (let row = 0; row < 36; row++) {
-                const y = row * 14 + 4;
-                const alpha = 0.05 + (row % 3) * 0.025;
-                g.lineStyle(1, 0x1e5090, alpha);
-                g.beginPath();
-                g.moveTo(0, y);
-                for (let x = 0; x <= SIZE; x += 8) {
-                    const wy = y + Math.sin(x * 0.065 + row * 0.9) * 2;
-                    g.lineTo(x, wy);
+            /* Nahtlose Wellenmuster: Perioden teilen SIZE glatt → sin(0) = sin(SIZE) → keine Kanten */
+            const WAVE_CONFIGS = [
+                { freq: 3, amp: 2.5, color: 0x1a4a78, alpha: 0.18, step: 14, count: 36 },
+                { freq: 5, amp: 1.8, color: 0x1e5a90, alpha: 0.14, step: 16, count: 32 },
+                { freq: 7, amp: 1.2, color: 0x2470b0, alpha: 0.10, step: 18, count: 28 },
+            ];
+
+            for (const cfg of WAVE_CONFIGS) {
+                for (let row = 0; row < cfg.count; row++) {
+                    const baseY = (row / cfg.count) * SIZE;
+                    const phaseShift = (row * 1.3) % TWO_PI;
+                    g.lineStyle(1, cfg.color, cfg.alpha + (row % 3) * 0.015);
+                    g.beginPath();
+                    g.moveTo(0, baseY);
+                    for (let x = 0; x <= SIZE; x += 4) {
+                        /* freq is integer → sin period is SIZE/freq → tiles perfectly */
+                        const wy = baseY + Math.sin((x / SIZE) * TWO_PI * cfg.freq + phaseShift) * cfg.amp;
+                        g.lineTo(x, wy);
+                    }
+                    g.strokePath();
                 }
-                g.strokePath();
             }
 
-            for (let i = 0; i < 70; i++) {
+            /* Nahtlose Glanzpunkte — zufällig aber ausreichend dicht für optische Gleichmäßigkeit */
+            for (let i = 0; i < 120; i++) {
                 const px = Math.random() * SIZE;
                 const py = Math.random() * SIZE;
-                g.fillStyle(0x4a8ec8, Math.random() * 0.12 + 0.02);
-                g.fillCircle(px, py, Math.random() * 1.5 + 0.5);
+                g.fillStyle(0x5ab4e0, Math.random() * 0.10 + 0.02);
+                g.fillCircle(px, py, Math.random() * 1.8 + 0.3);
             }
 
             g.generateTexture('ocean-generated', SIZE, SIZE);
             g.destroy();
         } catch (e) {
-            console.warn('[Ocean] Texture generation failed, using ocean-bg fallback:', e);
+            console.warn('[Ocean] Textur-Generierung fehlgeschlagen, Fallback auf ocean-bg:', e);
         }
     }
 
