@@ -1,3 +1,5 @@
+import { apiLoad, isLoggedIn } from '../api.js';
+
 export default class LoadingScene extends Phaser.Scene {
     constructor() {
         super({ key: 'LoadingScene' });
@@ -113,6 +115,8 @@ export default class LoadingScene extends Phaser.Scene {
         const steps = 60;
         const interval = totalMs / steps;
         let step = 0;
+        let gameReady = false;
+        let serverDone = false;
 
         const tips = [
             'Melde dich immer ab, bevor du das Spiel schließt!',
@@ -122,6 +126,25 @@ export default class LoadingScene extends Phaser.Scene {
         ];
         const randomTip = tips[Math.floor(Math.random() * tips.length)];
         this._tipText?.setText('Tipp: ' + randomTip);
+
+        const tryStart = () => {
+            if (gameReady && serverDone) {
+                this.scene.start('GameScene');
+            }
+        };
+
+        if (isLoggedIn()) {
+            apiLoad().then(data => {
+                if (data) window._serverSaveData = data;
+                serverDone = true;
+                tryStart();
+            }).catch(() => {
+                serverDone = true;
+                tryStart();
+            });
+        } else {
+            serverDone = true;
+        }
 
         this._loadTimer = this.time.addEvent({
             delay: interval,
@@ -137,7 +160,8 @@ export default class LoadingScene extends Phaser.Scene {
                     this._percent = 100;
                     this._percentText?.setText('100%');
                     this.time.delayedCall(320, () => {
-                        this.scene.start('GameScene');
+                        gameReady = true;
+                        tryStart();
                     });
                 }
             }

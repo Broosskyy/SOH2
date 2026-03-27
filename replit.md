@@ -47,6 +47,30 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - Gold-Bonus: Alle 30s +120 Gold nach Einnahme
 - In-Game HUD: "GILDENINSEL — ANGRIFF LÄUFT" mit Stop-Button
 
+## Backend & Datenbank-Architektur
+
+- **`server.js`** — Node.js/Express-Server (Port 5000): Statische Dateien + REST-API
+- **`api.js`** — Frontend ES-Modul: alle API-Aufrufe (Register, Login, Save, Load)
+- **PostgreSQL-Datenbank** (Replit-gebaut, via `DATABASE_URL`): Tabelle `players`
+  - `username`, `email`, `password_hash` (bcrypt, Runden=10)
+  - `game_data`, `ship_data`, `upgrades`, `trial_data`, `achievements`, `login_streak`, `guild_data` (alle JSONB)
+  - `cannon_tier` (INTEGER), `created_at`, `updated_at`
+
+### API-Endpoints
+- `POST /api/register` — Neues Konto erstellen (bcrypt-Hash)
+- `POST /api/login` — Anmelden → liefert Bearer-Token (32-Byte Hex, 7 Tage gültig)
+- `GET  /api/me` — Token validieren
+- `GET  /api/load` — Gesamten Spielstand laden (benötigt Token)
+- `POST /api/save` — Spielstand speichern (benötigt Token)
+- `POST /api/logout` — Token ungültig machen
+
+### Save/Load-Strategie
+- **LoadingScene**: Ruft `apiLoad()` während der 2,6s Ladeanimation ab → speichert in `window._serverSaveData`
+- **GameScene._loadProgress()**: Vergleicht `savedAt` von Server vs. localStorage → nimmt neueren Stand, synchronisiert alle Schlüssel
+- **GameScene._saveProgress()**: Speichert zuerst in localStorage, dann fire-and-forget `apiSave()` mit allen Teilbereichen
+- **Fallback**: Wenn kein Token → nur localStorage (Offline-/Demo-Modus)
+- **LoginScene**: Versucht Server-Auth, fällt auf localStorage-Konten zurück wenn Offline
+
 ## Szenen-Fluss
 
 `LoginScene` → `LoadingScene` (2.6s) → `GameScene`

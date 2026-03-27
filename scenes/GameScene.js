@@ -27,6 +27,7 @@ import ItemBar from '../ui/ItemBar.js';
 import PirateTrialPanel, { PIRATE_TRIALS } from '../ui/PirateTrialPanel.js';
 import DailyQuestPanel from '../ui/DailyQuestPanel.js';
 import ReputationHUD from '../ui/ReputationHUD.js';
+import { apiSave, isLoggedIn } from '../api.js';
 import LoginBonusPanel from '../ui/LoginBonusPanel.js';
 import AchievementPanel from '../ui/AchievementPanel.js';
 import LogbookPanel from '../ui/LogbookPanel.js';
@@ -628,17 +629,67 @@ export default class GameScene extends Phaser.Scene {
                 savedAt:       Date.now()
             };
             localStorage.setItem(key, JSON.stringify(data));
+
+            if (isLoggedIn()) {
+                const u = window._loginUsername ?? 'player';
+                const shipData   = (() => { try { return JSON.parse(localStorage.getItem(`ahc_ship_${u}`)        || '{}'); } catch { return {}; } })();
+                const upgrades   = (() => { try { return JSON.parse(localStorage.getItem(`ahc_upgrades_${u}`)    || '{}'); } catch { return {}; } })();
+                const trialData  = (() => { try { return JSON.parse(localStorage.getItem(`ahc_trials_${u}`)      || '{}'); } catch { return {}; } })();
+                const achievements = (() => { try { return JSON.parse(localStorage.getItem(`ahc_achievements_${u}`) || '{}'); } catch { return {}; } })();
+                const loginStreak  = (() => { try { return JSON.parse(localStorage.getItem(`ahc_login_streak_${u}`)  || '{}'); } catch { return {}; } })();
+                const guildData    = (() => { try { return JSON.parse(localStorage.getItem('ahc_my_guild')            || '{}'); } catch { return {}; } })();
+                const cannonTier   = parseInt(localStorage.getItem(`ahc_cannon_tier_${u}`) || '0', 10);
+                apiSave({ gameData: data, shipData, upgrades, trialData, achievements, loginStreak, guildData, cannonTier });
+            }
         } catch (e) {}
     }
 
     _loadProgress() {
         if (!this.player) return;
         const p = this.player;
-        const key = `ahc_save_${window._loginUsername ?? 'player'}`;
+        const u = window._loginUsername ?? 'player';
+        const key = `ahc_save_${u}`;
         try {
-            const raw = localStorage.getItem(key);
-            if (!raw) return;
-            const d = JSON.parse(raw);
+            let d = null;
+            const localRaw = localStorage.getItem(key);
+            const localData = localRaw ? JSON.parse(localRaw) : null;
+            const srvData = window._serverSaveData;
+
+            if (srvData?.game_data && Object.keys(srvData.game_data).length > 0) {
+                const srvSavedAt   = srvData.game_data.savedAt ?? 0;
+                const localSavedAt = localData?.savedAt ?? 0;
+                if (srvSavedAt >= localSavedAt) {
+                    d = srvData.game_data;
+                    localStorage.setItem(key, JSON.stringify(d));
+                    if (srvData.ship_data && srvData.ship_data.key) {
+                        localStorage.setItem(`ahc_ship_${u}`, JSON.stringify(srvData.ship_data));
+                    }
+                    if (srvData.upgrades && Object.keys(srvData.upgrades).length > 0) {
+                        localStorage.setItem(`ahc_upgrades_${u}`, JSON.stringify(srvData.upgrades));
+                    }
+                    if (srvData.trial_data && Object.keys(srvData.trial_data).length > 0) {
+                        localStorage.setItem(`ahc_trials_${u}`, JSON.stringify(srvData.trial_data));
+                    }
+                    if (srvData.achievements && Object.keys(srvData.achievements).length > 0) {
+                        localStorage.setItem(`ahc_achievements_${u}`, JSON.stringify(srvData.achievements));
+                    }
+                    if (srvData.login_streak && Object.keys(srvData.login_streak).length > 0) {
+                        localStorage.setItem(`ahc_login_streak_${u}`, JSON.stringify(srvData.login_streak));
+                    }
+                    if (srvData.guild_data && Object.keys(srvData.guild_data).length > 0) {
+                        localStorage.setItem('ahc_my_guild', JSON.stringify(srvData.guild_data));
+                    }
+                    if (srvData.cannon_tier > 0) {
+                        localStorage.setItem(`ahc_cannon_tier_${u}`, String(srvData.cannon_tier));
+                    }
+                } else {
+                    d = localData;
+                }
+            } else {
+                d = localData;
+            }
+            window._serverSaveData = null;
+            if (!d) return;
             if (d.gold          !== undefined) p.gold           = d.gold;
             if (d.gems          !== undefined) p.gems           = d.gems;
             if (d.materials     !== undefined) p.materials      = d.materials;

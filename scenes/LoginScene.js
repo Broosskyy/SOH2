@@ -1,3 +1,5 @@
+import { apiLogin, apiRegister } from '../api.js';
+
 export default class LoginScene extends Phaser.Scene {
     constructor() {
         super({ key: 'LoginScene' });
@@ -170,23 +172,35 @@ export default class LoginScene extends Phaser.Scene {
         tabLogin.addEventListener('click', () => switchTab(true));
         tabReg.addEventListener('click',   () => switchTab(false));
 
-        const doLogin = () => {
+        const doLogin = async () => {
             const user = document.getElementById('login-user').value.trim();
             const pass = document.getElementById('login-pass').value;
             if (!user) { showErr('Bitte Benutzernamen eingeben.'); return; }
-            const accounts = this._getAccounts();
-            if (accounts.length > 0) {
-                const found = accounts.find(a => a.username.toLowerCase() === user.toLowerCase() && a.password === pass);
-                if (!found) { showErr('Benutzername oder Passwort falsch.'); return; }
-            }
+            if (!pass) { showErr('Bitte Passwort eingeben.'); return; }
             errEl.textContent = '';
             btnLogin.disabled = true;
-            btnLogin.textContent = 'Lade...';
-            window._loginUsername = user;
-            this.time.delayedCall(400, () => this._proceed());
+            btnLogin.textContent = 'Prüfe...';
+            try {
+                await apiLogin(user, pass);
+                window._loginUsername = user;
+                this.time.delayedCall(200, () => this._proceed());
+            } catch (e) {
+                const accounts = this._getAccounts();
+                if (accounts.length > 0) {
+                    const found = accounts.find(a => a.username.toLowerCase() === user.toLowerCase() && a.password === pass);
+                    if (!found) {
+                        showErr(e.message.includes('falsch') ? e.message : 'Benutzername oder Passwort falsch.');
+                        btnLogin.disabled = false;
+                        btnLogin.textContent = 'ANMELDEN';
+                        return;
+                    }
+                }
+                window._loginUsername = user;
+                this.time.delayedCall(200, () => this._proceed());
+            }
         };
 
-        const doRegister = () => {
+        const doRegister = async () => {
             const user  = document.getElementById('reg-user').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const pass  = document.getElementById('reg-pass').value;
@@ -198,18 +212,44 @@ export default class LoginScene extends Phaser.Scene {
             if (pass.length < 6) { showErr('Passwort: mindestens 6 Zeichen.'); return; }
             if (pass !== pass2) { showErr('Passwörter stimmen nicht überein.'); return; }
 
-            const accounts = this._getAccounts();
-            if (accounts.find(a => a.username.toLowerCase() === user.toLowerCase())) {
-                showErr('Benutzername bereits vergeben.'); return;
+            btnDoReg.disabled = true;
+            btnDoReg.textContent = 'Erstelle Konto...';
+            try {
+                await apiRegister(user, email, pass);
+                const accounts = this._getAccounts();
+                if (!accounts.find(a => a.username.toLowerCase() === user.toLowerCase())) {
+                    accounts.push({ username: user, email, password: pass, createdAt: Date.now() });
+                    this._saveAccounts(accounts);
+                }
+                showOk(`✓ Konto "${user}" erstellt! Du kannst dich jetzt anmelden.`);
+                setTimeout(() => {
+                    document.getElementById('login-user').value = user;
+                    document.getElementById('login-pass').value = pass;
+                    switchTab(true);
+                }, 1200);
+            } catch (e) {
+                if (e.message.includes('vergeben')) {
+                    showErr('Benutzername bereits vergeben.');
+                } else {
+                    const accounts = this._getAccounts();
+                    if (accounts.find(a => a.username.toLowerCase() === user.toLowerCase())) {
+                        showErr('Benutzername bereits vergeben.');
+                        btnDoReg.disabled = false;
+                        btnDoReg.textContent = 'Konto erstellen';
+                        return;
+                    }
+                    accounts.push({ username: user, email, password: pass, createdAt: Date.now() });
+                    this._saveAccounts(accounts);
+                    showOk(`✓ Konto "${user}" erstellt (Offline-Modus)!`);
+                    setTimeout(() => {
+                        document.getElementById('login-user').value = user;
+                        document.getElementById('login-pass').value = pass;
+                        switchTab(true);
+                    }, 1200);
+                }
+                btnDoReg.disabled = false;
+                btnDoReg.textContent = 'Konto erstellen';
             }
-            accounts.push({ username: user, email, password: pass, createdAt: Date.now() });
-            this._saveAccounts(accounts);
-            showOk(`✓ Konto "${user}" erstellt! Du kannst dich jetzt anmelden.`);
-            setTimeout(() => {
-                document.getElementById('login-user').value = user;
-                document.getElementById('login-pass').value = pass;
-                switchTab(true);
-            }, 1200);
         };
 
         btnLogin.addEventListener('click', doLogin);
