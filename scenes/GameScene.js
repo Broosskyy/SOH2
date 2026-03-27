@@ -231,11 +231,11 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        this._generateOceanTexture();
-        const _oceanKey = this.textures.exists('ocean-generated') ? 'ocean-generated' : 'ocean-bg';
-        this.background = this.add.tileSprite(0, 0, width, height, _oceanKey);
-        this.background.setOrigin(0, 0);
-        this.background.setScrollFactor(0);
+        /* Robuster Ozean-Hintergrund: Camera-Hintergrundfarbe + Rectangle in Weltkoordinaten */
+        this.cameras.main.setBackgroundColor(0x071828);
+        this.background = this.add.rectangle(0, 0, worldWidth + 2000, worldHeight + 2000, 0x071828)
+            .setOrigin(0, 0)
+            .setDepth(-100);
         this.syncOceanBackground();
 
         this.islands = this.add.group({ runChildUpdate: false });
@@ -1333,22 +1333,15 @@ export default class GameScene extends Phaser.Scene {
 
     syncOceanBackground() {
         if (!this.background) return;
-        const width  = this.scale.width;
-        const height = this.scale.height;
-        const tileScale = Math.max(0.72, Math.min(1.18, Math.max(width / 1600, height / 900)));
         const chart = this.currentChartIndex ?? 1;
-
-        /* Always use our generated ocean texture, tint by chart depth */
-        const tints = [0x6ab4c8, 0x3a8ab4, 0x1e6090, 0x0e3860, 0x071e38];
-        const tintIdx = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
-        this.background.setTint(tints[tintIdx]);
-
-        this.background.setPosition(0, 0);
-        if (this.background.setSize) this.background.setSize(width, height);
-        this.background.width  = width;
-        this.background.height = height;
-        this.background.setScale(1);
-        this.background.setTileScale(tileScale, tileScale);
+        /* Deep-sea color per chart — darker as you go deeper */
+        const colors = [0x0a3a5a, 0x072e4e, 0x052342, 0x031836, 0x020e26, 0x010820];
+        const idx = Math.min(colors.length - 1, Math.floor((chart - 1) / 2));
+        if (this.background.setFillStyle) {
+            this.background.setFillStyle(colors[idx]);
+        } else {
+            this.background.fillColor = colors[idx];
+        }
     }
 
 handleResize(gameSize) {

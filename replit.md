@@ -128,6 +128,14 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 - `assets/ship_cutter_1-5.png` – KI-generierte Kutter (klein/schnell)
 - `assets/ship_brig_1-3.png` – KI-generierte Brigantinen (mittel)
 - `assets/ship_manwar_1-2.png` – KI-generierte Linienschiffe (groß/schwer)
+- `assets/ship_dark_galleon.png` – Dunkle Galeone (neu, Task #1)
+- `assets/ship_neon_galleon.png` – Neongaleone (neu, Task #1)
+
+## Ozean-Hintergrund
+
+- Kein TileSprite (war inkompatibel mit mobilen Canvas-Renderern)
+- Stattdessen: `cameras.main.setBackgroundColor(0x071828)` + Phaser Rectangle in Weltkoordinaten (Depth -100)
+- `syncOceanBackground()` ändert nur die Füllfarbe je nach Karten-Tiefe
 
 ## Schiffs-Größen & Skalierung
 
@@ -182,5 +190,5 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
 
 ## Server
 
-- Statischer Dateiserver via `npx serve . -p 5000`
-- Workflow: "Start application" auf Port 5000
+- Express.js REST-API + Statischer Dateiserver via `node server.js` auf Port 5000
+- Workflow: "Start application" → `node server.js`
