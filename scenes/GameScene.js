@@ -1639,28 +1639,7 @@ handleResize(gameSize) {
             island.attachedTowers = [];
             island.capturedBy = null;
             island._conquestObjects = [];
-
-            /* --- Spawn 2–3 defensive towers around the island --- */
-            const colR = ISLAND_RADII[point.texture] ?? 95;
-            const towerRing = colR + 42;
-            const towerCount = point.texture === 'island-ruins' ? 2 : 3;
-            for (let i = 0; i < towerCount; i++) {
-                const ang = (i / towerCount) * Math.PI * 2 - Math.PI / 2;
-                const tx = point.x + Math.cos(ang) * towerRing;
-                const ty = point.y + Math.sin(ang) * towerRing;
-                const tower = new IslandTower(this, tx, ty);
-                tower.parentIsland = island;
-                island.attachedTowers.push(tower);
-                this.islandTowerGroup.add(tower);
-
-                /* clicking a tower selects it as combat target */
-                tower.on('pointerdown', () => {
-                    if (tower.isDead) { this.showStatusMsg('💥 Turm bereits zerstört!', 0x888888); return; }
-                    this.TargetEnemy = tower;
-                    this.selectedTarget = tower;
-                    this.showStatusMsg(`🏰 Turm anvisiert — ${tower.hp}/${tower.maxHp} HP`, 0xffaa44);
-                });
-            }
+            /* Normale Inseln haben KEINE Türme – nur Gildeninseln (GuildIsland) */
 
             island.on('pointerdown', (ptr) => {
                 this._islandDownPtr = { x: ptr.x, y: ptr.y };
