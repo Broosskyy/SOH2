@@ -59,7 +59,7 @@ export default class GameScene extends Phaser.Scene {
         this.panelDragState = null;
         this.uiPanelPositions = {};
         this.cameraReturnTween = null;
-        this.cameraDefaultZoom = 1.3;
+        this.cameraDefaultZoom = 1.0;
         this.isMinimapMinimized = true;
         this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
@@ -231,12 +231,12 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        /* Ozean-Hintergrund: TileSprite in Weltkoordinaten mit echtem PNG-Asset (kein procedural) */
+        /* Ozean-Hintergrund: TileSprite bildschirmfixiert (scrollFactor 0) mit Parallax-Offset */
         this.cameras.main.setBackgroundColor(0x0a3a5a);
-        this.background = this.add.tileSprite(0, 0, worldWidth, worldHeight, 'ocean-bg')
+        this.background = this.add.tileSprite(0, 0, width + 64, height + 64, 'ocean-bg')
             .setOrigin(0, 0)
             .setDepth(-100)
-            .setScrollFactor(1);
+            .setScrollFactor(0);
         this.syncOceanBackground();
 
         this.islands = this.add.group({ runChildUpdate: false });
@@ -1343,11 +1343,18 @@ export default class GameScene extends Phaser.Scene {
         const tints = [0xffffff, 0xe0eeff, 0xc8dcf0, 0xacc8e0, 0x90b0cc, 0x7098b4];
         const idx   = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
         this.background.setTint(tints[idx]);
+        /* Use a large tile scale so individual tiles are bigger → seams less noticeable */
+        this.background.setTileScale(2.4, 2.4);
     }
 
 handleResize(gameSize) {
     if (!gameSize) return;
-    
+    const w = gameSize.width || this.scale.width;
+    const h = gameSize.height || this.scale.height;
+    /* Resize screen-fixed TileSprite so it always covers the viewport */
+    if (this.background?.setSize) {
+        this.background.setSize(w + 64, h + 64);
+    }
     this.syncOceanBackground();
     this.clampCameraTarget();
     
@@ -4953,9 +4960,11 @@ handleResize(gameSize) {
             this.playerReturnHighlightBlend.setPosition(this.player.x, this.player.y);
         }
 
-        this.background.tilePositionX = this.cameras.main.scrollX;
-        this.background.tilePositionY = this.cameras.main.scrollY;
-        this.syncOceanBackground();
+        /* Sanfter Parallax: Wasser bewegt sich kaum mit der Kamera (~5%) → fließend ohne Zieheeffekt */
+        if (this.background) {
+            this.background.tilePositionX = this.cameras.main.scrollX * 0.05 + (time * 0.008);
+            this.background.tilePositionY = this.cameras.main.scrollY * 0.05 + (time * 0.004);
+        }
 
         this.updateUIBars();
     }
