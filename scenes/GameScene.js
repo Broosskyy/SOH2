@@ -509,44 +509,70 @@ export default class GameScene extends Phaser.Scene {
                 this.time.delayedCall(12000, () => this.spawnMonster());
             }
         });
+        /* ── Guild tower click → create a combat proxy and lock-on ── */
         this.events.on('guild-tower-clicked', ({ island, index }) => {
             if (!this.player?.active) return;
             const tower = island.towers[index];
-            if (!tower?.active) { this.showStatusMsg('Dieser Turm ist bereits zerstört!', 0x888888); return; }
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
-            if (dist > 700) { this.showStatusMsg('Zu weit entfernt! Näher heranfahren. (Max. 700)', 0xff8844); return; }
-            const now = this.time.now;
-            if (now < (this._lastTowerAttack ?? 0) + (this.player.reloadTime ?? 1500)) {
-                this.showStatusMsg('Nachladen…', 0x8888ff);
+            if (!tower?.active) {
+                this.showStatusMsg('💥 Turm bereits zerstört!', 0x888888);
                 return;
             }
-            this._lastTowerAttack = now;
-            const towerWorldX = island.x + tower.tx;
-            const towerWorldY = island.y + tower.ty;
-            const ammoConfig = this._currentAmmoConfig ?? null;
-            const dmg = Math.round((this.player.damagePerCannon ?? 80) * (this.player.ammoMultiplier ?? 1));
-            island.attackTower(index, dmg, this.player.guildName ?? window._loginUsername ?? 'Spieler');
-            this.playSound('shoot');
-            try {
-                const fakeTarget = { x: towerWorldX, y: towerWorldY, active: true };
-                this.spawnProjectile(fakeTarget, false, ammoConfig);
-            } catch (e) {}
-            this.showStatusMsg(`Turm ${index + 1} getroffen! -${dmg} HP ⚑`, 0xd4aa40);
-            if (!tower.active) {
-                this.showStatusMsg(`💥 Turm ${index + 1} zerstört!`, 0xff4422);
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
+            if (dist > 800) {
+                this.showStatusMsg('⚓ Näher heranfahren! (Max. 800)', 0xff8844);
+                return;
             }
-            if (this.player.guildName) {
-                try {
-                    const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
-                    if (gData) { gData.battles = (gData.battles ?? 0) + 1; localStorage.setItem('ahc_my_guild', JSON.stringify(gData)); }
-                } catch {}
-            }
+
+            /* Build a proxy that quacks like an NPCShip for the combat system */
+            const attackerGuild = this.player.guildName ?? window._loginUsername ?? 'Spieler';
+            const proxy = {
+                isGuildTowerProxy: true,
+                guildIsland: island,
+                towerIndex: index,
+                captainName: `🏰 Turm ${index + 1}`,
+                displayName: `Gildeninsel-Turm ${index + 1}`,
+                get x() { return island.x + tower.tx; },
+                get y() { return island.y + tower.ty; },
+                get active() { return tower.active; },
+                get hp() { return tower.hp; },
+                get maxHP() { return tower.maxHp; },
+                takeDamage(dmg) {
+                    island.attackTower(index, dmg, attackerGuild);
+                }
+            };
+
+            this.selectedTarget = proxy;
+            this.TargetEnemy    = proxy;
+            this.player?.setCombatFacingTarget?.(proxy);
+            this.autoAttackEnabled = true;
+            this.autoAttackMode    = 'cannon';
+            this.lastAttackTime    = -Number.MAX_SAFE_INTEGER;
+            this.showStatusMsg(`🏰 Turm ${index + 1} anvisiert — Feuer frei!`, 0xffaa44);
         });
+
+        /* ── After conquest: save guild data + auto-reset towers after 60 s ── */
         this.events.on('guild-island-captured', ({ island, guild }) => {
-            this.guildPanel?._saveGuild && (() => {
+            /* Save to guild data */
+            try {
                 const gData = JSON.parse(localStorage.getItem('ahc_my_guild') || 'null');
-                if (gData && gData.name === guild) { gData.ownedIslands = ['current']; localStorage.setItem('ahc_my_guild', JSON.stringify(gData)); }
-            })();
+                if (gData && gData.name === guild) {
+                    gData.ownedIslands = ['current'];
+                    gData.battles = (gData.battles ?? 0) + 1;
+                    localStorage.setItem('ahc_my_guild', JSON.stringify(gData));
+                }
+            } catch {}
+            this._addRuf?.(120, 'Gildeninsel erobert');
+            this.dailyQuestPanel?.addProgress?.('kills', 1);
+
+            /* Reset after 60 seconds so the island can be contested again */
+            this.time.delayedCall(60000, () => {
+                if (!island?.scene) return;
+                island.resetTowers();
+                this.showStatusMsg('🔄 Gildeninsel Türme wiederhergestellt — neue Runde!', 0x88ddff);
+                if (this.selectedTarget?.isGuildTowerProxy && this.selectedTarget.guildIsland === island) {
+                    this.clearTargetAndAttackState?.();
+                }
+            });
         });
         this.events.on('player-died', () => {
             this.showStatusMsg('Ship Sunk!', 0xff0000);
@@ -3546,7 +3572,8 @@ handleResize(gameSize) {
             const { width: _tw, height: _th } = this.scale;
             this.targetHUD.setVisible(_tw <= _th);
             this.leftTargetPanel.setVisible(true);
-            const targetLabel = this.selectedTarget instanceof Monster ? 'Sea Monster' : 'Enemy Ship';
+            const targetLabel = this.selectedTarget.isGuildTowerProxy ? 'Gildeninsel'
+                : this.selectedTarget instanceof Monster ? 'Sea Monster' : 'Enemy Ship';
             const enemyName = this.selectedTarget.captainName
                 || this.selectedTarget.displayName
                 || (this.selectedTarget.monsterType ? this.selectedTarget.monsterType.replace('monster-', '').replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : null)
@@ -4199,9 +4226,15 @@ handleResize(gameSize) {
 
         this.time.delayedCall(300, () => {
             if (target && target.active && this.player && this.player.active) {
-                const counterDamage = Math.max(12, Math.round((target.maxHP ?? 200) * 0.035));
+                /* Guild towers fire a fixed cannon volley instead of % of maxHP */
+                const counterDamage = target.isGuildTowerProxy
+                    ? Phaser.Math.Between(35, 65)
+                    : Math.max(12, Math.round((target.maxHP ?? 200) * 0.035));
                 this.player.takeDamage(counterDamage);
                 this.playSound('hit');
+                if (target.isGuildTowerProxy) {
+                    this.showEnemyDamageFloat?.(this.player.x, this.player.y - 20, counterDamage, false);
+                }
             }
         });
         return true;
