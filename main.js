@@ -9,7 +9,6 @@ const config = {
     antialiasGL: true,
     pixelArt: false,
     roundPixels: false,
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
     scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,

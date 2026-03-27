@@ -232,7 +232,8 @@ export default class GameScene extends Phaser.Scene {
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
         this._generateOceanTexture();
-        this.background = this.add.tileSprite(0, 0, width, height, 'ocean-generated');
+        const _oceanKey = this.textures.exists('ocean-generated') ? 'ocean-generated' : 'ocean-bg';
+        this.background = this.add.tileSprite(0, 0, width, height, _oceanKey);
         this.background.setOrigin(0, 0);
         this.background.setScrollFactor(0);
         this.syncOceanBackground();
@@ -444,6 +445,7 @@ export default class GameScene extends Phaser.Scene {
         this.talentPanel      = new TalentPanel(this);
         this.multiplayerPanel = new MultiplayerPanel(this);
         this.itemBar          = new ItemBar(this);
+        this._updateItemBar();
         this.pirateTrialPanel = new PirateTrialPanel(this);
         this.dailyQuestPanel  = new DailyQuestPanel(this);
         this.reputationHUD    = new ReputationHUD(this);
@@ -759,53 +761,71 @@ export default class GameScene extends Phaser.Scene {
     /* ═══════════════════ LEVEL-UP REWARDS ═══════════════════ */
 
     _getLevelUpRewards(level) {
-        const labels = [`Max HP +${20 + Math.floor(level / 5) * 5}`, '+1 Skillpunkt'];
+        const hpBonus = 22 + Math.floor(level / 4) * 6;
+        const labels = [`Max HP +${hpBonus}`, '+1 Skillpunkt'];
         const items  = {};
-        let gold = 30 + level * 8;
+        let gold = 50 + level * 12;
+        let gems = 0;
 
-        /* Every 5 levels — milestone */
+        /* Every 5 levels — Meilenstein */
         if (level % 5 === 0) {
-            gold += 80 + level * 5;
-            labels.push(`🎖 Meilenstein Lv.${level}: +${80 + level * 5} Bonus-Gold`);
-            const milestoneItem =
-                  level === 5  ? { id: 'grog',         qty: 3 }
-                : level === 10 ? { id: 'blitzpulver',  qty: 2 }
-                : level === 15 ? { id: 'heiltrunk',    qty: 3 }
-                : level === 20 ? { id: 'fernrohr',     qty: 2 }
-                : level === 25 ? { id: 'rum',          qty: 3 }
-                : { id: 'heiltrunk', qty: 2 };
-            items[milestoneItem.id] = (items[milestoneItem.id] ?? 0) + milestoneItem.qty;
-            labels.push(`🎁 ${this._itemLabel(milestoneItem.id)} ×${milestoneItem.qty}`);
+            const bonusGold = 120 + level * 8;
+            gold += bonusGold;
+            labels.push(`🎖 Meilenstein Lv.${level}: +${bonusGold} Gold`);
+            const milestoneItems = {
+                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk', qty: 2 }],
+                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',      qty: 2 }],
+                15: [{ id: 'heiltrunk',   qty: 4 }, { id: 'rum',       qty: 2 }],
+                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver',qty:2 }],
+                25: [{ id: 'rum',         qty: 3 }, { id: 'heiltrunk', qty: 3 }],
+                30: [{ id: 'grog',        qty: 4 }, { id: 'fernrohr',  qty: 2 }],
+            };
+            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 3 }];
+            mList.forEach(mi => {
+                items[mi.id] = (items[mi.id] ?? 0) + mi.qty;
+                labels.push(`🎁 ${this._itemLabel(mi.id)} ×${mi.qty}`);
+            });
+        }
+
+        /* Every 10 levels — Perlen-Bonus */
+        if (level % 10 === 0) {
+            gems = Math.floor(level / 5);
+            labels.push(`💎 ${gems} Perlen`);
         }
 
         /* Every 3 levels — bonus item */
         if (level % 3 === 0 && level % 5 !== 0) {
-            const opts  = ['heiltrunk','grog','blitzpulver','rum','fernrohr'];
+            const opts  = ['heiltrunk','grog','blitzpulver','rum','fernrohr','heiltrunk'];
             const roll  = opts[Math.floor(level / 3) % opts.length];
-            items[roll] = (items[roll] ?? 0) + 1;
-            labels.push(`+1 ${this._itemLabel(roll)}`);
+            const qty   = level >= 15 ? 2 : 1;
+            items[roll] = (items[roll] ?? 0) + qty;
+            labels.push(`+${qty} ${this._itemLabel(roll)}`);
         }
 
-        /* Every 2 levels — small gold bonus */
+        /* Every 2 levels — kleine Gold-Prämie */
         if (level % 2 === 0) {
-            gold += level * 3;
+            gold += level * 4;
         }
 
         labels.push(`+${gold} Gold`);
-        return { labels, gold, items, hpBonus: 20 + Math.floor(level / 5) * 5 };
+        return { labels, gold, items, gems, hpBonus };
     }
 
     _itemLabel(id) {
-        return { rum: '🍺 Rum', grog: '🧉 Grog', repair_kit: '🔧 Reparaturset',
-                 thunder_powder: '⚡ Donnerpulver', lucky_charm: '🍀 Glücksbringer' }[id] ?? id;
+        return {
+            heiltrunk: '🧪 Heiltrunk', grog: '🍺 Grog', blitzpulver: '⚡ Blitzpulver',
+            rum: '🛢 Rum', fernrohr: '🔭 Fernrohr',
+            repair_kit: '🔧 Reparaturset', thunder_powder: '⚡ Donnerpulver', lucky_charm: '🍀 Glücksbringer'
+        }[id] ?? id;
     }
 
     _applyLevelUpRewards(level, rewards) {
         const p = this.player;
         if (!p) return;
         p.gold = (p.gold ?? 0) + (rewards.gold ?? 0);
+        if (rewards.gems) p.gems = (p.gems ?? 0) + rewards.gems;
         /* Apply max HP bonus */
-        const hpBonus = rewards.hpBonus ?? 20;
+        const hpBonus = rewards.hpBonus ?? 22;
         p.maxHP = (p.maxHP ?? 200) + hpBonus;
         p.hp    = Math.min((p.hp ?? p.maxHP), p.maxHP);
         p.updateHealthBar?.();
@@ -814,6 +834,7 @@ export default class GameScene extends Phaser.Scene {
             this.addItem(id, qty);
         });
         this._updateItemBar?.();
+        this.updateUIBars?.();
     }
 
     /* ═══════════════════ KILL STREAK ═══════════════════ */
@@ -1276,35 +1297,38 @@ export default class GameScene extends Phaser.Scene {
 
     _generateOceanTexture() {
         if (this.textures.exists('ocean-generated')) return;
-        const SIZE = 512;
-        const g = this.make.graphics({ x: 0, y: 0, add: false });
+        try {
+            const SIZE = 512;
+            const g = this.make.graphics({ x: 0, y: 0, add: false });
 
-        g.fillGradientStyle(0x051220, 0x051220, 0x0c2240, 0x0c2240, 1);
-        g.fillRect(0, 0, SIZE, SIZE);
+            g.fillStyle(0x071828, 1);
+            g.fillRect(0, 0, SIZE, SIZE);
 
-        for (let row = 0; row < 36; row++) {
-            const y = row * 14 + 4;
-            const alpha = Phaser.Math.FloatBetween(0.04, 0.13);
-            g.lineStyle(1, 0x1e5090, alpha);
-            g.beginPath();
-            g.moveTo(0, y);
-            for (let x = 0; x <= SIZE; x += 6) {
-                const wy = y + Math.sin(x * 0.065 + row * 0.9) * 2.2;
-                g.lineTo(x, wy);
+            for (let row = 0; row < 36; row++) {
+                const y = row * 14 + 4;
+                const alpha = 0.05 + (row % 3) * 0.025;
+                g.lineStyle(1, 0x1e5090, alpha);
+                g.beginPath();
+                g.moveTo(0, y);
+                for (let x = 0; x <= SIZE; x += 8) {
+                    const wy = y + Math.sin(x * 0.065 + row * 0.9) * 2;
+                    g.lineTo(x, wy);
+                }
+                g.strokePath();
             }
-            g.strokePath();
-        }
 
-        for (let i = 0; i < 90; i++) {
-            const px = Math.random() * SIZE;
-            const py = Math.random() * SIZE;
-            const a = Math.random() * 0.14 + 0.03;
-            g.fillStyle(0x3a80c8, a);
-            g.fillCircle(px, py, Math.random() * 1.8 + 0.4);
-        }
+            for (let i = 0; i < 70; i++) {
+                const px = Math.random() * SIZE;
+                const py = Math.random() * SIZE;
+                g.fillStyle(0x4a8ec8, Math.random() * 0.12 + 0.02);
+                g.fillCircle(px, py, Math.random() * 1.5 + 0.5);
+            }
 
-        g.generateTexture('ocean-generated', SIZE, SIZE);
-        g.destroy();
+            g.generateTexture('ocean-generated', SIZE, SIZE);
+            g.destroy();
+        } catch (e) {
+            console.warn('[Ocean] Texture generation failed, using ocean-bg fallback:', e);
+        }
     }
 
     syncOceanBackground() {
@@ -4964,10 +4988,10 @@ handleResize(gameSize) {
         const base  = this._playerBaseSpeed ?? this.player.speed;
         const bonus = this.playerShipBonus ?? {};
         let s = base;
-        /* Storm applied FIRST to base — grog cannot fully negate storm penalty */
-        if (this._stormActive && !bonus.stormImmune)       s = Math.round(Math.max(base * 0.72, s * 0.65));
-        /* Grog boosts the storm-slowed speed, but capped at base * 1.5 */
-        if (this._grogActive)                              s = Math.round(Math.min(s * 1.40, base * 1.50));
+        /* Storm applied FIRST to base — grog cannot negate storm penalty */
+        if (this._stormActive && !bonus.stormImmune)       s = Math.round(Math.max(base * 0.68, s * 0.65));
+        /* Grog: +40% speed, capped at base during storm, or base×1.5 normally */
+        if (this._grogActive)                              s = Math.round(Math.min(s * 1.40, this._stormActive ? base * 1.0 : base * 1.50));
         if (bonus.speedMult && bonus.speedMult !== 1)      s = Math.round(s * bonus.speedMult);
         this.player.speed = s;
     }
@@ -5344,12 +5368,11 @@ handleResize(gameSize) {
         if (Math.random() > chance) return;
         /* Weighted drop pool — common items appear more often */
         const pool = [
-            'heiltrunk', 'heiltrunk', 'heiltrunk',   // 3× — common heal
-            'grog', 'grog',                           // 2× — speed boost
-            'blitzpulver',                            // 1× — damage
-            'rum',                                    // 1× — xp
-            'fernrohr',                               // 1× — locate treasure
-            'heiltrunk',                              // extra weight for heals
+            'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk',  // 4× — häufigste Heilung
+            'grog', 'grog', 'grog',                              // 3× — Speed
+            'blitzpulver', 'blitzpulver',                        // 2× — Schaden
+            'rum', 'rum',                                        // 2× — XP-Boost
+            'fernrohr',                                          // 1× — Truhen-Radar
         ];
         const type = pool[Math.floor(Math.random() * pool.length)];
         const qty  = (type === 'heiltrunk' && Math.random() < 0.15) ? 2 : 1;
@@ -5474,20 +5497,25 @@ handleResize(gameSize) {
         this._stormOverlay = this.add.rectangle(0, 0, 20000, 20000, 0x000044, 0.28)
             .setScrollFactor(0).setDepth(10).setOrigin(0);
         this._stormRain = [];
-        for (let i = 0; i < 65; i++) {
+        const rainCount = Math.round(this.scale.width / 10);
+        for (let i = 0; i < rainCount; i++) {
+            const w = Phaser.Math.Between(1, 3);
+            const h = Phaser.Math.Between(18, 42);
+            const alpha = 0.35 + Math.random() * 0.45;
             const rain = this.add.rectangle(
                 Phaser.Math.Between(0, this.scale.width),
-                Phaser.Math.Between(0, this.scale.height),
-                2, Phaser.Math.Between(20, 40), 0x99ccff, 0.55
-            ).setScrollFactor(0).setDepth(11).setRotation(0.2);
+                Phaser.Math.Between(-this.scale.height, this.scale.height),
+                w, h, 0x99ccff, alpha
+            ).setScrollFactor(0).setDepth(11).setRotation(0.18);
             this._stormRain.push(rain);
             this.tweens.add({
                 targets: rain,
-                y: this.scale.height + 50,
-                x: `-=${Phaser.Math.Between(40, 80)}`,
-                duration: Phaser.Math.Between(500, 900),
+                y: this.scale.height + 60,
+                x: `-=${Phaser.Math.Between(30, 70)}`,
+                duration: Phaser.Math.Between(380, 780),
                 repeat: -1,
-                onRepeat: () => { rain.y = -50; rain.x = Phaser.Math.Between(0, this.scale.width); }
+                delay: Math.random() * 600,
+                onRepeat: () => { rain.y = Phaser.Math.Between(-60, -10); rain.x = Phaser.Math.Between(0, this.scale.width); }
             });
         }
         if (this.player) {
