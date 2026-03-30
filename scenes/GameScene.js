@@ -606,6 +606,9 @@ export default class GameScene extends Phaser.Scene {
 
         this.finalizeChartEntryPosition();
 
+        /* Periodic autosave every 30 s — critical for mobile where beforeunload is unreliable */
+        this.time.addEvent({ delay: 30000, callback: this._saveProgress, callbackScope: this, loop: true });
+
         this.events.on('shutdown', () => {
             this._saveProgress();
             this._guildAttackBtnEl?.remove(); this._guildAttackBtnEl = null;
@@ -780,26 +783,28 @@ export default class GameScene extends Phaser.Scene {
     /* ═══════════════════ LEVEL-UP REWARDS ═══════════════════ */
 
     _getLevelUpRewards(level) {
-        const hpBonus = 22 + Math.floor(level / 4) * 6;
-        const labels = [`Max HP +${hpBonus}`, '+1 Skillpunkt'];
+        const hpBonus = 28 + Math.floor(level / 4) * 8;
+        const labels = [`Max HP +${hpBonus}`];
         const items  = {};
-        let gold = 50 + level * 12;
+        let gold = 80 + level * 16;
         let gems = 0;
+        let mats = 15 + level * 4;
 
         /* Every 5 levels — Meilenstein */
         if (level % 5 === 0) {
-            const bonusGold = 120 + level * 8;
+            const bonusGold = 200 + level * 12;
             gold += bonusGold;
+            mats += level * 3;
             labels.push(`🎖 Meilenstein Lv.${level}: +${bonusGold} Gold`);
             const milestoneItems = {
-                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk', qty: 2 }],
-                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',      qty: 2 }],
-                15: [{ id: 'heiltrunk',   qty: 4 }, { id: 'rum',       qty: 2 }],
-                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver',qty:2 }],
-                25: [{ id: 'rum',         qty: 3 }, { id: 'heiltrunk', qty: 3 }],
-                30: [{ id: 'grog',        qty: 4 }, { id: 'fernrohr',  qty: 2 }],
+                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk',   qty: 3 }],
+                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',        qty: 3 }, { id: 'lucky_charm', qty: 1 }],
+                15: [{ id: 'heiltrunk',   qty: 5 }, { id: 'rum',         qty: 3 }],
+                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver', qty: 3 }, { id: 'lucky_charm', qty: 2 }],
+                25: [{ id: 'rum',         qty: 4 }, { id: 'heiltrunk',   qty: 4 }],
+                30: [{ id: 'grog',        qty: 5 }, { id: 'fernrohr',    qty: 3 }, { id: 'lucky_charm', qty: 2 }],
             };
-            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 3 }];
+            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 3 }, { id: 'grog', qty: 2 }];
             mList.forEach(mi => {
                 items[mi.id] = (items[mi.id] ?? 0) + mi.qty;
                 labels.push(`🎁 ${this._itemLabel(mi.id)} ×${mi.qty}`);
@@ -808,43 +813,45 @@ export default class GameScene extends Phaser.Scene {
 
         /* Every 10 levels — Perlen-Bonus */
         if (level % 10 === 0) {
-            gems = Math.floor(level / 5);
+            gems = Math.floor(level / 4);
             labels.push(`💎 ${gems} Perlen`);
         }
 
         /* Every 3 levels — bonus item */
         if (level % 3 === 0 && level % 5 !== 0) {
-            const opts  = ['heiltrunk','grog','blitzpulver','rum','fernrohr','heiltrunk'];
+            const opts  = ['heiltrunk','grog','blitzpulver','rum','fernrohr','heiltrunk','lucky_charm'];
             const roll  = opts[Math.floor(level / 3) % opts.length];
-            const qty   = level >= 15 ? 2 : 1;
+            const qty   = level >= 12 ? 2 : 1;
             items[roll] = (items[roll] ?? 0) + qty;
             labels.push(`+${qty} ${this._itemLabel(roll)}`);
         }
 
         /* Every 2 levels — kleine Gold-Prämie */
         if (level % 2 === 0) {
-            gold += level * 4;
+            gold += level * 5;
         }
 
         labels.push(`+${gold} Gold`);
-        return { labels, gold, items, gems, hpBonus };
+        labels.push(`+${mats} Materialien`);
+        return { labels, gold, items, gems, hpBonus, mats };
     }
 
     _itemLabel(id) {
         return {
             heiltrunk: '🧪 Heiltrunk', grog: '🍺 Grog', blitzpulver: '⚡ Blitzpulver',
-            rum: '🛢 Rum', fernrohr: '🔭 Fernrohr',
-            repair_kit: '🔧 Reparaturset', thunder_powder: '⚡ Donnerpulver', lucky_charm: '🍀 Glücksbringer'
+            rum: '🛢 Rum', fernrohr: '🔭 Fernrohr', lucky_charm: '🍀 Glücksbringer',
+            repair_kit: '🔧 Reparaturset', thunder_powder: '⚡ Donnerpulver'
         }[id] ?? id;
     }
 
     _applyLevelUpRewards(level, rewards) {
         const p = this.player;
         if (!p) return;
-        p.gold = (p.gold ?? 0) + (rewards.gold ?? 0);
+        p.gold      = (p.gold      ?? 0) + (rewards.gold ?? 0);
+        p.materials = (p.materials ?? 0) + (rewards.mats ?? 0);
         if (rewards.gems) p.gems = (p.gems ?? 0) + rewards.gems;
         /* Apply max HP bonus */
-        const hpBonus = rewards.hpBonus ?? 22;
+        const hpBonus = rewards.hpBonus ?? 28;
         p.maxHP = (p.maxHP ?? 200) + hpBonus;
         p.hp    = Math.min((p.hp ?? p.maxHP), p.maxHP);
         p.updateHealthBar?.();
@@ -5082,14 +5089,16 @@ handleResize(gameSize) {
 
     _recalcPlayerSpeed() {
         if (!this.player) return;
-        const base  = this._playerBaseSpeed ?? this.player.speed;
+        /* Ensure base is always a positive number, never 0 */
+        const base  = Math.max(80, this._playerBaseSpeed || this.player.speed || 160);
+        if (!this._playerBaseSpeed || this._playerBaseSpeed < 80) this._playerBaseSpeed = base;
         const bonus = this.playerShipBonus ?? {};
         let s = base;
         /* Storm applied FIRST to base — grog cannot negate storm penalty */
-        if (this._stormActive && !bonus.stormImmune)       s = Math.round(Math.max(base * 0.68, s * 0.65));
-        /* Grog: +40% speed, capped at base during storm, or base×1.5 normally */
-        if (this._grogActive)                              s = Math.round(Math.min(s * 1.40, this._stormActive ? base * 1.0 : base * 1.50));
-        if (bonus.speedMult && bonus.speedMult !== 1)      s = Math.round(s * bonus.speedMult);
+        if (this._stormActive && !bonus.stormImmune)  s = Math.round(base * 0.68);
+        /* Grog: +40% speed boost applied on top of current; capped at base×1.0 during storm */
+        if (this._grogActive)                         s = Math.round(Math.min(s * 1.40, this._stormActive ? base : base * 1.50));
+        if (bonus.speedMult && bonus.speedMult !== 1) s = Math.round(s * bonus.speedMult);
         this.player.speed = s;
     }
 
@@ -5533,6 +5542,8 @@ handleResize(gameSize) {
         this.itemBar?.showPickupFlash(type);
         const names = { heiltrunk:'Heiltrunk', grog:'Grog', blitzpulver:'Blitzpulver', rum:'Rum-Fass', fernrohr:'Fernrohr' };
         this.showStatusMsg(`📦 +${count}× ${names[type] ?? type} erhalten!`, 0xd4af37);
+        /* Persist immediately so mobile reloads don't lose picked-up items */
+        this._saveProgress();
     }
 
     useItem(type) {
@@ -5588,9 +5599,20 @@ handleResize(gameSize) {
 
         } else if (type === 'fernrohr') {
             this._locateNearestTreasure();
+
+        } else if (type === 'lucky_charm') {
+            if (!this.player.activeEffects) this.player.activeEffects = {};
+            this.player.activeEffects.luckyCharm = { label: '🍀 Glück', endTime: Date.now() + 30000, critBonus: 0.15 };
+            this.showStatusMsg('🍀 Glücksbringer! Crit-Chance +15% für 30s', 0x88ffcc);
+            this.time.delayedCall(30000, () => {
+                delete this.player?.activeEffects?.luckyCharm;
+                this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
+            });
         }
 
         this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
+        /* Persist consumed item count immediately */
+        this._saveProgress();
     }
 
     _locateNearestTreasure() {
@@ -5702,14 +5724,15 @@ handleResize(gameSize) {
         if (Math.random() > chance) return;
         /* Weighted drop pool — common items appear more often */
         const pool = [
-            'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk',  // 4× — häufigste Heilung
-            'grog', 'grog', 'grog',                              // 3× — Speed
-            'blitzpulver', 'blitzpulver',                        // 2× — Schaden
-            'rum', 'rum',                                        // 2× — XP-Boost
-            'fernrohr',                                          // 1× — Truhen-Radar
+            'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', // 5× — häufigste Heilung
+            'grog', 'grog', 'grog',                                          // 3× — Speed
+            'blitzpulver', 'blitzpulver',                                    // 2× — Schaden
+            'rum', 'rum',                                                     // 2× — XP-Boost
+            'fernrohr', 'fernrohr',                                           // 2× — Truhen-Radar
+            'lucky_charm',                                                    // 1× — Crit-Glück
         ];
         const type = pool[Math.floor(Math.random() * pool.length)];
-        const qty  = (type === 'heiltrunk' && Math.random() < 0.15) ? 2 : 1;
+        const qty  = (type === 'heiltrunk' && Math.random() < 0.20) ? 2 : 1;
         const delay = Phaser.Math.Between(100, 400);
         this.time.delayedCall(delay, () => {
             if (!this.player?.active) return;
@@ -5831,7 +5854,7 @@ handleResize(gameSize) {
         this._stormOverlay = this.add.rectangle(0, 0, 20000, 20000, 0x000044, 0.28)
             .setScrollFactor(0).setDepth(10).setOrigin(0);
         this._stormRain = [];
-        const rainCount = Math.round(this.scale.width / 10);
+        const rainCount = Math.max(80, Math.round(this.scale.width / 6));
         for (let i = 0; i < rainCount; i++) {
             const w = Phaser.Math.Between(1, 3);
             const h = Phaser.Math.Between(18, 42);
