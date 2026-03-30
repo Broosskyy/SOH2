@@ -3850,20 +3850,14 @@ handleResize(gameSize) {
             this.targetWorldInfo.setVisible(true);
             this.targetWorldInfo.setPosition(this.selectedTarget.x, this.selectedTarget.y + belowOffset);
             this.targetWorldInfoName.setText(enemyName);
-            /* Compact background: 148 wide, 38 tall, anchored top-center */
+            /* No background box — text stroke provides readability */
             this.targetWorldInfoBg.clear();
-            this.targetWorldInfoBg.fillStyle(0x000000, 0.78);
-            this.targetWorldInfoBg.lineStyle(1.5, 0xffcf52, 0.9);
-            this.targetWorldInfoBg.fillRoundedRect(-74, 0, 148, 38, 8);
-            this.targetWorldInfoBg.strokeRoundedRect(-74, 0, 148, 38, 8);
-            /* HP bar */
+            /* HP bar — no outline box, just filled bar */
             this.targetWorldInfoHP.clear();
-            this.targetWorldInfoHP.fillStyle(0x000000, 0.84);
-            this.targetWorldInfoHP.fillRoundedRect(-54, 22, 108, 8, 4);
+            this.targetWorldInfoHP.fillStyle(0x000000, 0.55);
+            this.targetWorldInfoHP.fillRoundedRect(-54, 22, 108, 7, 3);
             this.targetWorldInfoHP.fillStyle(targetPercent > 0.45 ? 0xff7d6b : 0xff4040, 1);
-            this.targetWorldInfoHP.fillRoundedRect(-54, 22, 108 * targetPercent, 8, 4);
-            this.targetWorldInfoHP.lineStyle(1, 0xfff0bf, 0.38);
-            this.targetWorldInfoHP.strokeRoundedRect(-54, 22, 108, 8, 4);
+            this.targetWorldInfoHP.fillRoundedRect(-54, 22, 108 * targetPercent, 7, 3);
         } else {
             this.targetHUD.setVisible(false);
             this.leftTargetPanel?.setVisible(false);

@@ -701,11 +701,8 @@ export default class PlayerShip extends Ship {
         const BX = -(BW / 2);
 
         this.infoBg.clear();
-        this.infoBg.fillStyle(0x000000, 0.35);
-        this.infoBg.fillRoundedRect(-96, -14, 192, 62, 6);
-
-        this._drawLeftBadge(this.leftBadgeGfx, level);
-        this._drawRightBadge(this.rightBadgeGfx, this.pvpMode);
+        this.leftBadgeGfx.clear();
+        this.rightBadgeGfx.clear();
 
         const tagStr  = this.captainTag ?? '';
         const pvpIcon = this.pvpMode ? ' ⚔' : '';
@@ -731,8 +728,6 @@ export default class PlayerShip extends Ship {
         this.hpBar.fillRoundedRect(BX + 1, 9, BW - 2, 7, 3);
         this.hpBar.fillStyle(hpColor, 1);
         this.hpBar.fillRoundedRect(BX + 1, 9, Math.max(2, (BW - 2) * hpPercent), 7, 3);
-        this.hpBar.lineStyle(1, hpColor, 0.5);
-        this.hpBar.strokeRoundedRect(BX, 8, BW, 9, 4);
 
         this.hpNumText.setText(`${Math.ceil(this.hp ?? 0)} / ${this.maxHP ?? 0}`);
         this.hpNumText.setY(14);
@@ -745,8 +740,6 @@ export default class PlayerShip extends Ship {
         this.voodooBar.fillRoundedRect(BX + 1, 20, BW - 2, 3, 1);
         this.voodooBar.fillStyle(0xaa44ff, 1);
         this.voodooBar.fillRoundedRect(BX + 1, 20, Math.max(2, (BW - 2) * vdPercent), 3, 1);
-        this.voodooBar.lineStyle(1, 0xaa44ff, 0.4);
-        this.voodooBar.strokeRoundedRect(BX, 19, BW, 5, 2);
 
         const xpMax = 100 * level;
         const xpPct = Phaser.Math.Clamp((this.xp ?? 0) / xpMax, 0, 1);
