@@ -1627,20 +1627,7 @@ handleResize(gameSize) {
         this.updateUIBars();
     }
 
-    toggleStatusFeedSize() {
-        if (!this.isStatusFeedVisible) {
-            this.isStatusFeedVisible = true;
-            this.isStatusFeedMinimized = false;
-        } else {
-            this.isStatusFeedMinimized = !this.isStatusFeedMinimized;
-        }
-        if (this.statusFeedToggleIcon) {
-            this.statusFeedToggleIcon.setText(this.isStatusFeedVisible && !this.isStatusFeedMinimized ? '–' : '+');
-        }
-        this.showStatusMsg(this.isStatusFeedVisible && !this.isStatusFeedMinimized ? 'Combat feed expanded' : 'Combat feed minimized', 0x8be7ff);
-        this.refreshStatusFeed();
-        this.updateUIBars();
-    }
+    toggleStatusFeedSize() { /* Combat feed removed */ }
 
     toggleChatSize() {
         if (!this.isChatVisible) {
@@ -2969,62 +2956,21 @@ handleResize(gameSize) {
         this.topUiContainer.add(this.chatPanel);
         this.chatPanel.setVisible(false);
 
-        this.statusFeedPanel = this.add.container(22, height - 346).setScrollFactor(0).setDepth(4200);
-        this.statusFeedDragHandle = this.createPanelDragHandle('statusFeed', 70, 20, 'MOVE');
-        this.statusFeedBg = this.add.graphics();
-        this.statusFeedTitle = this.add.text(12, 8, 'Combat Feed', {
-            fontSize: '15px',
-            fontFamily: 'Arial',
-            fill: '#ffe888',
-            stroke: '#000000',
-            strokeThickness: 3
-        });
-        this.statusFeedToggleBg = this.add.graphics();
-        this.statusFeedToggleIcon = this.add.text(224, 16, '–', {
-            fontSize: '18px',
-            fontFamily: 'Arial',
-            fill: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 3
-        }).setOrigin(0.5);
-        this.statusFeedToggleHit = this.add.zone(202, -4, 44, 40)
-            .setOrigin(0, 0)
-            .setInteractive({ useHandCursor: true })
-            .setData('uiControl', true)
-            .setDepth(4201)
-            .setScrollFactor(0);
-        this.statusFeedToggleHit.on('pointerdown', (pointer) => {
-            pointer?.event?.stopPropagation?.();
-            this.toggleStatusFeedSize();
-        });
+        /* Combat feed removed — stubs keep downstream code from crashing */
+        this.statusFeedPanel = null;
+        this.statusFeedBg = this.add.graphics().setVisible(false);
+        this.statusFeedToggleBg = this.add.graphics().setVisible(false);
+        this.statusFeedTitle = { setPosition() {}, setText() {}, setVisible() {} };
+        this.statusFeedToggleIcon = { setPosition() {}, setText() {}, setVisible() {} };
+        this.statusFeedToggleHit = this.add.zone(0, 0, 1, 1).setScrollFactor(0);
+        this.statusFeedDragHandle = { container: { setPosition() {}, setVisible() {} } };
         this.statusFeedLines = [];
-        for (let i = 0; i < 4; i++) {
-            const line = this.add.text(12, 34 + (i * 20), '—', {
-                fontSize: '13px',
-                fontFamily: 'Arial',
-                fill: '#dff8ff',
-                stroke: '#000000',
-                strokeThickness: 3
-            });
-            this.statusFeedLines.push(line);
-        }
-        this.statusFeedPanel.add([
-            this.statusFeedBg,
-            this.statusFeedDragHandle.container,
-            this.statusFeedTitle,
-            this.statusFeedToggleBg,
-            this.statusFeedToggleIcon,
-            this.statusFeedToggleHit,
-            ...this.statusFeedLines
-        ]);
-        this.topUiContainer.add(this.statusFeedPanel);
 
         this.panelQuickDock = this.add.container(22, height - 186).setScrollFactor(0).setDepth(4240);
         this.panelQuickDockButtons = [];
         [
             { key: 'nav', label: 'HUD', handler: () => this.handleMenuAction('menu') },
             { key: 'gate', label: 'GATE', handler: () => this.toggleSeaGateVisibility() },
-            { key: 'feed', label: 'FEED', handler: () => this.toggleStatusFeedSize() },
             { key: 'chat', label: 'CHAT', handler: () => this.toggleChatSize() },
             { key: 'ship', label: 'SHIP', handler: () => this.toggleReturnToShipVisibility() }
         ].forEach((def, index) => {
@@ -3612,8 +3558,6 @@ handleResize(gameSize) {
 
     updateUIBars() {
         const { width, height } = this.scale;
-        const hasCombatTarget = !!(this.selectedTarget && this.selectedTarget.active);
-        const shouldShowStatusFeed = this.isStatusFeedVisible || this.autoAttackEnabled || hasCombatTarget;
         const shouldShowChat = this.isChatVisible;
         const shouldShowNavBar = this.isNavBarVisible;
         const shouldShowSeaGate = this.isSeaGateVisible;
@@ -3640,10 +3584,16 @@ handleResize(gameSize) {
             this.minimapDragHandle.container.setVisible(!this.isMinimapMinimized);
             this.minimapToggleHit.setPosition(-6, -6);
             this.minimapToggleHit.setSize(44, 44);
+            /* Sync ChartNav DOM element to sit directly below minimap */
+            this.chartNav?.repositionUnderMinimap(
+                minimapPos.x,
+                minimapPos.y,
+                this.minimap.getRenderHeight(),
+                this.minimap.getRenderWidth()
+            );
         }
 
         const chatPos = this.getPanelPosition('chat');
-        const statusFeedPos = this.getPanelPosition('statusFeed');
         const upgradePos = this.getPanelPosition('upgrade');
 
         this.goldContainer.setPosition(12, navH);
@@ -3668,16 +3618,12 @@ handleResize(gameSize) {
             }
 
             const chatH = this.isChatMinimized ? 44 : 168;
-            const feedH = this.isStatusFeedMinimized ? 44 : 120;
 
             this.chatPanel.setPosition(16, height - chatH - 6);
             this.chatPanel.setVisible(false);
             this.chatDragHandle.container.setPosition(166, 8);
             this.chatToggleHit.setPosition(202, -4);
             this.chatToggleHit.setSize(44, 40);
-
-            this.statusFeedPanel.setPosition(16, height - chatH - feedH - 12);
-            this.statusFeedDragHandle.container.setPosition(130, 8);
 
             this.actionsContainer.setPosition(width - 178, height - 138);
 
@@ -3702,9 +3648,6 @@ handleResize(gameSize) {
             this.chatToggleHit.setPosition(202, -4);
             this.chatToggleHit.setSize(44, 40);
 
-            this.statusFeedPanel.setPosition(statusFeedPos.x, statusFeedPos.y);
-            this.statusFeedDragHandle.container.setPosition(130, 8);
-
             this.actionsContainer.setPosition(width - 192, height - 164);
 
             this.upgradePanel.setPosition(upgradePos.x, upgradePos.y);
@@ -3720,8 +3663,6 @@ handleResize(gameSize) {
         this.drawPanel(this.goldBg, 196, 78, { fill: 0x2a1b0a, fillAlpha: 0.92, line: 0xd6ad57, lineAlpha: 0.85 });
         this.drawPanel(this.progressBg, 228, 100, { fill: 0x103256, fillAlpha: 0.95, line: 0x69cfff, lineAlpha: 0.95 });
         this.drawPanel(this.returnToShipBg, 192, 68, { fill: 0x0c1b2b, fillAlpha: 0.95, line: 0x7fd3ff, lineAlpha: 0.95, radius: 14 });
-        this.drawPanel(this.statusFeedBg, 248, this.isStatusFeedMinimized ? 40 : 136, { fill: 0x06121a, fillAlpha: 0.84, line: 0x4a95bc, lineAlpha: 0.75, radius: 12 });
-        this.drawPanel(this.statusFeedToggleBg, 32, 32, { fill: 0x0c1b2b, fillAlpha: 0.92, line: 0x7fd3ff, lineAlpha: 0.95, radius: 8 });
         this.drawPanel(this.minimapToggleBg, 32, 32, { fill: 0x0c1b2b, fillAlpha: 0.92, line: 0x7fd3ff, lineAlpha: 0.95, radius: 8 });
         this.drawPanel(this.targetHUDBack, 360, 74, { fill: 0x000000, fillAlpha: 0.8, line: 0xe0c887, lineAlpha: 0.75, radius: 12 });
         this.drawPanel(this.leftTargetPanelBg, 232, 110, { fill: 0x07131c, fillAlpha: 0.9, line: 0xffd166, lineAlpha: 0.9, radius: 12 });
@@ -3798,19 +3739,6 @@ handleResize(gameSize) {
             line.setPosition(12, 34 + (index * 20));
         });
 
-        this.drawPanelDragHandle(this.statusFeedDragHandle, this.panelDragState?.panelKey === 'statusFeed');
-        this.statusFeedTitle.setPosition(12, 8);
-        this.statusFeedToggleBg.setPosition(208, 0);
-        this.statusFeedToggleIcon.setPosition(224, 16);
-        this.statusFeedToggleHit.setPosition(202, -4);
-        this.statusFeedToggleHit.setSize(44, 40);
-        this.statusFeedPanel.setVisible(shouldShowStatusFeed);
-        this.statusFeedDragHandle.container.setVisible(shouldShowStatusFeed && !this.isStatusFeedMinimized);
-        this.statusFeedToggleIcon.setText(shouldShowStatusFeed && !this.isStatusFeedMinimized ? '–' : '+');
-        this.statusFeedLines.forEach((line, index) => {
-            line.setVisible(shouldShowStatusFeed && (!this.isStatusFeedMinimized || index === 0));
-            line.setPosition(12, 34 + (index * 20));
-        });
 
         const navPadding = 10;
         const reservedSideSpace = 500;
@@ -3846,11 +3774,9 @@ handleResize(gameSize) {
                 ? shouldShowNavBar
                 : dockButton.key === 'gate'
                     ? shouldShowSeaGate
-                    : dockButton.key === 'feed'
-                        ? shouldShowStatusFeed && !this.isStatusFeedMinimized
-                        : dockButton.key === 'chat'
-                            ? shouldShowChat && !this.isChatMinimized
-                            : false;
+                    : dockButton.key === 'chat'
+                        ? shouldShowChat && !this.isChatMinimized
+                        : false;
             dockButton.bg.clear();
             dockButton.bg.fillStyle(isActive ? 0x103047 : 0x0b1723, 0.94);
             dockButton.bg.lineStyle(1.5, isActive ? 0x7fd3ff : 0x4a95bc, 0.92);
@@ -4778,28 +4704,9 @@ handleResize(gameSize) {
         });
     }
 
-    pushStatusFeedMessage(msg, color = '#dff8ff') {
-        this.statusFeedMessages.unshift({ msg, color });
-        this.statusFeedMessages = this.statusFeedMessages.slice(0, 4);
-        this.refreshStatusFeed();
-    }
+    pushStatusFeedMessage(_msg, _color) { /* Combat feed removed */ }
 
-    refreshStatusFeed() {
-        if (!this.statusFeedLines) return;
-        if (this.statusFeedTitle) {
-            this.statusFeedTitle.setText(this.isStatusFeedMinimized ? 'Combat Feed (min)' : 'Combat Feed');
-        }
-        this.statusFeedLines.forEach((line, index) => {
-            const entry = this.statusFeedMessages[index];
-            if (!entry) {
-                line.setText(this.isStatusFeedMinimized && index === 0 ? 'Use FEED to expand' : '—');
-                line.setColor('#7f98a8');
-                return;
-            }
-            line.setText(entry.msg);
-            line.setColor(entry.color);
-        });
-    }
+    refreshStatusFeed() { /* Combat feed removed */ }
 
     pushChatMessage(msg, color = '#dff8ff') {
         this.chatMessages.unshift({ msg, color });

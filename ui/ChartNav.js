@@ -181,6 +181,16 @@ export default class ChartNav {
         if (this._attackBtn) this._attackBtn.style.display = v ? 'flex' : 'none';
     }
 
+    repositionUnderMinimap(mmLeft, mmTop, mmHeight, mmWidth) {
+        if (!this._el) return;
+        const gap = 6;
+        this._el.style.top   = `${Math.round(mmTop + mmHeight + gap)}px`;
+        this._el.style.right  = '18px';
+        this._el.style.left   = 'auto';
+        this._el.style.bottom = 'auto';
+        this._el.style.transform = 'none';
+    }
+
     setVisible(v) { if (this._el) this._el.style.display = v ? 'flex' : 'none'; }
 
     destroy() {
