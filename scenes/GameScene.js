@@ -600,13 +600,11 @@ export default class GameScene extends Phaser.Scene {
             this._logbookAdd('damage_dealt', amount);
         });
 
-        /* ── Combat Button Area (bottom-right) ── */
-        const _cx = this.scale.width  - 120;
-        const _cy = this.scale.height - 140;
-
-        /* Attack Button — large round maritime main-action button */
-        const _ax = this.scale.width - 95;
-        const _ay = this.scale.height - 110;
+        /* ── Combat Button Area — BOS-style: 2×2 grid left, large attack right ── */
+        /*   [S1][S2]                  */
+        /*   [S3][✕]   [⚔ FEUER]     */
+        const _ax = this.scale.width  - 70;   /* large attack: far bottom-right */
+        const _ay = this.scale.height - 115;
         const _ar = 52; // radius
 
         const attackBg = this.add.graphics().setScrollFactor(0).setDepth(1000);
@@ -636,22 +634,34 @@ export default class GameScene extends Phaser.Scene {
             attackBg.fillCircle(_ax, _ay, _ar); attackBg.strokeCircle(_ax, _ay, _ar);
             attackBg.lineStyle(2, 0xffdd66, 0.45); attackBg.strokeCircle(_ax, _ay, _ar - 6); });
 
-        /* Cancel Button — directly below Attack */
-        const cancelBtn = this.add.text(_cx, _cy + 70, '✕ Cancel',
-            { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
-              backgroundColor: '#333333', padding: { x: 14, y: 7 } }
-        ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
-        cancelBtn.on('pointerdown', () => { console.log('cancel'); });
+        /* 2×2 grid — left of Attack button
+           Col A: _ax - 165   Col B: _ax - 95
+           Row 1: _ay - 80    Row 2: _ay - 10      */
+        const _ga = _ax - 165;  /* grid col A */
+        const _gb = _ax - 95;   /* grid col B */
+        const _gr1 = _ay - 80;  /* grid row 1 */
+        const _gr2 = _ay - 10;  /* grid row 2 */
 
-        /* 3 Skill Buttons — vertically stacked to the left of Attack */
-        const _skillLabels = ['💡 S1', '🌀 S2', '🔥 S3'];
-        _skillLabels.forEach((lbl, i) => {
-            const sb = this.add.text(_cx - 120, _cy - 60 + i * 50, lbl,
+        /* Skill Buttons — row 1 (S1, S2) + S3 bottom-left */
+        const _skillDefs = [
+            { lbl: '💡 S1', x: _ga, y: _gr1 },
+            { lbl: '🌀 S2', x: _gb, y: _gr1 },
+            { lbl: '🔥 S3', x: _ga, y: _gr2 },
+        ];
+        _skillDefs.forEach(({ lbl, x, y }) => {
+            const sb = this.add.text(x, y, lbl,
                 { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
                   backgroundColor: '#1a3a6a', padding: { x: 12, y: 8 } }
             ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
             sb.on('pointerdown', () => { console.log('skill'); });
         });
+
+        /* Cancel Button — bottom-right slot of the 2×2 grid */
+        const cancelBtn = this.add.text(_gb, _gr2, '✕ Cancel',
+            { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
+              backgroundColor: '#333333', padding: { x: 14, y: 7 } }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
+        cancelBtn.on('pointerdown', () => { console.log('cancel'); });
 
         this.finalizeChartEntryPosition();
 
