@@ -600,126 +600,8 @@ export default class GameScene extends Phaser.Scene {
             this._logbookAdd('damage_dealt', amount);
         });
 
-        /* ══════════════════════════════════════════════════════════
-           BOS-STYLE COMBAT CLUSTER
-           Anchored LEFT of minimap (landscape) / BOTTOM-RIGHT (portrait)
-           Layout:
-             [S1] [S2]
-             [S3] [S4]  [⚔ FEUER]
-             [🪣]
-           All sizes responsive to screen height; buttons barely touching.
-           ══════════════════════════════════════════════════════════ */
-        const _W = this.scale.width, _H = this.scale.height;
-
-        /* ── Utility: draw layered circle (shadow→dark ring→rim→separator→body→shine) ── */
-        const _circle = (bx, by, br, body, rim) => {
-            const g = this.add.graphics().setScrollFactor(0).setDepth(1998);
-            g.fillStyle(0x000000, 0.55); g.fillCircle(bx + 3, by + 5, br + 3);
-            g.fillStyle(0x060606, 1);    g.fillCircle(bx, by, br + 6);
-            g.fillStyle(rim, 1);         g.fillCircle(bx, by, br + 3);
-            g.fillStyle(0x0a0a0a, 1);    g.fillCircle(bx, by, br + 1);
-            g.fillStyle(body, 1);        g.fillCircle(bx, by, br);
-            g.fillStyle(0xffffff, 0.16); g.fillCircle(bx - br*0.20, by - br*0.26, br*0.44);
-            return g;
-        };
-        const _circleBtn = (bx, by, br, txt, style) =>
-            this.add.text(bx, by, txt, style)
-                .setOrigin(0.5).setScrollFactor(0).setDepth(2001)
-                .setInteractive({ useHandCursor: true,
-                    hitArea: new Phaser.Geom.Circle(0, 0, br),
-                    hitAreaCallback: Phaser.Geom.Circle.Contains });
-
-        /* ── Responsive sizes ── */
-        const _ar = Math.round(Math.min(58, Math.max(40, _H * 0.12)));  // attack radius
-        const _sr = Math.round(_ar * 0.54);                              // skill radius
-        const _gap = _sr * 2 + 8;                                        // col & row spacing
-        const _brr = Math.round(_sr * 0.70);                             // barrel radius
-
-        /* ── Anchor: attack center
-              Landscape → left of minimap (which is at x = width-238)
-              Portrait  → bottom-right corner                              ── */
-        const _isLandscape = _W > _H;
-        const _mmLeft = (this.minimap ? this.minimap.x : _W - 240);
-        const _ax = _isLandscape
-            ? _mmLeft - _ar - 16
-            : _W - _ar - 14;
-        const _ay = _H - Math.round(_H * (_isLandscape ? 0.18 : 0.20));
-
-        /* ── Grid positions ── */
-        const _sCol2 = _ax - _ar - _sr - 14;
-        const _sCol1 = _sCol2 - _gap;
-        const _sRow2 = _ay - _gap;
-        const _sRow1 = _sRow2 - _gap;
-
-        /* ── ATTACK button ── */
-        const attackBg = _circle(_ax, _ay, _ar, 0x6e1200, 0xc8900a);
-        attackBg.lineStyle(3, 0xff6600, 0.65); attackBg.strokeCircle(_ax, _ay, _ar - 10);
-        attackBg.lineStyle(1, 0xffcc44, 0.35); attackBg.strokeCircle(_ax, _ay, _ar - 2);
-        const _aFsz = Math.max(11, Math.round(_ar * 0.28)) + 'px';
-        const attackBtn = _circleBtn(_ax, _ay + 1, _ar, '⚔\nFEUER',
-            { fontSize: _aFsz, fontFamily: 'Arial Black,Arial', fontStyle: 'bold',
-              fill: '#ffd060', stroke: '#2e0800', strokeThickness: 4,
-              align: 'center', lineSpacing: 1 });
-        attackBtn.on('pointerdown', () => { console.log('attack'); });
-        attackBtn.on('pointerover', () => {
-            attackBg.clear();
-            attackBg.fillStyle(0x000000, 0.55); attackBg.fillCircle(_ax+3, _ay+5, _ar+3);
-            attackBg.fillStyle(0x060606, 1);    attackBg.fillCircle(_ax, _ay, _ar+6);
-            attackBg.fillStyle(0xffdd44, 1);    attackBg.fillCircle(_ax, _ay, _ar+3);
-            attackBg.fillStyle(0x0a0a0a, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
-            attackBg.fillStyle(0xa02000, 1);    attackBg.fillCircle(_ax, _ay, _ar);
-            attackBg.fillStyle(0xffffff, 0.22); attackBg.fillCircle(_ax-_ar*0.20, _ay-_ar*0.26, _ar*0.44);
-            attackBg.lineStyle(3, 0xff8800, 0.90); attackBg.strokeCircle(_ax, _ay, _ar-10);
-        });
-        attackBtn.on('pointerout', () => {
-            attackBg.clear();
-            attackBg.fillStyle(0x000000, 0.55); attackBg.fillCircle(_ax+3, _ay+5, _ar+3);
-            attackBg.fillStyle(0x060606, 1);    attackBg.fillCircle(_ax, _ay, _ar+6);
-            attackBg.fillStyle(0xc8900a, 1);    attackBg.fillCircle(_ax, _ay, _ar+3);
-            attackBg.fillStyle(0x0a0a0a, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
-            attackBg.fillStyle(0x6e1200, 1);    attackBg.fillCircle(_ax, _ay, _ar);
-            attackBg.fillStyle(0xffffff, 0.16); attackBg.fillCircle(_ax-_ar*0.20, _ay-_ar*0.26, _ar*0.44);
-            attackBg.lineStyle(3, 0xff6600, 0.65); attackBg.strokeCircle(_ax, _ay, _ar-10);
-            attackBg.lineStyle(1, 0xffcc44, 0.35); attackBg.strokeCircle(_ax, _ay, _ar-2);
-        });
-
-        /* ── 2×2 SKILL grid ── */
-        const _sFsz = Math.max(9, Math.round(_sr * 0.38)) + 'px';
-        const _skillGrid = [
-            { icon: '💡', label: 'S1', x: _sCol1, y: _sRow1, body: 0x0e1e4a, rim: 0x2a4898 },
-            { icon: '🌀', label: 'S2', x: _sCol2, y: _sRow1, body: 0x0e1e4a, rim: 0x2a4898 },
-            { icon: '🔥', label: 'S3', x: _sCol1, y: _sRow2, body: 0x0e1e4a, rim: 0x2a4898 },
-            { icon: '⚡', label: 'S4', x: _sCol2, y: _sRow2, body: 0x172810, rim: 0x346820 },
-        ];
-        _skillGrid.forEach(({ icon, label, x, y, body, rim }) => {
-            _circle(x, y, _sr, body, rim);
-            _circleBtn(x, y + 1, _sr, `${icon}\n${label}`,
-                { fontSize: _sFsz, fontFamily: 'Arial', fontStyle: 'bold',
-                  fill: '#cce0ff', stroke: '#040e20', strokeThickness: 3,
-                  align: 'center', lineSpacing: -1 })
-            .on('pointerdown', () => { console.log('skill'); });
-        });
-
-        /* ── BARREL/AMMO — small, below S3, same column ── */
-        _circle(_sCol1, _ay, _brr, 0x1a1820, 0x4a4460);
-        _circleBtn(_sCol1, _ay, _brr, '🪣\n0',
-            { fontSize: Math.max(8, Math.round(_brr * 0.36)) + 'px',
-              fontFamily: 'Arial', fontStyle: 'bold',
-              fill: '#aab8cc', stroke: '#000', strokeThickness: 2,
-              align: 'center', lineSpacing: -2 })
-        .on('pointerdown', () => { console.log('ammo'); });
-
-        /* ── CANCEL — hidden until combat; stored on scene ── */
-        const _canr = Math.round(_sr * 0.78);
-        const _canx = _sCol2, _cany = _ay + Math.round(_ar * 0.7);
-        const _cancelBg = _circle(_canx, _cany, _canr, 0x1e1e1e, 0x555555);
-        const cancelBtn = _circleBtn(_canx, _cany, _canr, '✕',
-            { fontSize: Math.max(12, _canr) + 'px', fontFamily: 'Arial', fontStyle: 'bold',
-              fill: '#aaaaaa', stroke: '#000', strokeThickness: 3 });
-        cancelBtn.on('pointerdown', () => { console.log('cancel'); });
-        this._cancelCombatBtnBg = _cancelBg;
-        this._cancelCombatBtn   = cancelBtn;
-        _cancelBg.setAlpha(0); cancelBtn.setAlpha(0).disableInteractive();
+        /* ── BOS-style combat cluster as DOM overlay ── */
+        this._buildCombatCluster();
 
         this.finalizeChartEntryPosition();
 
@@ -5382,6 +5264,234 @@ handleResize(gameSize) {
         const tier = this.getRufTier();
         if (reason) this.pushStatusFeedMessage?.(`${tier.icon} +${amount} Ruf${reason ? ' · ' + reason : ''}`, '#d4aa40');
         this.rangPanel?._renderAll?.();
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       BOS-STYLE COMBAT CLUSTER  —  DOM overlay
+       Layout:  [S1][S2]
+                [S3][S4]  [⚔ FEUER]
+       Positioned bottom-right, above the item bar (z 8100).
+    ────────────────────────────────────────────────────────────── */
+    _buildCombatCluster() {
+        if (document.getElementById('ahc-combat-cluster')) return;
+
+        const style = document.createElement('style');
+        style.id = 'ahc-combat-css';
+        style.textContent = `
+            #ahc-combat-cluster {
+                position: fixed;
+                right: 8px;
+                bottom: 100px;
+                z-index: 8100;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 5px;
+                pointer-events: auto;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            #ahc-combat-cluster .cc-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 5px;
+            }
+            #ahc-combat-cluster .cc-btn {
+                width: 70px;
+                height: 70px;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                font-size: 13px;
+                line-height: 1.15;
+                text-align: center;
+                color: #cce4ff;
+                text-shadow: 0 0 6px rgba(0,0,0,0.9);
+                border: 3px solid #2a4898;
+                background: radial-gradient(circle at 38% 28%, rgba(255,255,255,0.14) 0%, rgba(14,30,74,0.98) 65%);
+                box-shadow:
+                    inset 0 0 10px rgba(42,72,152,0.3),
+                    0 0 0 2px #060a14,
+                    0 4px 14px rgba(0,0,0,0.8);
+                transition: filter 0.1s, transform 0.08s;
+                position: relative;
+                overflow: hidden;
+            }
+            #ahc-combat-cluster .cc-btn::before {
+                content: '';
+                position: absolute;
+                top: 6%; left: 12%;
+                width: 42%; height: 36%;
+                border-radius: 50%;
+                background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 70%);
+                pointer-events: none;
+            }
+            #ahc-combat-cluster .cc-btn:active {
+                filter: brightness(1.4);
+                transform: scale(0.93);
+            }
+            #ahc-combat-cluster .cc-btn .cc-icon {
+                font-size: 22px;
+                line-height: 1;
+                margin-bottom: 2px;
+            }
+            #ahc-combat-cluster .cc-btn .cc-label {
+                font-size: 11px;
+                color: #a0c8ff;
+                letter-spacing: 0.5px;
+            }
+            #ahc-combat-cluster .cc-attack {
+                width: 118px;
+                height: 118px;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-family: "Arial Black", Arial, sans-serif;
+                font-weight: 900;
+                font-size: 16px;
+                line-height: 1.2;
+                text-align: center;
+                color: #ffd060;
+                text-shadow: 0 0 10px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,1);
+                border: 4px solid #c8900a;
+                background: radial-gradient(circle at 36% 26%, rgba(255,220,100,0.18) 0%, rgba(110,18,0,0.97) 65%);
+                box-shadow:
+                    inset 0 0 18px rgba(255,100,0,0.25),
+                    0 0 0 2px #1a0400,
+                    0 0 0 5px #c8900a,
+                    0 0 0 7px #1a0400,
+                    0 6px 22px rgba(0,0,0,0.9);
+                position: relative;
+                overflow: hidden;
+                transition: filter 0.1s, transform 0.08s, box-shadow 0.1s;
+            }
+            #ahc-combat-cluster .cc-attack::before {
+                content: '';
+                position: absolute;
+                top: 5%; left: 10%;
+                width: 42%; height: 36%;
+                border-radius: 50%;
+                background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 68%);
+                pointer-events: none;
+            }
+            #ahc-combat-cluster .cc-attack::after {
+                content: '';
+                position: absolute;
+                inset: 8px;
+                border-radius: 50%;
+                border: 2px solid rgba(255,100,0,0.45);
+                pointer-events: none;
+            }
+            #ahc-combat-cluster .cc-attack:active {
+                filter: brightness(1.5);
+                transform: scale(0.92);
+                box-shadow:
+                    inset 0 0 28px rgba(255,180,0,0.5),
+                    0 0 0 2px #1a0400,
+                    0 0 0 5px #ffe044,
+                    0 0 0 7px #1a0400,
+                    0 4px 28px rgba(255,120,0,0.6);
+            }
+            #ahc-combat-cluster .cc-attack .cc-icon {
+                font-size: 28px;
+                line-height: 1;
+                margin-bottom: 2px;
+            }
+            #ahc-combat-cluster .cc-cancel {
+                width: 52px;
+                height: 52px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-size: 22px;
+                color: #aaaaaa;
+                border: 2px solid #555555;
+                background: radial-gradient(circle, #2a2a2a 60%, #1a1a1a);
+                box-shadow: 0 0 0 2px #080808, 0 4px 10px rgba(0,0,0,0.7);
+                transition: filter 0.1s, transform 0.08s;
+                display: none;
+            }
+            #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.4); transform: scale(0.9); }
+            @media (max-height: 420px) {
+                #ahc-combat-cluster .cc-btn    { width: 58px; height: 58px; font-size: 11px; }
+                #ahc-combat-cluster .cc-btn .cc-icon { font-size: 18px; }
+                #ahc-combat-cluster .cc-attack { width: 98px; height: 98px; font-size: 14px; }
+                #ahc-combat-cluster .cc-attack .cc-icon { font-size: 22px; }
+                #ahc-combat-cluster .cc-cancel { width: 44px; height: 44px; font-size: 18px; }
+                #ahc-combat-cluster { bottom: 88px; gap: 4px; }
+                #ahc-combat-cluster .cc-grid   { gap: 4px; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        const root = document.createElement('div');
+        root.id = 'ahc-combat-cluster';
+
+        const grid = document.createElement('div');
+        grid.className = 'cc-grid';
+
+        const skills = [
+            { icon: '💡', label: 'S1' },
+            { icon: '🌀', label: 'S2' },
+            { icon: '🔥', label: 'S3' },
+            { icon: '⚡', label: 'S4' },
+        ];
+        skills.forEach(({ icon, label }) => {
+            const btn = document.createElement('div');
+            btn.className = 'cc-btn';
+            btn.innerHTML = `<span class="cc-icon">${icon}</span><span class="cc-label">${label}</span>`;
+            btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+            grid.appendChild(btn);
+        });
+
+        const attack = document.createElement('div');
+        attack.className = 'cc-attack';
+        attack.innerHTML = `<span class="cc-icon">⚔</span>FEUER`;
+        attack.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            this.handleAttackButtonPressed?.();
+        });
+
+        const cancel = document.createElement('div');
+        cancel.className = 'cc-cancel';
+        cancel.textContent = '✕';
+        cancel.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            this.clearTargetAndAttackState?.();
+        });
+
+        root.appendChild(grid);
+        root.appendChild(attack);
+        root.appendChild(cancel);
+        document.body.appendChild(root);
+
+        this._combatClusterEl   = root;
+        this._cancelCombatBtnEl = cancel;
+
+        /* Hide old Phaser skill/ammo bar — replaced by this DOM cluster */
+        if (this.skillBar)  this.skillBar.setVisible(false);
+        if (this.ammoRack)  this.ammoRack.setVisible(false);
+
+        this.events.once('shutdown', () => {
+            root.remove();
+            document.getElementById('ahc-combat-css')?.remove();
+        });
     }
 
     _logbookAdd(key, amount = 1) {
