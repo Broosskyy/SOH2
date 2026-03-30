@@ -88,39 +88,7 @@ export default class ChartNav {
         `;
         eastBtn.textContent = '►';
 
-        const attackBtn = document.createElement('button');
-        attackBtn.id = 'chart-attack-btn';
-        attackBtn.style.cssText = `
-            height: 36px;
-            padding: 0 11px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, #6a0c0c, #c01010);
-            border: 2px solid rgba(255,100,80,0.7);
-            color: #fff;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 10px rgba(200,30,30,0.5);
-            transition: background 0.15s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        `;
-        attackBtn.textContent = '⚔ FEUER';
-        const doAttack = (e) => {
-            e.preventDefault();
-            s.handleAttackButtonPressed?.();
-            attackBtn.style.background = 'linear-gradient(135deg, #9a1818, #e01818)';
-            setTimeout(() => { attackBtn.style.background = 'linear-gradient(135deg, #6a0c0c, #c01010)'; }, 200);
-        };
-        attackBtn.addEventListener('click', doAttack);
-        attackBtn.addEventListener('touchend', doAttack, { passive: false });
-        this._attackBtn = attackBtn;
+        this._attackBtn = null; /* FEUER button removed from ChartNav — use main FEUER button */
 
         const doWest = (e) => {
             e.preventDefault();
@@ -148,7 +116,6 @@ export default class ChartNav {
         nav.appendChild(westBtn);
         nav.appendChild(center);
         nav.appendChild(eastBtn);
-        nav.appendChild(attackBtn);
         document.body.appendChild(nav);
         this._el = nav;
 

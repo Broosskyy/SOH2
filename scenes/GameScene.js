@@ -2652,35 +2652,29 @@ handleResize(gameSize) {
         this.leftTargetPanel = this.add.container(18, 118).setVisible(false);
         this.leftTargetPanelBg = this.add.graphics();
         this.leftTargetPanelPulse = this.add.graphics();
-        this.leftTargetPanelLabel = this.add.text(14, 10, 'TARGET LOCK', {
-            fontSize: '11px',
-            fontFamily: 'Arial',
-            fill: '#8fd8ff',
-            stroke: '#000000',
-            strokeThickness: 3
-        });
-        this.leftTargetPanelName = this.add.text(14, 30, 'Enemy Ship', {
-            fontSize: '18px',
+        this.leftTargetPanelLabel = this.add.text(0, 0, '', { fontSize: '1px' }).setVisible(false);
+        this.leftTargetPanelName = this.add.text(10, 8, 'Enemy Ship', {
+            fontSize: '13px',
             fontFamily: 'Arial',
             fontStyle: 'bold',
             fill: '#fff7dd',
             stroke: '#000000',
-            strokeThickness: 4,
-            wordWrap: { width: 204 }
+            strokeThickness: 3,
+            wordWrap: { width: 150 }
         });
-        this.leftTargetPanelHPValue = this.add.text(14, 58, '0 / 0', {
-            fontSize: '13px',
+        this.leftTargetPanelHPValue = this.add.text(10, 28, '0 / 0', {
+            fontSize: '10px',
             fontFamily: 'Arial',
             fill: '#dff8ff',
             stroke: '#000000',
-            strokeThickness: 3
+            strokeThickness: 2
         });
-        this.leftTargetPanelRangeValue = this.add.text(14, 76, 'Range 0 • Locked', {
-            fontSize: '12px',
+        this.leftTargetPanelRangeValue = this.add.text(10, 42, 'Range 0 • Locked', {
+            fontSize: '10px',
             fontFamily: 'Arial',
             fill: '#ffd98e',
             stroke: '#000000',
-            strokeThickness: 3
+            strokeThickness: 2
         });
         this.leftTargetPanelHP = this.add.graphics();
         this.leftTargetPanel.add([
@@ -2694,14 +2688,14 @@ handleResize(gameSize) {
         ]);
         this.targetWorldInfo = this.add.container(0, 0).setDepth(1700).setVisible(false);
         this.targetWorldInfoBg = this.add.graphics();
-        this.targetWorldInfoName = this.add.text(0, -2, 'Enemy Ship', {
-            fontSize: '16px',
+        this.targetWorldInfoName = this.add.text(0, 5, 'Enemy Ship', {
+            fontSize: '13px',
             fontFamily: 'Arial',
             fontStyle: 'bold',
             fill: '#fff1bd',
             stroke: '#000000',
-            strokeThickness: 4
-        }).setOrigin(0.5, 1);
+            strokeThickness: 3
+        }).setOrigin(0.5, 0);
         this.targetWorldInfoHP = this.add.graphics();
         this.targetWorldInfo.add([this.targetWorldInfoBg, this.targetWorldInfoName, this.targetWorldInfoHP]);
         this.targetHUD.add([this.targetHUDBack, this.targetHUDName, this.targetHUDDistance, this.targetHUDHP]);
@@ -3665,7 +3659,7 @@ handleResize(gameSize) {
         this.drawPanel(this.returnToShipBg, 192, 68, { fill: 0x0c1b2b, fillAlpha: 0.95, line: 0x7fd3ff, lineAlpha: 0.95, radius: 14 });
         this.drawPanel(this.minimapToggleBg, 32, 32, { fill: 0x0c1b2b, fillAlpha: 0.92, line: 0x7fd3ff, lineAlpha: 0.95, radius: 8 });
         this.drawPanel(this.targetHUDBack, 360, 74, { fill: 0x000000, fillAlpha: 0.8, line: 0xe0c887, lineAlpha: 0.75, radius: 12 });
-        this.drawPanel(this.leftTargetPanelBg, 232, 110, { fill: 0x07131c, fillAlpha: 0.9, line: 0xffd166, lineAlpha: 0.9, radius: 12 });
+        this.drawPanel(this.leftTargetPanelBg, 172, 68, { fill: 0x07131c, fillAlpha: 0.9, line: 0xffd166, lineAlpha: 0.9, radius: 10 });
         this.drawPanel(this.upgradePanelBg, 372, 760, { fill: 0x07141f, fillAlpha: 0.97, line: 0x7fd3ff, lineAlpha: 0.95, radius: 16 });
         this.drawPanel(this.seaGateBg, 196, 90, { fill: 0x0b1723, fillAlpha: 0.94, line: 0x7fd3ff, lineAlpha: 0.9, radius: 14 });
 
@@ -3837,37 +3831,39 @@ handleResize(gameSize) {
 
             this.leftTargetPanelName.setText(enemyName);
             this.leftTargetPanelHPValue.setText(`HP ${Math.ceil(this.selectedTarget.hp)} / ${this.selectedTarget.maxHP}`);
-            this.leftTargetPanelRangeValue.setText(`Range ${Math.round(distance)} • ${this.autoApproachActive ? 'Approaching' : 'Locked'}`);
+            this.leftTargetPanelRangeValue.setText(`${Math.round(distance)}m • ${this.autoApproachActive ? 'Annähern' : 'Gesperrt'}`);
             this.leftTargetPanelPulse.clear();
-            this.leftTargetPanelPulse.lineStyle(2, 0xffd166, 0.34);
-            this.leftTargetPanelPulse.strokeRoundedRect(-4, -4, 240, 118, 14);
-            this.leftTargetPanelPulse.lineStyle(1, 0xfff4bf, 0.18);
-            this.leftTargetPanelPulse.strokeRoundedRect(-8, -8, 248, 126, 16);
+            this.leftTargetPanelPulse.lineStyle(1.5, 0xffd166, 0.32);
+            this.leftTargetPanelPulse.strokeRoundedRect(-3, -3, 178, 74, 12);
             this.leftTargetPanelHP.clear();
             this.leftTargetPanelHP.fillStyle(0x000000, 0.84);
-            this.leftTargetPanelHP.fillRoundedRect(14, 92, 204, 10, 5);
+            this.leftTargetPanelHP.fillRoundedRect(10, 56, 152, 8, 4);
             this.leftTargetPanelHP.fillStyle(targetPercent > 0.45 ? 0xff7d6b : 0xff4040, 1);
-            this.leftTargetPanelHP.fillRoundedRect(14, 92, 204 * targetPercent, 10, 5);
-            this.leftTargetPanelHP.lineStyle(1, 0xfff0bf, 0.4);
-            this.leftTargetPanelHP.strokeRoundedRect(14, 92, 204, 10, 5);
+            this.leftTargetPanelHP.fillRoundedRect(10, 56, 152 * targetPercent, 8, 4);
+            this.leftTargetPanelHP.lineStyle(1, 0xfff0bf, 0.35);
+            this.leftTargetPanelHP.strokeRoundedRect(10, 56, 152, 8, 4);
 
+            /* World-space tag: name + HP bar, shown BELOW the enemy sprite */
+            const belowOffset = (this.selectedTarget.healthBarOffsetY != null
+                ? Math.abs(this.selectedTarget.healthBarOffsetY) * 0.7
+                : 52);
             this.targetWorldInfo.setVisible(true);
-            this.targetWorldInfo.setPosition(this.selectedTarget.x, this.selectedTarget.y - 72);
+            this.targetWorldInfo.setPosition(this.selectedTarget.x, this.selectedTarget.y + belowOffset);
             this.targetWorldInfoName.setText(enemyName);
+            /* Compact background: 148 wide, 38 tall, anchored top-center */
             this.targetWorldInfoBg.clear();
-            this.targetWorldInfoBg.fillStyle(0x000000, 0.76);
-            this.targetWorldInfoBg.lineStyle(2, 0xffcf52, 0.95);
-            this.targetWorldInfoBg.fillRoundedRect(-104, -32, 208, 32, 10);
-            this.targetWorldInfoBg.strokeRoundedRect(-104, -32, 208, 32, 10);
-            this.targetWorldInfoBg.fillStyle(0xffcf52, 0.18);
-            this.targetWorldInfoBg.fillRoundedRect(-100, -28, 200, 6, 3);
+            this.targetWorldInfoBg.fillStyle(0x000000, 0.78);
+            this.targetWorldInfoBg.lineStyle(1.5, 0xffcf52, 0.9);
+            this.targetWorldInfoBg.fillRoundedRect(-74, 0, 148, 38, 8);
+            this.targetWorldInfoBg.strokeRoundedRect(-74, 0, 148, 38, 8);
+            /* HP bar */
             this.targetWorldInfoHP.clear();
             this.targetWorldInfoHP.fillStyle(0x000000, 0.84);
-            this.targetWorldInfoHP.fillRoundedRect(-88, 10, 176, 12, 6);
+            this.targetWorldInfoHP.fillRoundedRect(-54, 22, 108, 8, 4);
             this.targetWorldInfoHP.fillStyle(targetPercent > 0.45 ? 0xff7d6b : 0xff4040, 1);
-            this.targetWorldInfoHP.fillRoundedRect(-88, 10, 176 * targetPercent, 12, 6);
-            this.targetWorldInfoHP.lineStyle(1, 0xfff0bf, 0.42);
-            this.targetWorldInfoHP.strokeRoundedRect(-88, 10, 176, 12, 6);
+            this.targetWorldInfoHP.fillRoundedRect(-54, 22, 108 * targetPercent, 8, 4);
+            this.targetWorldInfoHP.lineStyle(1, 0xfff0bf, 0.38);
+            this.targetWorldInfoHP.strokeRoundedRect(-54, 22, 108, 8, 4);
         } else {
             this.targetHUD.setVisible(false);
             this.leftTargetPanel?.setVisible(false);
