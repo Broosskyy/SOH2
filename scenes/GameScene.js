@@ -601,71 +601,90 @@ export default class GameScene extends Phaser.Scene {
         });
 
         /* ══════════════════════════════════════════════════════════
-           BOS-STYLE COMBAT CLUSTER — measured from reference image
-           Portrait layout:
-             [S1 r40]  [S2 r40]
-             [S3 r40]  [S4 r40]   [⚔ FEUER r68]
-             [barrel r28]
-           Spacing: 90px col / 85px row / attack 1.7× skill size
+           BOS-STYLE COMBAT CLUSTER
+           Anchored LEFT of minimap (landscape) / BOTTOM-RIGHT (portrait)
+           Layout:
+             [S1] [S2]
+             [S3] [S4]  [⚔ FEUER]
+             [🪣]
+           All sizes responsive to screen height; buttons barely touching.
            ══════════════════════════════════════════════════════════ */
         const _W = this.scale.width, _H = this.scale.height;
 
-        /* ── Circle button factory: shadow → outer dark → rim → separator → body → shine ── */
+        /* ── Utility: draw layered circle (shadow→dark ring→rim→separator→body→shine) ── */
         const _circle = (bx, by, br, body, rim) => {
             const g = this.add.graphics().setScrollFactor(0).setDepth(1998);
             g.fillStyle(0x000000, 0.55); g.fillCircle(bx + 3, by + 5, br + 3);
             g.fillStyle(0x060606, 1);    g.fillCircle(bx, by, br + 6);
-            g.fillStyle(rim,       1);   g.fillCircle(bx, by, br + 3);
-            g.fillStyle(0x080808, 1);    g.fillCircle(bx, by, br + 1);
-            g.fillStyle(body,      1);   g.fillCircle(bx, by, br);
-            g.fillStyle(0xffffff, 0.16); g.fillCircle(bx - br*0.20, by - br*0.24, br*0.44);
+            g.fillStyle(rim, 1);         g.fillCircle(bx, by, br + 3);
+            g.fillStyle(0x0a0a0a, 1);    g.fillCircle(bx, by, br + 1);
+            g.fillStyle(body, 1);        g.fillCircle(bx, by, br);
+            g.fillStyle(0xffffff, 0.16); g.fillCircle(bx - br*0.20, by - br*0.26, br*0.44);
             return g;
         };
-        const _circleText = (bx, by, br, txt, style) => {
-            return this.add.text(bx, by, txt, style)
+        const _circleBtn = (bx, by, br, txt, style) =>
+            this.add.text(bx, by, txt, style)
                 .setOrigin(0.5).setScrollFactor(0).setDepth(2001)
                 .setInteractive({ useHandCursor: true,
                     hitArea: new Phaser.Geom.Circle(0, 0, br),
                     hitAreaCallback: Phaser.Geom.Circle.Contains });
-        };
 
-        /* ── ATTACK — dominant primary button, radius 68 ── */
-        const _ar = 68;
-        const _ax = _W - 76,  _ay = _H - 84;
+        /* ── Responsive sizes ── */
+        const _ar = Math.round(Math.min(58, Math.max(40, _H * 0.12)));  // attack radius
+        const _sr = Math.round(_ar * 0.54);                              // skill radius
+        const _gap = _sr * 2 + 8;                                        // col & row spacing
+        const _brr = Math.round(_sr * 0.70);                             // barrel radius
+
+        /* ── Anchor: attack center
+              Landscape → left of minimap (which is at x = width-238)
+              Portrait  → bottom-right corner                              ── */
+        const _isLandscape = _W > _H;
+        const _mmLeft = (this.minimap ? this.minimap.x : _W - 240);
+        const _ax = _isLandscape
+            ? _mmLeft - _ar - 16
+            : _W - _ar - 14;
+        const _ay = _H - Math.round(_H * (_isLandscape ? 0.18 : 0.20));
+
+        /* ── Grid positions ── */
+        const _sCol2 = _ax - _ar - _sr - 14;
+        const _sCol1 = _sCol2 - _gap;
+        const _sRow2 = _ay - _gap;
+        const _sRow1 = _sRow2 - _gap;
+
+        /* ── ATTACK button ── */
         const attackBg = _circle(_ax, _ay, _ar, 0x6e1200, 0xc8900a);
-        attackBg.lineStyle(3, 0xff6600, 0.70); attackBg.strokeCircle(_ax, _ay, _ar - 12);
-        attackBg.lineStyle(1, 0xffcc44, 0.40); attackBg.strokeCircle(_ax, _ay, _ar - 4);
-        const attackBtn = _circleText(_ax, _ay + 2, _ar, '⚔\nFEUER',
-            { fontSize: '17px', fontFamily: 'Arial Black,Arial', fontStyle: 'bold',
-              fill: '#ffd060', stroke: '#2e0800', strokeThickness: 5,
-              align: 'center', lineSpacing: 2 });
+        attackBg.lineStyle(3, 0xff6600, 0.65); attackBg.strokeCircle(_ax, _ay, _ar - 10);
+        attackBg.lineStyle(1, 0xffcc44, 0.35); attackBg.strokeCircle(_ax, _ay, _ar - 2);
+        const _aFsz = Math.max(11, Math.round(_ar * 0.28)) + 'px';
+        const attackBtn = _circleBtn(_ax, _ay + 1, _ar, '⚔\nFEUER',
+            { fontSize: _aFsz, fontFamily: 'Arial Black,Arial', fontStyle: 'bold',
+              fill: '#ffd060', stroke: '#2e0800', strokeThickness: 4,
+              align: 'center', lineSpacing: 1 });
         attackBtn.on('pointerdown', () => { console.log('attack'); });
         attackBtn.on('pointerover', () => {
             attackBg.clear();
             attackBg.fillStyle(0x000000, 0.55); attackBg.fillCircle(_ax+3, _ay+5, _ar+3);
             attackBg.fillStyle(0x060606, 1);    attackBg.fillCircle(_ax, _ay, _ar+6);
             attackBg.fillStyle(0xffdd44, 1);    attackBg.fillCircle(_ax, _ay, _ar+3);
-            attackBg.fillStyle(0x080808, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
+            attackBg.fillStyle(0x0a0a0a, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
             attackBg.fillStyle(0xa02000, 1);    attackBg.fillCircle(_ax, _ay, _ar);
-            attackBg.fillStyle(0xffffff, 0.22); attackBg.fillCircle(_ax-_ar*0.20, _ay-_ar*0.24, _ar*0.44);
-            attackBg.lineStyle(3, 0xff8800, 0.90); attackBg.strokeCircle(_ax, _ay, _ar-12);
+            attackBg.fillStyle(0xffffff, 0.22); attackBg.fillCircle(_ax-_ar*0.20, _ay-_ar*0.26, _ar*0.44);
+            attackBg.lineStyle(3, 0xff8800, 0.90); attackBg.strokeCircle(_ax, _ay, _ar-10);
         });
         attackBtn.on('pointerout', () => {
             attackBg.clear();
             attackBg.fillStyle(0x000000, 0.55); attackBg.fillCircle(_ax+3, _ay+5, _ar+3);
             attackBg.fillStyle(0x060606, 1);    attackBg.fillCircle(_ax, _ay, _ar+6);
             attackBg.fillStyle(0xc8900a, 1);    attackBg.fillCircle(_ax, _ay, _ar+3);
-            attackBg.fillStyle(0x080808, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
+            attackBg.fillStyle(0x0a0a0a, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
             attackBg.fillStyle(0x6e1200, 1);    attackBg.fillCircle(_ax, _ay, _ar);
-            attackBg.fillStyle(0xffffff, 0.16); attackBg.fillCircle(_ax-_ar*0.20, _ay-_ar*0.24, _ar*0.44);
-            attackBg.lineStyle(3, 0xff6600, 0.70); attackBg.strokeCircle(_ax, _ay, _ar-12);
-            attackBg.lineStyle(1, 0xffcc44, 0.40); attackBg.strokeCircle(_ax, _ay, _ar-4);
+            attackBg.fillStyle(0xffffff, 0.16); attackBg.fillCircle(_ax-_ar*0.20, _ay-_ar*0.26, _ar*0.44);
+            attackBg.lineStyle(3, 0xff6600, 0.65); attackBg.strokeCircle(_ax, _ay, _ar-10);
+            attackBg.lineStyle(1, 0xffcc44, 0.35); attackBg.strokeCircle(_ax, _ay, _ar-2);
         });
 
-        /* ── 2×2 SKILL grid — radius 40 each, 90px col / 85px row ── */
-        const _sr = 40;
-        const _sCol1 = _ax - 180, _sCol2 = _ax - 90;
-        const _sRow1 = _ay - 125, _sRow2 = _ay - 40;
+        /* ── 2×2 SKILL grid ── */
+        const _sFsz = Math.max(9, Math.round(_sr * 0.38)) + 'px';
         const _skillGrid = [
             { icon: '💡', label: 'S1', x: _sCol1, y: _sRow1, body: 0x0e1e4a, rim: 0x2a4898 },
             { icon: '🌀', label: 'S2', x: _sCol2, y: _sRow1, body: 0x0e1e4a, rim: 0x2a4898 },
@@ -674,28 +693,29 @@ export default class GameScene extends Phaser.Scene {
         ];
         _skillGrid.forEach(({ icon, label, x, y, body, rim }) => {
             _circle(x, y, _sr, body, rim);
-            _circleText(x, y + 2, _sr, `${icon}\n${label}`,
-                { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold',
+            _circleBtn(x, y + 1, _sr, `${icon}\n${label}`,
+                { fontSize: _sFsz, fontFamily: 'Arial', fontStyle: 'bold',
                   fill: '#cce0ff', stroke: '#040e20', strokeThickness: 3,
                   align: 'center', lineSpacing: -1 })
             .on('pointerdown', () => { console.log('skill'); });
         });
 
-        /* ── BARREL/AMMO indicator — medium, same row as attack, far left ── */
-        const _bx = _sCol1, _by = _ay, _br = 30;
-        _circle(_bx, _by, _br, 0x1a1a2a, 0x444460);
-        _circleText(_bx, _by, _br, '🪣\n0',
-            { fontSize: '11px', fontFamily: 'Arial', fontStyle: 'bold',
-              fill: '#aabbcc', stroke: '#000000', strokeThickness: 2,
+        /* ── BARREL/AMMO — small, below S3, same column ── */
+        _circle(_sCol1, _ay, _brr, 0x1a1820, 0x4a4460);
+        _circleBtn(_sCol1, _ay, _brr, '🪣\n0',
+            { fontSize: Math.max(8, Math.round(_brr * 0.36)) + 'px',
+              fontFamily: 'Arial', fontStyle: 'bold',
+              fill: '#aab8cc', stroke: '#000', strokeThickness: 2,
               align: 'center', lineSpacing: -2 })
-        .on('pointerdown', () => { console.log('skill'); });
+        .on('pointerdown', () => { console.log('ammo'); });
 
-        /* ── CANCEL — hidden until combat starts, stored on scene ── */
-        const _canx = _sCol2, _cany = _ay + 50, _canr = 26;
-        const _cancelBg = _circle(_canx, _cany, _canr, 0x222222, 0x555555);
-        const cancelBtn = _circleText(_canx, _cany, _canr, '✕',
-            { fontSize: '20px', fontFamily: 'Arial', fontStyle: 'bold',
-              fill: '#bbbbbb', stroke: '#000000', strokeThickness: 3 });
+        /* ── CANCEL — hidden until combat; stored on scene ── */
+        const _canr = Math.round(_sr * 0.78);
+        const _canx = _sCol2, _cany = _ay + Math.round(_ar * 0.7);
+        const _cancelBg = _circle(_canx, _cany, _canr, 0x1e1e1e, 0x555555);
+        const cancelBtn = _circleBtn(_canx, _cany, _canr, '✕',
+            { fontSize: Math.max(12, _canr) + 'px', fontFamily: 'Arial', fontStyle: 'bold',
+              fill: '#aaaaaa', stroke: '#000', strokeThickness: 3 });
         cancelBtn.on('pointerdown', () => { console.log('cancel'); });
         this._cancelCombatBtnBg = _cancelBg;
         this._cancelCombatBtn   = cancelBtn;
