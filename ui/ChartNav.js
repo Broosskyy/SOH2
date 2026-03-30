@@ -2,7 +2,6 @@ export default class ChartNav {
     constructor(scene) {
         this.scene = scene;
         this._el = null;
-        this._shipBtn = null;
         this._attackBtn = null;
         this._build();
     }
@@ -26,36 +25,6 @@ export default class ChartNav {
         `;
 
         const s = this.scene;
-
-        const shipBtn = document.createElement('button');
-        shipBtn.id = 'chart-ship-btn';
-        shipBtn.style.cssText = `
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #0a1a2e, #1a3060);
-            border: 2px solid rgba(255,200,80,0.55);
-            color: #ffd080;
-            font-size: 20px;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.7);
-            transition: background 0.15s;
-            flex-shrink: 0;
-        `;
-        shipBtn.textContent = '⚓';
-        const doShip = (e) => {
-            e.preventDefault();
-            s.handleReturnToShipPressed?.();
-        };
-        shipBtn.addEventListener('click', doShip);
-        shipBtn.addEventListener('touchend', doShip, { passive: false });
-        this._shipBtn = shipBtn;
 
         const westBtn = document.createElement('button');
         westBtn.id = 'chart-nav-west';
@@ -152,43 +121,6 @@ export default class ChartNav {
         attackBtn.addEventListener('touchend', doAttack, { passive: false });
         this._attackBtn = attackBtn;
 
-        const repairBtn = document.createElement('button');
-        repairBtn.id = 'chart-repair-btn';
-        repairBtn.style.cssText = `
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #0d280d, #1a4a1a);
-            border: 2px solid rgba(80,220,100,0.65);
-            color: #7fffb0;
-            font-size: 19px;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.6), 0 0 8px rgba(60,200,80,0.25);
-            transition: background 0.15s, box-shadow 0.15s;
-            flex-shrink: 0;
-        `;
-        repairBtn.title = 'Schiff reparieren';
-        repairBtn.textContent = '🔧';
-        const doRepair = (e) => {
-            e.preventDefault();
-            repairBtn.style.background = 'linear-gradient(135deg, #1a5a1a, #2a7a2a)';
-            repairBtn.style.boxShadow  = '0 0 18px rgba(60,200,80,0.6)';
-            setTimeout(() => {
-                repairBtn.style.background = 'linear-gradient(135deg, #0d280d, #1a4a1a)';
-                repairBtn.style.boxShadow  = '0 2px 10px rgba(0,0,0,0.6), 0 0 8px rgba(60,200,80,0.25)';
-            }, 200);
-            s._tryNearestIslandRepair?.();
-        };
-        repairBtn.addEventListener('click', doRepair);
-        repairBtn.addEventListener('touchend', doRepair, { passive: false });
-        this._repairBtn = repairBtn;
-
         const doWest = (e) => {
             e.preventDefault();
             const idx = s.currentChartIndex ?? 1;
@@ -212,12 +144,10 @@ export default class ChartNav {
         eastBtn.addEventListener('click', doEast);
         eastBtn.addEventListener('touchend', doEast, { passive: false });
 
-        nav.appendChild(shipBtn);
         nav.appendChild(westBtn);
         nav.appendChild(center);
         nav.appendChild(eastBtn);
         nav.appendChild(attackBtn);
-        nav.appendChild(repairBtn);
         document.body.appendChild(nav);
         this._el = nav;
 
@@ -244,9 +174,7 @@ export default class ChartNav {
         if (eastBtn) { eastBtn.style.opacity = canEast ? '1' : '0.35'; eastBtn.style.cursor = canEast ? 'pointer' : 'default'; }
     }
 
-    setShipVisible(v) {
-        if (this._shipBtn) this._shipBtn.style.display = v ? 'flex' : 'none';
-    }
+    setShipVisible(_v) { /* ship button now lives as #ahc-ship-btn (bottom-left) */ }
 
     setAttackVisible(v) {
         if (this._attackBtn) this._attackBtn.style.display = v ? 'flex' : 'none';

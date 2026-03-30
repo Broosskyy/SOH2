@@ -603,6 +603,7 @@ export default class GameScene extends Phaser.Scene {
         /* ── BOS-style combat cluster as DOM overlay ── */
         this._buildCombatCluster();
         this._buildShipButton();
+        this._buildRepairButton();
 
         this.finalizeChartEntryPosition();
 
@@ -5347,12 +5348,12 @@ handleResize(gameSize) {
 
         const btn = document.createElement('div');
         btn.id = 'ahc-ship-btn';
-        btn.innerHTML = `<span style="font-size:26px;line-height:1;margin-bottom:2px;">⛵</span><span>SCHIFF</span>`;
+        btn.innerHTML = `<span style="font-size:26px;line-height:1;margin-bottom:2px;">⚓</span><span>ZUM SCHIFF</span>`;
 
         const doOpen = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.handleMenuAction?.('hafen');
+            this.handleReturnToShipPressed?.();
         };
         btn.addEventListener('click', doOpen);
         btn.addEventListener('touchend', doOpen, { passive: false });
@@ -5362,6 +5363,73 @@ handleResize(gameSize) {
         this.events.once('shutdown', () => {
             btn.remove();
             document.getElementById('ahc-ship-btn-css')?.remove();
+        });
+    }
+
+    _buildRepairButton() {
+        if (document.getElementById('ahc-repair-btn')) return;
+
+        const style = document.createElement('style');
+        style.id = 'ahc-repair-btn-css';
+        style.textContent = `
+            #ahc-repair-btn {
+                position: fixed;
+                right: calc(306px + env(safe-area-inset-right, 0px));
+                bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                z-index: 8050;
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                font-size: 8px;
+                color: #7fffb0;
+                background: radial-gradient(circle at 38% 30%, rgba(255,255,255,0.10) 0%, rgba(8,28,14,0.97) 65%);
+                border: 2px solid rgba(60,200,90,0.75);
+                box-shadow: 0 0 0 2px #040d06, 0 3px 14px rgba(0,0,0,0.8), 0 0 10px rgba(60,200,90,0.18);
+                pointer-events: auto;
+                user-select: none;
+                -webkit-user-select: none;
+                transition: filter 0.1s, transform 0.08s, box-shadow 0.15s;
+            }
+            #ahc-repair-btn:active { filter: brightness(1.5); transform: scale(0.93); }
+            #ahc-repair-btn.flash {
+                box-shadow: 0 0 0 2px #040d06, 0 3px 14px rgba(0,0,0,0.8), 0 0 22px rgba(60,240,100,0.7);
+            }
+            @media screen and (max-width: 900px) {
+                #ahc-repair-btn { right: calc(298px + env(safe-area-inset-right, 0px)); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        const btn = document.createElement('div');
+        btn.id = 'ahc-repair-btn';
+        btn.title = 'Schiff reparieren (bei Insel)';
+        btn.innerHTML = `<span style="font-size:20px;line-height:1;margin-bottom:1px;">🔧</span><span>REP</span>`;
+
+        const doRepair = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            btn.classList.add('flash');
+            setTimeout(() => btn.classList.remove('flash'), 280);
+            this._tryNearestIslandRepair?.();
+        };
+        btn.addEventListener('click', doRepair);
+        btn.addEventListener('touchend', doRepair, { passive: false });
+
+        document.body.appendChild(btn);
+        this._repairBtnEl = btn;
+
+        this.events.once('shutdown', () => {
+            btn.remove();
+            document.getElementById('ahc-repair-btn-css')?.remove();
         });
     }
 
