@@ -37,7 +37,7 @@ export default class ItemBar {
         style.textContent = `
             #item-button-root {
                 position: fixed;
-                right: calc(96px + env(safe-area-inset-right, 0px));
+                left: calc(8px + env(safe-area-inset-left, 0px));
                 bottom: calc(8px + env(safe-area-inset-bottom, 0px));
                 z-index: 8050;
                 display: flex;
@@ -342,7 +342,7 @@ export default class ItemBar {
 
             @media screen and (max-width: 900px) {
                 #item-button-root {
-                    right: calc(88px + env(safe-area-inset-right, 0px));
+                    left: calc(6px + env(safe-area-inset-left, 0px));
                     bottom: calc(6px + env(safe-area-inset-bottom, 0px));
                 }
 

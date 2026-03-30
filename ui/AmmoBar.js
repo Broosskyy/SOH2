@@ -79,9 +79,9 @@ export default class AmmoBar {
 
     _skillDefs() {
         return this.scene.combatSkillDefs ?? [
-            { key: 'burst', shortLabel: 'BST', color: '#ffb347', bg: 'rgba(60,30,0,0.95)' },
-            { key: 'break', shortLabel: 'BRK', color: '#63d6ff', bg: 'rgba(10,40,70,0.95)' },
-            { key: 'repair', shortLabel: 'RPR', color: '#7fffb0', bg: 'rgba(10,50,25,0.95)' },
+            { key: 'burst',  shortLabel: 'BST', fullLabel: 'Burst-Feuer',    color: '#ffb347', bg: 'rgba(60,30,0,0.95)' },
+            { key: 'break',  shortLabel: 'BRK', fullLabel: 'Masten-Brecher', color: '#63d6ff', bg: 'rgba(10,40,70,0.95)' },
+            { key: 'repair', shortLabel: 'RPR', fullLabel: 'Reparatur',      color: '#7fffb0', bg: 'rgba(10,50,25,0.95)' },
         ];
     }
 
@@ -93,7 +93,7 @@ export default class AmmoBar {
         style.textContent = `
             #ammo-bar {
                 position: fixed;
-                right: calc(8px + env(safe-area-inset-right, 0px));
+                right: calc(134px + env(safe-area-inset-right, 0px));
                 bottom: calc(8px + env(safe-area-inset-bottom, 0px));
                 z-index: 8000;
                 display: flex;
@@ -105,12 +105,82 @@ export default class AmmoBar {
                 padding-bottom: env(safe-area-inset-bottom, 0px);
             }
 
-            .sf-skill-column {
+            .sf-skills-wrap {
+                position: relative;
+                display: flex;
+                align-items: flex-end;
+            }
+
+            .sf-skills-toggle {
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
                 align-items: center;
-                margin-bottom: 4px;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                border: 2px solid rgba(100,200,140,0.85);
+                background: radial-gradient(circle at 38% 32%, rgba(255,255,255,0.12) 0%, rgba(10,50,25,0.96) 62%);
+                box-shadow: inset 0 0 8px rgba(100,255,160,0.06), 0 3px 10px rgba(0,0,0,0.72);
+                color: #7fffb0;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                font-size: 9px;
+                text-shadow: 0 0 6px rgba(0,0,0,0.9);
+                transition: filter 0.1s, transform 0.08s;
+            }
+
+            .sf-skills-toggle:active {
+                filter: brightness(1.4);
+                transform: scale(0.93);
+            }
+
+            .sf-skills-popup {
+                position: absolute;
+                bottom: calc(100% + 8px);
+                right: 0;
+                display: none;
+                flex-direction: column;
+                gap: 4px;
+                padding: 7px;
+                background: linear-gradient(180deg, rgba(14,22,36,0.98) 0%, rgba(8,14,24,0.98) 100%);
+                border: 2px solid rgba(140,100,44,0.95);
+                border-radius: 10px;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+                z-index: 8200;
+                min-width: 148px;
+                pointer-events: auto;
+            }
+
+            .sf-skills-popup.open {
+                display: flex;
+            }
+
+            .sf-skills-popup-row {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                padding: 4px 5px;
+                border-radius: 7px;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                transition: background 0.1s;
+            }
+
+            .sf-skills-popup-row:active {
+                background: rgba(255,255,255,0.09);
+            }
+
+            .sf-skills-popup-name {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                color: #cce4ff;
+                white-space: nowrap;
+                font-weight: bold;
             }
 
             .sf-skill {
@@ -128,6 +198,7 @@ export default class AmmoBar {
                 font-size: 10px;
                 font-weight: bold;
                 text-shadow: 0 0 8px currentColor;
+                flex-shrink: 0;
             }
 
             .sf-ammo-stack {
@@ -398,13 +469,15 @@ export default class AmmoBar {
 
             @media screen and (max-width: 900px) {
                 #ammo-bar {
-                    right: calc(6px + env(safe-area-inset-right, 0px));
+                    right: calc(130px + env(safe-area-inset-right, 0px));
                     bottom: calc(6px + env(safe-area-inset-bottom, 0px));
                     gap: 5px;
                 }
 
-                .sf-skill-column {
-                    gap: 5px;
+                .sf-skills-toggle {
+                    width: 44px;
+                    height: 44px;
+                    font-size: 8px;
                 }
 
                 .sf-skill {
@@ -477,12 +550,19 @@ export default class AmmoBar {
         const bar = document.createElement('div');
         bar.id = 'ammo-bar';
 
-        const skillColumn = document.createElement('div');
-        skillColumn.className = 'sf-skill-column';
+        const skillsWrap = document.createElement('div');
+        skillsWrap.className = 'sf-skills-wrap';
+
+        const skillsToggle = document.createElement('div');
+        skillsToggle.className = 'sf-skills-toggle';
+        skillsToggle.innerHTML = `<span style="font-size:18px;line-height:1;">⚡</span><span style="margin-top:2px;">SKL</span>`;
+
+        const skillsPopup = document.createElement('div');
+        skillsPopup.className = 'sf-skills-popup';
 
         this._skillDefs().forEach(skill => {
-            const wrap = document.createElement('div');
-            wrap.className = 'sf-btn-wrap';
+            const row = document.createElement('div');
+            row.className = 'sf-skills-popup-row';
 
             const btn = document.createElement('div');
             btn.className = 'sf-skill';
@@ -490,21 +570,40 @@ export default class AmmoBar {
             btn.style.color = skill.color;
             btn.textContent = skill.shortLabel;
 
+            const nameEl = document.createElement('span');
+            nameEl.className = 'sf-skills-popup-name';
+            nameEl.style.color = skill.color;
+            nameEl.textContent = skill.fullLabel ?? skill.shortLabel;
+
             const doSkill = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                this._pressFeedback(wrap);
+                this._pressFeedback(row);
+                skillsPopup.classList.remove('open');
                 this.scene.activateSkill?.(skill.key);
             };
 
-            wrap.dataset.skill = skill.key;
-            wrap.appendChild(btn);
-            wrap.addEventListener('click', doSkill);
-            wrap.addEventListener('touchend', doSkill, { passive: false });
+            row.dataset.skill = skill.key;
+            row.appendChild(btn);
+            row.appendChild(nameEl);
+            row.addEventListener('click', doSkill);
+            row.addEventListener('touchend', doSkill, { passive: false });
 
-            this._skillEls[skill.key] = wrap;
-            skillColumn.appendChild(wrap);
+            this._skillEls[skill.key] = row;
+            skillsPopup.appendChild(row);
         });
+
+        const doToggleSkills = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._pressFeedback(skillsToggle);
+            skillsPopup.classList.toggle('open');
+        };
+        skillsToggle.addEventListener('click', doToggleSkills);
+        skillsToggle.addEventListener('touchend', doToggleSkills, { passive: false });
+
+        skillsWrap.appendChild(skillsToggle);
+        skillsWrap.appendChild(skillsPopup);
 
         const ammoStack = document.createElement('div');
         ammoStack.className = 'sf-ammo-stack';
@@ -691,7 +790,7 @@ export default class AmmoBar {
         ammoStack.appendChild(ammoPanel);
         ammoStack.appendChild(mainAmmoWrap);
 
-        bar.appendChild(skillColumn);
+        bar.appendChild(skillsWrap);
         bar.appendChild(ammoStack);
 
         document.body.appendChild(bar);

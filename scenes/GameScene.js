@@ -5280,72 +5280,16 @@ handleResize(gameSize) {
         style.textContent = `
             #ahc-combat-cluster {
                 position: fixed;
-                right: 8px;
-                bottom: 100px;
+                right: calc(8px + env(safe-area-inset-right, 0px));
+                bottom: calc(8px + env(safe-area-inset-bottom, 0px));
                 z-index: 8100;
                 display: flex;
                 flex-direction: row;
-                align-items: center;
-                gap: 5px;
+                align-items: flex-end;
+                gap: 0;
                 pointer-events: auto;
                 user-select: none;
                 -webkit-user-select: none;
-            }
-            #ahc-combat-cluster .cc-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 5px;
-            }
-            #ahc-combat-cluster .cc-btn {
-                width: 70px;
-                height: 70px;
-                border-radius: 50%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                touch-action: manipulation;
-                -webkit-tap-highlight-color: transparent;
-                font-family: Arial, sans-serif;
-                font-weight: bold;
-                font-size: 13px;
-                line-height: 1.15;
-                text-align: center;
-                color: #cce4ff;
-                text-shadow: 0 0 6px rgba(0,0,0,0.9);
-                border: 3px solid #2a4898;
-                background: radial-gradient(circle at 38% 28%, rgba(255,255,255,0.14) 0%, rgba(14,30,74,0.98) 65%);
-                box-shadow:
-                    inset 0 0 10px rgba(42,72,152,0.3),
-                    0 0 0 2px #060a14,
-                    0 4px 14px rgba(0,0,0,0.8);
-                transition: filter 0.1s, transform 0.08s;
-                position: relative;
-                overflow: hidden;
-            }
-            #ahc-combat-cluster .cc-btn::before {
-                content: '';
-                position: absolute;
-                top: 6%; left: 12%;
-                width: 42%; height: 36%;
-                border-radius: 50%;
-                background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 70%);
-                pointer-events: none;
-            }
-            #ahc-combat-cluster .cc-btn:active {
-                filter: brightness(1.4);
-                transform: scale(0.93);
-            }
-            #ahc-combat-cluster .cc-btn .cc-icon {
-                font-size: 22px;
-                line-height: 1;
-                margin-bottom: 2px;
-            }
-            #ahc-combat-cluster .cc-btn .cc-label {
-                font-size: 11px;
-                color: #a0c8ff;
-                letter-spacing: 0.5px;
             }
             #ahc-combat-cluster .cc-attack {
                 width: 118px;
@@ -5429,36 +5373,15 @@ handleResize(gameSize) {
             }
             #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.4); transform: scale(0.9); }
             @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-btn    { width: 58px; height: 58px; font-size: 11px; }
-                #ahc-combat-cluster .cc-btn .cc-icon { font-size: 18px; }
-                #ahc-combat-cluster .cc-attack { width: 98px; height: 98px; font-size: 14px; }
-                #ahc-combat-cluster .cc-attack .cc-icon { font-size: 22px; }
-                #ahc-combat-cluster .cc-cancel { width: 44px; height: 44px; font-size: 18px; }
-                #ahc-combat-cluster { bottom: 88px; gap: 4px; }
-                #ahc-combat-cluster .cc-grid   { gap: 4px; }
+                #ahc-combat-cluster .cc-attack { width: 96px; height: 96px; font-size: 13px; }
+                #ahc-combat-cluster .cc-attack .cc-icon { font-size: 20px; }
+                #ahc-combat-cluster .cc-cancel { width: 40px; height: 40px; font-size: 16px; }
             }
         `;
         document.head.appendChild(style);
 
         const root = document.createElement('div');
         root.id = 'ahc-combat-cluster';
-
-        const grid = document.createElement('div');
-        grid.className = 'cc-grid';
-
-        const skills = [
-            { icon: '💡', label: 'S1' },
-            { icon: '🌀', label: 'S2' },
-            { icon: '🔥', label: 'S3' },
-            { icon: '⚡', label: 'S4' },
-        ];
-        skills.forEach(({ icon, label }) => {
-            const btn = document.createElement('div');
-            btn.className = 'cc-btn';
-            btn.innerHTML = `<span class="cc-icon">${icon}</span><span class="cc-label">${label}</span>`;
-            btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
-            grid.appendChild(btn);
-        });
 
         const attack = document.createElement('div');
         attack.className = 'cc-attack';
@@ -5476,7 +5399,6 @@ handleResize(gameSize) {
             this.clearTargetAndAttackState?.();
         });
 
-        root.appendChild(grid);
         root.appendChild(attack);
         root.appendChild(cancel);
         document.body.appendChild(root);
