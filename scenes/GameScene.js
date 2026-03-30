@@ -602,6 +602,7 @@ export default class GameScene extends Phaser.Scene {
 
         /* ── BOS-style combat cluster as DOM overlay ── */
         this._buildCombatCluster();
+        this._buildShipButton();
 
         this.finalizeChartEntryPosition();
 
@@ -3943,7 +3944,8 @@ handleResize(gameSize) {
         this.attackBtn?.setVisible(true);
         this.attackLabel?.setVisible(true);
         this.cancelAttackText?.setVisible(true);
-        this.activateCannonAttack(true);
+        /* Manual fire only — player must press FEUER to start shooting */
+        this.refreshActionButtonStates();
     }
 
     showHealPopup(x, y, amount) {
@@ -4248,9 +4250,19 @@ handleResize(gameSize) {
             !hasTarget
                 ? 'Tap an enemy to lock target'
                 : cannonActive
-                    ? (this.autoApproachActive ? `Closing distance • ${ammo?.label ?? 'Ammo'}` : `Cannons firing automatically • ${ammo?.label ?? 'Ammo'}`)
-                    : 'Target locked • auto attack ready'
+                    ? (this.autoApproachActive ? `Closing distance • ${ammo?.label ?? 'Ammo'}` : `Cannons firing • ${ammo?.label ?? 'Ammo'} • Press ✕ to abort`)
+                    : 'Target locked — press FEUER to open fire'
         );
+
+        /* DOM combat cluster: firing state + abort overlay */
+        const attackEl = document.querySelector('#ahc-combat-cluster .cc-attack');
+        const cancelEl = this._cancelCombatBtnEl;
+        if (attackEl) {
+            attackEl.classList.toggle('is-firing', !!cannonActive);
+        }
+        if (cancelEl) {
+            cancelEl.classList.toggle('visible', !!cannonActive);
+        }
     }
 
     refreshAmmoButtons() {
@@ -5272,6 +5284,78 @@ handleResize(gameSize) {
                 [S3][S4]  [⚔ FEUER]
        Positioned bottom-right, above the item bar (z 8100).
     ────────────────────────────────────────────────────────────── */
+    _buildShipButton() {
+        if (document.getElementById('ahc-ship-btn')) return;
+
+        const style = document.createElement('style');
+        style.id = 'ahc-ship-btn-css';
+        style.textContent = `
+            #ahc-ship-btn {
+                position: fixed;
+                left: calc(8px + env(safe-area-inset-left, 0px));
+                bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                z-index: 8050;
+                width: 78px;
+                height: 78px;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                font-size: 10px;
+                color: #a8d4ff;
+                text-shadow: 0 0 6px rgba(0,0,0,0.9);
+                border: 3px solid rgba(80,150,220,0.85);
+                background: radial-gradient(circle at 38% 30%, rgba(255,255,255,0.12) 0%, rgba(12,28,56,0.97) 65%);
+                box-shadow:
+                    inset 0 0 12px rgba(80,160,255,0.08),
+                    0 0 0 2px #060c1a,
+                    0 4px 16px rgba(0,0,0,0.8);
+                pointer-events: auto;
+                user-select: none;
+                -webkit-user-select: none;
+                transition: filter 0.1s, transform 0.08s;
+            }
+            #ahc-ship-btn:active { filter: brightness(1.4); transform: scale(0.93); }
+            #ahc-ship-btn::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                border-radius: 50%;
+                background: radial-gradient(circle at 34% 28%, rgba(255,255,255,0.18) 0%, transparent 55%);
+                pointer-events: none;
+            }
+            @media screen and (max-width: 900px) {
+                #ahc-ship-btn { width: 72px; height: 72px; font-size: 9px; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        const btn = document.createElement('div');
+        btn.id = 'ahc-ship-btn';
+        btn.innerHTML = `<span style="font-size:26px;line-height:1;margin-bottom:2px;">⛵</span><span>SCHIFF</span>`;
+
+        const doOpen = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleMenuAction?.('hafen');
+        };
+        btn.addEventListener('click', doOpen);
+        btn.addEventListener('touchend', doOpen, { passive: false });
+
+        document.body.appendChild(btn);
+
+        this.events.once('shutdown', () => {
+            btn.remove();
+            document.getElementById('ahc-ship-btn-css')?.remove();
+        });
+    }
+
     _buildCombatCluster() {
         if (document.getElementById('ahc-combat-cluster')) return;
 
@@ -5319,7 +5403,7 @@ handleResize(gameSize) {
                     0 6px 22px rgba(0,0,0,0.9);
                 position: relative;
                 overflow: hidden;
-                transition: filter 0.1s, transform 0.08s, box-shadow 0.1s;
+                transition: filter 0.1s, transform 0.08s, box-shadow 0.15s, border-color 0.15s;
             }
             #ahc-combat-cluster .cc-attack::before {
                 content: '';
@@ -5353,29 +5437,43 @@ handleResize(gameSize) {
                 line-height: 1;
                 margin-bottom: 2px;
             }
+            #ahc-combat-cluster .cc-attack.is-firing {
+                border-color: #5fffbb;
+                box-shadow:
+                    inset 0 0 22px rgba(100,255,180,0.22),
+                    0 0 0 2px #1a0400,
+                    0 0 0 5px #5fffbb,
+                    0 0 0 7px #1a0400,
+                    0 0 22px rgba(100,255,180,0.4),
+                    0 6px 22px rgba(0,0,0,0.9);
+            }
             #ahc-combat-cluster .cc-cancel {
-                width: 52px;
-                height: 52px;
+                position: absolute;
+                bottom: 6px;
+                right: 6px;
+                width: 36px;
+                height: 36px;
                 border-radius: 50%;
-                display: flex;
+                display: none;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
-                font-size: 22px;
-                color: #aaaaaa;
-                border: 2px solid #555555;
-                background: radial-gradient(circle, #2a2a2a 60%, #1a1a1a);
-                box-shadow: 0 0 0 2px #080808, 0 4px 10px rgba(0,0,0,0.7);
+                font-size: 16px;
+                font-weight: bold;
+                color: #ffccaa;
+                border: 2px solid rgba(255,100,60,0.85);
+                background: rgba(0,0,0,0.58);
+                z-index: 10;
                 transition: filter 0.1s, transform 0.08s;
-                display: none;
             }
-            #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.4); transform: scale(0.9); }
+            #ahc-combat-cluster .cc-cancel.visible { display: flex; }
+            #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
             @media (max-height: 420px) {
                 #ahc-combat-cluster .cc-attack { width: 96px; height: 96px; font-size: 13px; }
                 #ahc-combat-cluster .cc-attack .cc-icon { font-size: 20px; }
-                #ahc-combat-cluster .cc-cancel { width: 40px; height: 40px; font-size: 16px; }
+                #ahc-combat-cluster .cc-cancel { width: 30px; height: 30px; font-size: 13px; }
             }
         `;
         document.head.appendChild(style);
@@ -5396,11 +5494,12 @@ handleResize(gameSize) {
         cancel.textContent = '✕';
         cancel.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
+            e.preventDefault();
             this.clearTargetAndAttackState?.();
         });
 
+        attack.appendChild(cancel);
         root.appendChild(attack);
-        root.appendChild(cancel);
         document.body.appendChild(root);
 
         this._combatClusterEl   = root;

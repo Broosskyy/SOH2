@@ -93,7 +93,7 @@ export default class AmmoBar {
         style.textContent = `
             #ammo-bar {
                 position: fixed;
-                right: calc(134px + env(safe-area-inset-right, 0px));
+                right: calc(192px + env(safe-area-inset-right, 0px));
                 bottom: calc(8px + env(safe-area-inset-bottom, 0px));
                 z-index: 8000;
                 display: flex;
@@ -400,8 +400,8 @@ export default class AmmoBar {
             }
 
             .sf-main-ammo-btn {
-                width: 78px;
-                height: 78px;
+                width: 50px;
+                height: 50px;
                 border-radius: 50%;
                 position: relative;
                 overflow: hidden;
@@ -429,7 +429,7 @@ export default class AmmoBar {
                 position: relative;
                 z-index: 1;
                 font-family: Arial, sans-serif;
-                font-size: 21px;
+                font-size: 16px;
                 font-weight: bold;
                 line-height: 1;
                 text-shadow: 0 0 8px currentColor;
@@ -438,9 +438,9 @@ export default class AmmoBar {
             .sf-main-ammo-count {
                 position: relative;
                 z-index: 1;
-                margin-top: 4px;
+                margin-top: 2px;
                 font-family: Arial, sans-serif;
-                font-size: 14px;
+                font-size: 10px;
                 color: rgba(255,255,255,0.9);
                 line-height: 1;
             }
@@ -469,7 +469,7 @@ export default class AmmoBar {
 
             @media screen and (max-width: 900px) {
                 #ammo-bar {
-                    right: calc(130px + env(safe-area-inset-right, 0px));
+                    right: calc(188px + env(safe-area-inset-right, 0px));
                     bottom: calc(6px + env(safe-area-inset-bottom, 0px));
                     gap: 5px;
                 }
@@ -487,12 +487,12 @@ export default class AmmoBar {
                 }
 
                 .sf-main-ammo-btn {
-                    width: 72px;
-                    height: 72px;
+                    width: 46px;
+                    height: 46px;
                 }
 
                 .sf-main-ammo-label {
-                    font-size: 19px;
+                    font-size: 14px;
                 }
 
                 .sf-main-ammo-count {

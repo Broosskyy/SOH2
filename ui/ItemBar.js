@@ -37,7 +37,7 @@ export default class ItemBar {
         style.textContent = `
             #item-button-root {
                 position: fixed;
-                left: calc(8px + env(safe-area-inset-left, 0px));
+                right: calc(134px + env(safe-area-inset-right, 0px));
                 bottom: calc(8px + env(safe-area-inset-bottom, 0px));
                 z-index: 8050;
                 display: flex;
@@ -64,8 +64,8 @@ export default class ItemBar {
             }
 
             .item-main-btn {
-                width: 78px;
-                height: 78px;
+                width: 50px;
+                height: 50px;
                 border-radius: 50%;
                 position: relative;
                 overflow: hidden;
@@ -92,16 +92,16 @@ export default class ItemBar {
             .item-main-icon {
                 position: relative;
                 z-index: 1;
-                font-size: 24px;
+                font-size: 18px;
                 line-height: 1;
             }
 
             .item-main-label {
                 position: relative;
                 z-index: 1;
-                margin-top: 3px;
+                margin-top: 2px;
                 font-family: Arial, sans-serif;
-                font-size: 12px;
+                font-size: 9px;
                 font-weight: bold;
                 color: #f6d57b;
                 line-height: 1;
@@ -342,21 +342,21 @@ export default class ItemBar {
 
             @media screen and (max-width: 900px) {
                 #item-button-root {
-                    left: calc(6px + env(safe-area-inset-left, 0px));
+                    right: calc(130px + env(safe-area-inset-right, 0px));
                     bottom: calc(6px + env(safe-area-inset-bottom, 0px));
                 }
 
                 .item-main-btn {
-                    width: 72px;
-                    height: 72px;
+                    width: 46px;
+                    height: 46px;
                 }
 
                 .item-main-icon {
-                    font-size: 22px;
+                    font-size: 16px;
                 }
 
                 .item-main-label {
-                    font-size: 11px;
+                    font-size: 8px;
                 }
 
                 .item-popup {
