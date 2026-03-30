@@ -600,68 +600,98 @@ export default class GameScene extends Phaser.Scene {
             this._logbookAdd('damage_dealt', amount);
         });
 
-        /* ── Combat Button Area — BOS-style: 2×2 grid left, large attack right ── */
-        /*   [S1][S2]                  */
-        /*   [S3][✕]   [⚔ FEUER]     */
-        const _ax = this.scale.width  - 70;   /* large attack: far bottom-right */
-        const _ay = this.scale.height - 115;
-        const _ar = 52; // radius
+        /* ══════════════════════════════════════════════════════════
+           BOS-STYLE COMBAT CLUSTER  —  bottom-right
+           Layout (portrait + landscape):
+             [S1]  [S2]
+             [S3]  [S4]    [⚔ FEUER]
+                  [✕]
+           ══════════════════════════════════════════════════════════ */
+        const _W = this.scale.width, _H = this.scale.height;
 
-        const attackBg = this.add.graphics().setScrollFactor(0).setDepth(1000);
-        /* Outer gold ring */
-        attackBg.lineStyle(4, 0xd4aa40, 1);
-        attackBg.fillStyle(0x5a0808, 1);
-        attackBg.fillCircle(_ax, _ay, _ar);
-        attackBg.strokeCircle(_ax, _ay, _ar);
-        /* Inner highlight rim */
-        attackBg.lineStyle(2, 0xffdd66, 0.45);
-        attackBg.strokeCircle(_ax, _ay, _ar - 6);
+        /* Utility: draw one game-style circle button (shadow → rim → body → highlight) */
+        const _circle = (bx, by, br, body, rim) => {
+            const g = this.add.graphics().setScrollFactor(0).setDepth(1998);
+            g.fillStyle(0x000000, 0.50); g.fillCircle(bx + 3, by + 4, br + 2);    // drop shadow
+            g.fillStyle(0x080808, 1);    g.fillCircle(bx, by, br + 5);             // outer dark ring
+            g.fillStyle(rim, 1);         g.fillCircle(bx, by, br + 3);             // coloured rim
+            g.fillStyle(0x0d0d0d, 1);    g.fillCircle(bx, by, br + 1);             // inner separator
+            g.fillStyle(body, 1);        g.fillCircle(bx, by, br);                 // body
+            g.fillStyle(0xffffff, 0.14); g.fillCircle(bx - br*0.22, by - br*0.26, br*0.46); // shine
+            return g;
+        };
 
-        const attackBtn = this.add.text(_ax, _ay, '⚔\nFEUER',
-            { fontSize: '15px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffdd88',
-              stroke: '#5a0000', strokeThickness: 3, align: 'center' }
-        ).setOrigin(0.5).setScrollFactor(0).setDepth(1001)
+        /* ── ATTACK button — primary action, largest ── */
+        const _ax = _W - 74,  _ay = _H - 108, _ar = 62;
+        const attackBg = _circle(_ax, _ay, _ar, 0x6e1200, 0xb8860b);
+        attackBg.lineStyle(2, 0xff7722, 0.65); attackBg.strokeCircle(_ax, _ay, _ar - 10);
+
+        const attackBtn = this.add.text(_ax, _ay + 2, '⚔\nFEUER',
+            { fontSize: '16px', fontFamily: 'Arial Black,Arial', fontStyle: 'bold',
+              fill: '#ffd060', stroke: '#3a0800', strokeThickness: 4,
+              align: 'center', lineSpacing: 1 }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
          .setInteractive({ useHandCursor: true,
              hitArea: new Phaser.Geom.Circle(0, 0, _ar),
              hitAreaCallback: Phaser.Geom.Circle.Contains });
         attackBtn.on('pointerdown', () => { console.log('attack'); });
-        attackBtn.on('pointerover',  () => { attackBg.clear();
-            attackBg.lineStyle(4, 0xffdd66, 1); attackBg.fillStyle(0x8b1010, 1);
-            attackBg.fillCircle(_ax, _ay, _ar); attackBg.strokeCircle(_ax, _ay, _ar);
-            attackBg.lineStyle(2, 0xffdd66, 0.6); attackBg.strokeCircle(_ax, _ay, _ar - 6); });
-        attackBtn.on('pointerout',   () => { attackBg.clear();
-            attackBg.lineStyle(4, 0xd4aa40, 1); attackBg.fillStyle(0x5a0808, 1);
-            attackBg.fillCircle(_ax, _ay, _ar); attackBg.strokeCircle(_ax, _ay, _ar);
-            attackBg.lineStyle(2, 0xffdd66, 0.45); attackBg.strokeCircle(_ax, _ay, _ar - 6); });
-
-        /* 2×2 grid — left of Attack button
-           Col A: _ax - 165   Col B: _ax - 95
-           Row 1: _ay - 80    Row 2: _ay - 10      */
-        const _ga = _ax - 165;  /* grid col A */
-        const _gb = _ax - 95;   /* grid col B */
-        const _gr1 = _ay - 80;  /* grid row 1 */
-        const _gr2 = _ay - 10;  /* grid row 2 */
-
-        /* Skill Buttons — row 1 (S1, S2) + S3 bottom-left */
-        const _skillDefs = [
-            { lbl: '💡 S1', x: _ga, y: _gr1 },
-            { lbl: '🌀 S2', x: _gb, y: _gr1 },
-            { lbl: '🔥 S3', x: _ga, y: _gr2 },
-        ];
-        _skillDefs.forEach(({ lbl, x, y }) => {
-            const sb = this.add.text(x, y, lbl,
-                { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
-                  backgroundColor: '#1a3a6a', padding: { x: 12, y: 8 } }
-            ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
-            sb.on('pointerdown', () => { console.log('skill'); });
+        attackBtn.on('pointerover',  () => {
+            attackBg.clear();
+            attackBg.fillStyle(0x000000, 0.50); attackBg.fillCircle(_ax+3,  _ay+4,  _ar+2);
+            attackBg.fillStyle(0x080808, 1);    attackBg.fillCircle(_ax, _ay, _ar+5);
+            attackBg.fillStyle(0xffe066, 1);    attackBg.fillCircle(_ax, _ay, _ar+3);
+            attackBg.fillStyle(0x0d0d0d, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
+            attackBg.fillStyle(0x9e1c00, 1);    attackBg.fillCircle(_ax, _ay, _ar);
+            attackBg.fillStyle(0xffffff, 0.20); attackBg.fillCircle(_ax-_ar*0.22, _ay-_ar*0.26, _ar*0.46);
+            attackBg.lineStyle(2, 0xff9944, 0.85); attackBg.strokeCircle(_ax, _ay, _ar-10);
+        });
+        attackBtn.on('pointerout', () => {
+            attackBg.clear();
+            attackBg.fillStyle(0x000000, 0.50); attackBg.fillCircle(_ax+3,  _ay+4,  _ar+2);
+            attackBg.fillStyle(0x080808, 1);    attackBg.fillCircle(_ax, _ay, _ar+5);
+            attackBg.fillStyle(0xb8860b, 1);    attackBg.fillCircle(_ax, _ay, _ar+3);
+            attackBg.fillStyle(0x0d0d0d, 1);    attackBg.fillCircle(_ax, _ay, _ar+1);
+            attackBg.fillStyle(0x6e1200, 1);    attackBg.fillCircle(_ax, _ay, _ar);
+            attackBg.fillStyle(0xffffff, 0.14); attackBg.fillCircle(_ax-_ar*0.22, _ay-_ar*0.26, _ar*0.46);
+            attackBg.lineStyle(2, 0xff7722, 0.65); attackBg.strokeCircle(_ax, _ay, _ar-10);
         });
 
-        /* Cancel Button — bottom-right slot of the 2×2 grid */
-        const cancelBtn = this.add.text(_gb, _gr2, '✕ Cancel',
-            { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
-              backgroundColor: '#333333', padding: { x: 14, y: 7 } }
-        ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
+        /* ── 2×2 skill grid — to the left of attack ── */
+        const _sr = 34;  /* skill button radius */
+        const _skillGrid = [
+            { icon: '💡', label: 'S1', x: _ax - 158, y: _ay - 76, body: 0x0e2252, rim: 0x2a4898 },
+            { icon: '🌀', label: 'S2', x: _ax - 84,  y: _ay - 76, body: 0x0e2252, rim: 0x2a4898 },
+            { icon: '🔥', label: 'S3', x: _ax - 158, y: _ay - 4,  body: 0x0e2252, rim: 0x2a4898 },
+            { icon: '⚡', label: 'S4', x: _ax - 84,  y: _ay - 4,  body: 0x1a2e10, rim: 0x3a6a22 },
+        ];
+        _skillGrid.forEach(({ icon, label, x, y, body, rim }) => {
+            _circle(x, y, _sr, body, rim);
+            const st = this.add.text(x, y + 1, `${icon}\n${label}`,
+                { fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold',
+                  fill: '#b8d4ff', stroke: '#050e22', strokeThickness: 3,
+                  align: 'center', lineSpacing: -2 }
+            ).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+             .setInteractive({ useHandCursor: true,
+                 hitArea: new Phaser.Geom.Circle(0, 0, _sr),
+                 hitAreaCallback: Phaser.Geom.Circle.Contains });
+            st.on('pointerdown', () => { console.log('skill'); });
+        });
+
+        /* ── Cancel button — small, below grid, hidden until combat starts ── */
+        const _canx = _ax - 84, _cany = _ay + 58, _canr = 24;
+        const _cancelBg = _circle(_canx, _cany, _canr, 0x282828, 0x555555);
+        const cancelBtn = this.add.text(_canx, _cany, '✕',
+            { fontSize: '18px', fontFamily: 'Arial', fontStyle: 'bold',
+              fill: '#aaaaaa', stroke: '#000000', strokeThickness: 3 }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+         .setInteractive({ useHandCursor: true,
+             hitArea: new Phaser.Geom.Circle(0, 0, _canr),
+             hitAreaCallback: Phaser.Geom.Circle.Contains });
         cancelBtn.on('pointerdown', () => { console.log('cancel'); });
+        /* Store refs so combat system can show/hide cancel */
+        this._cancelCombatBtnBg  = _cancelBg;
+        this._cancelCombatBtn    = cancelBtn;
+        _cancelBg.setAlpha(0); cancelBtn.setAlpha(0).disableInteractive();
 
         this.finalizeChartEntryPosition();
 
