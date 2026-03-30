@@ -600,6 +600,16 @@ export default class GameScene extends Phaser.Scene {
             this._logbookAdd('damage_dealt', amount);
         });
 
+        /* ── Attack Button ── */
+        const attackBtn = this.add.text(
+            this.scale.width / 2,
+            this.scale.height - 100,
+            '⚔ ATTACK',
+            { fontSize: '18px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
+              backgroundColor: '#8b0000', padding: { x: 18, y: 10 } }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
+        attackBtn.on('pointerdown', () => { console.log('attack'); });
+
         this.finalizeChartEntryPosition();
 
         this.events.on('shutdown', () => {
