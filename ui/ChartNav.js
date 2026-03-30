@@ -11,13 +11,14 @@ export default class ChartNav {
         nav.id = 'chart-nav';
         nav.style.cssText = `
             position: fixed;
-            bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-            left: 50%;
-            transform: translateX(-50%);
+            top: 318px;
+            right: 18px;
+            left: auto;
+            transform: none;
             z-index: 8000;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
             pointer-events: auto;
             user-select: none;
             -webkit-user-select: none;
@@ -29,13 +30,13 @@ export default class ChartNav {
         const westBtn = document.createElement('button');
         westBtn.id = 'chart-nav-west';
         westBtn.style.cssText = `
-            width: 44px; height: 44px;
+            width: 36px; height: 36px;
             border-radius: 50% 0 0 50%;
             background: linear-gradient(135deg, #0a1a2e, #0d2040);
             border: 2px solid rgba(99,214,255,0.4);
             border-right: none;
             color: #9fdcff;
-            font-size: 18px;
+            font-size: 15px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
@@ -47,8 +48,8 @@ export default class ChartNav {
 
         const center = document.createElement('div');
         center.style.cssText = `
-            min-width: 80px;
-            height: 44px;
+            min-width: 70px;
+            height: 36px;
             background: linear-gradient(135deg, #0d2040, #0a1a2e);
             border-top: 2px solid rgba(99,214,255,0.4);
             border-bottom: 2px solid rgba(99,214,255,0.4);
@@ -57,11 +58,11 @@ export default class ChartNav {
             align-items: center;
             justify-content: center;
             gap: 1px;
-            padding: 0 10px;
+            padding: 0 8px;
         `;
         const numEl = document.createElement('div');
         numEl.id = 'chart-nav-num';
-        numEl.style.cssText = `font-size:15px;font-weight:bold;color:#dff8ff;letter-spacing:1px;line-height:1;`;
+        numEl.style.cssText = `font-size:13px;font-weight:bold;color:#dff8ff;letter-spacing:1px;line-height:1;`;
         const nameEl = document.createElement('div');
         nameEl.id = 'chart-nav-name';
         nameEl.style.cssText = `font-size:9px;color:#63d6ff;line-height:1;`;
@@ -71,13 +72,13 @@ export default class ChartNav {
         const eastBtn = document.createElement('button');
         eastBtn.id = 'chart-nav-east';
         eastBtn.style.cssText = `
-            width: 44px; height: 44px;
+            width: 36px; height: 36px;
             border-radius: 0 50% 50% 0;
             background: linear-gradient(135deg, #0d2040, #0a1a2e);
             border: 2px solid rgba(99,214,255,0.4);
             border-left: none;
             color: #9fdcff;
-            font-size: 18px;
+            font-size: 15px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
@@ -90,13 +91,13 @@ export default class ChartNav {
         const attackBtn = document.createElement('button');
         attackBtn.id = 'chart-attack-btn';
         attackBtn.style.cssText = `
-            height: 44px;
-            padding: 0 14px;
-            border-radius: 22px;
+            height: 36px;
+            padding: 0 11px;
+            border-radius: 18px;
             background: linear-gradient(135deg, #6a0c0c, #c01010);
             border: 2px solid rgba(255,100,80,0.7);
             color: #fff;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
             letter-spacing: 1px;
             cursor: pointer;
@@ -105,7 +106,7 @@ export default class ChartNav {
             display: none;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 12px rgba(200,30,30,0.5);
+            box-shadow: 0 0 10px rgba(200,30,30,0.5);
             transition: background 0.15s;
             flex-shrink: 0;
             white-space: nowrap;
