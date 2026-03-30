@@ -600,15 +600,33 @@ export default class GameScene extends Phaser.Scene {
             this._logbookAdd('damage_dealt', amount);
         });
 
-        /* ── Attack Button ── */
-        const attackBtn = this.add.text(
-            this.scale.width / 2,
-            this.scale.height - 100,
-            '⚔ ATTACK',
+        /* ── Combat Button Area (bottom-right) ── */
+        const _cx = this.scale.width  - 120;
+        const _cy = this.scale.height - 140;
+
+        /* Attack Button — repositioned to bottom-right */
+        const attackBtn = this.add.text(_cx, _cy, '⚔ ATTACK',
             { fontSize: '18px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
               backgroundColor: '#8b0000', padding: { x: 18, y: 10 } }
         ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
         attackBtn.on('pointerdown', () => { console.log('attack'); });
+
+        /* Cancel Button — directly below Attack */
+        const cancelBtn = this.add.text(_cx, _cy + 70, '✕ Cancel',
+            { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
+              backgroundColor: '#333333', padding: { x: 14, y: 7 } }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
+        cancelBtn.on('pointerdown', () => { console.log('cancel'); });
+
+        /* 3 Skill Buttons — vertically stacked to the left of Attack */
+        const _skillLabels = ['💡 S1', '🌀 S2', '🔥 S3'];
+        _skillLabels.forEach((lbl, i) => {
+            const sb = this.add.text(_cx - 120, _cy - 60 + i * 50, lbl,
+                { fontSize: '13px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
+                  backgroundColor: '#1a3a6a', padding: { x: 12, y: 8 } }
+            ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
+            sb.on('pointerdown', () => { console.log('skill'); });
+        });
 
         this.finalizeChartEntryPosition();
 
