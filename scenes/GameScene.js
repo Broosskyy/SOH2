@@ -604,12 +604,37 @@ export default class GameScene extends Phaser.Scene {
         const _cx = this.scale.width  - 120;
         const _cy = this.scale.height - 140;
 
-        /* Attack Button — repositioned to bottom-right */
-        const attackBtn = this.add.text(_cx, _cy, '⚔ ATTACK',
-            { fontSize: '18px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffffff',
-              backgroundColor: '#8b0000', padding: { x: 18, y: 10 } }
-        ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setInteractive({ useHandCursor: true });
+        /* Attack Button — large round maritime main-action button */
+        const _ax = this.scale.width - 95;
+        const _ay = this.scale.height - 110;
+        const _ar = 52; // radius
+
+        const attackBg = this.add.graphics().setScrollFactor(0).setDepth(1000);
+        /* Outer gold ring */
+        attackBg.lineStyle(4, 0xd4aa40, 1);
+        attackBg.fillStyle(0x5a0808, 1);
+        attackBg.fillCircle(_ax, _ay, _ar);
+        attackBg.strokeCircle(_ax, _ay, _ar);
+        /* Inner highlight rim */
+        attackBg.lineStyle(2, 0xffdd66, 0.45);
+        attackBg.strokeCircle(_ax, _ay, _ar - 6);
+
+        const attackBtn = this.add.text(_ax, _ay, '⚔\nFEUER',
+            { fontSize: '15px', fontFamily: 'Arial', fontStyle: 'bold', fill: '#ffdd88',
+              stroke: '#5a0000', strokeThickness: 3, align: 'center' }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(1001)
+         .setInteractive({ useHandCursor: true,
+             hitArea: new Phaser.Geom.Circle(0, 0, _ar),
+             hitAreaCallback: Phaser.Geom.Circle.Contains });
         attackBtn.on('pointerdown', () => { console.log('attack'); });
+        attackBtn.on('pointerover',  () => { attackBg.clear();
+            attackBg.lineStyle(4, 0xffdd66, 1); attackBg.fillStyle(0x8b1010, 1);
+            attackBg.fillCircle(_ax, _ay, _ar); attackBg.strokeCircle(_ax, _ay, _ar);
+            attackBg.lineStyle(2, 0xffdd66, 0.6); attackBg.strokeCircle(_ax, _ay, _ar - 6); });
+        attackBtn.on('pointerout',   () => { attackBg.clear();
+            attackBg.lineStyle(4, 0xd4aa40, 1); attackBg.fillStyle(0x5a0808, 1);
+            attackBg.fillCircle(_ax, _ay, _ar); attackBg.strokeCircle(_ax, _ay, _ar);
+            attackBg.lineStyle(2, 0xffdd66, 0.45); attackBg.strokeCircle(_ax, _ay, _ar - 6); });
 
         /* Cancel Button — directly below Attack */
         const cancelBtn = this.add.text(_cx, _cy + 70, '✕ Cancel',
