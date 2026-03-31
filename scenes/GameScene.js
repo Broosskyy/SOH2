@@ -3885,6 +3885,8 @@ handleResize(gameSize) {
         this.attackBtn?.setVisible(false);
         this.attackLabel?.setVisible(false);
         this.cancelAttackText?.setVisible(true);
+        /* Show cannon button immediately */
+        if (this._combatClusterEl) this._combatClusterEl.style.display = 'block';
         /* Manual fire only — player must press FEUER to start shooting */
         this.refreshActionButtonStates();
     }
@@ -4079,6 +4081,8 @@ handleResize(gameSize) {
         this.attackBtn.setVisible(false);
         this.attackLabel.setVisible(false);
         this.cancelAttackText.setVisible(true);
+        /* Hide cannon button */
+        if (this._combatClusterEl) this._combatClusterEl.style.display = 'none';
         this.targetIndicatorGlow?.clear();
         this.targetIndicatorGlow?.setVisible(false);
         this.targetIndicator.clear();
@@ -4162,7 +4166,7 @@ handleResize(gameSize) {
 
         /* DOM combat cluster — show only when a valid target is locked */
         if (this._combatClusterEl) {
-            this._combatClusterEl.style.display = hasTarget ? 'flex' : 'none';
+            this._combatClusterEl.style.display = hasTarget ? 'block' : 'none';
         }
 
         this.cancelAttackText.setVisible(true);
@@ -4181,7 +4185,7 @@ handleResize(gameSize) {
             attackEl.classList.toggle('is-firing', !!cannonActive);
         }
         if (cancelEl) {
-            cancelEl.classList.toggle('visible', !!cannonActive);
+            cancelEl.style.display = cannonActive ? 'flex' : 'none';
         }
     }
 
@@ -5327,92 +5331,71 @@ handleResize(gameSize) {
     }
 
     _buildCombatCluster() {
-        /* Remove any stale instance so changes always take effect */
+        /* Always rebuild fresh */
         document.getElementById('ahc-combat-cluster')?.remove();
         document.getElementById('ahc-combat-css')?.remove();
 
-        const style = document.createElement('style');
-        style.id = 'ahc-combat-css';
-        style.textContent = `
-            #ahc-combat-cluster {
-                position: fixed;
-                right: calc(8px + env(safe-area-inset-right, 0px));
-                bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-                z-index: 8100;
-                width: 120px;
-                height: 120px;
-                pointer-events: auto;
-                user-select: none;
-                -webkit-user-select: none;
-            }
-            #ahc-combat-cluster .cc-attack {
-                display: block;
-                width: 120px;
-                height: 120px;
-                object-fit: contain;
-                background: none;
-                border: none;
-                box-shadow: none;
-                padding: 0;
-                margin: 0;
-                cursor: pointer;
-                touch-action: manipulation;
-                -webkit-tap-highlight-color: transparent;
-                transition: transform 0.08s, filter 0.1s;
-            }
-            #ahc-combat-cluster .cc-attack:active {
-                transform: scale(0.92);
-                filter: brightness(1.35);
-            }
-            #ahc-combat-cluster .cc-attack.is-firing {
-                filter: drop-shadow(0 0 10px #5fffbb);
-            }
-            #ahc-combat-cluster .cc-cancel {
-                position: absolute;
-                bottom: 4px;
-                right: 4px;
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                touch-action: manipulation;
-                -webkit-tap-highlight-color: transparent;
-                font-size: 15px;
-                font-weight: bold;
-                color: #ffccaa;
-                border: 2px solid rgba(255,100,60,0.85);
-                background: rgba(0,0,0,0.65);
-                z-index: 1;
-                transition: filter 0.1s, transform 0.08s;
-            }
-            #ahc-combat-cluster .cc-cancel.visible { display: flex; }
-            #ahc-combat-cluster .cc-cancel:active  { filter: brightness(1.5); transform: scale(0.88); }
-            @media (max-height: 420px) {
-                #ahc-combat-cluster,
-                #ahc-combat-cluster .cc-attack { width: 90px; height: 90px; }
-            }
-        `;
-        document.head.appendChild(style);
-
+        /* ── wrapper ── */
         const root = document.createElement('div');
         root.id = 'ahc-combat-cluster';
-        root.style.display = 'none';
+        root.style.cssText = [
+            'position:fixed',
+            'right:8px',
+            'bottom:8px',
+            'z-index:8100',
+            'width:120px',
+            'height:120px',
+            'display:none',
+            'pointer-events:auto',
+        ].join(';');
 
+        /* ── cannon image ── */
         const attack = document.createElement('img');
         attack.className = 'cc-attack';
-        attack.src = 'assets/attack_btn_cannon.png?v=6';
+        attack.src = '/assets/attack_btn_cannon.png?v=7';
         attack.alt = 'FEUER';
+        attack.style.cssText = [
+            'display:block',
+            'width:120px',
+            'height:120px',
+            'object-fit:contain',
+            'background:none',
+            'border:none',
+            'box-shadow:none',
+            'padding:0',
+            'margin:0',
+            'cursor:pointer',
+            'touch-action:manipulation',
+            '-webkit-tap-highlight-color:transparent',
+        ].join(';');
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             this.handleAttackButtonPressed?.();
         });
 
+        /* ── cancel button ── */
         const cancel = document.createElement('div');
         cancel.className = 'cc-cancel';
         cancel.textContent = '✕';
+        cancel.style.cssText = [
+            'position:absolute',
+            'bottom:4px',
+            'right:4px',
+            'width:30px',
+            'height:30px',
+            'border-radius:50%',
+            'display:none',
+            'align-items:center',
+            'justify-content:center',
+            'cursor:pointer',
+            'touch-action:manipulation',
+            'font-size:15px',
+            'font-weight:bold',
+            'color:#ffccaa',
+            'border:2px solid rgba(255,100,60,0.85)',
+            'background:rgba(0,0,0,0.65)',
+            'z-index:1',
+        ].join(';');
         cancel.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             e.preventDefault();
