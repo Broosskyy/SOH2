@@ -5367,8 +5367,8 @@ handleResize(gameSize) {
                 -webkit-user-select: none;
             }
             #ahc-combat-cluster .cc-attack {
-                width: 118px;
-                height: 118px;
+                width: 120px;
+                height: 120px;
                 border-radius: 50%;
                 object-fit: contain;
                 background: none;
@@ -5411,7 +5411,7 @@ handleResize(gameSize) {
             #ahc-combat-cluster .cc-cancel.visible { display: flex; }
             #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
             @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack { width: 86px; height: 86px; }
+                #ahc-combat-cluster .cc-attack { width: 95px; height: 95px; }
                 #ahc-combat-cluster .cc-cancel { width: 30px; height: 30px; font-size: 13px; }
             }
         `;
