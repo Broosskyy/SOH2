@@ -3885,8 +3885,7 @@ handleResize(gameSize) {
         this.attackBtn?.setVisible(false);
         this.attackLabel?.setVisible(false);
         this.cancelAttackText?.setVisible(true);
-        /* Show cannon button immediately */
-        if (this._combatClusterEl) this._combatClusterEl.style.display = 'block';
+        /* Combat cluster is always visible — no toggle needed here */
         /* Manual fire only — player must press FEUER to start shooting */
         this.refreshActionButtonStates();
     }
@@ -4081,8 +4080,7 @@ handleResize(gameSize) {
         this.attackBtn.setVisible(false);
         this.attackLabel.setVisible(false);
         this.cancelAttackText.setVisible(true);
-        /* Hide cannon button */
-        if (this._combatClusterEl) this._combatClusterEl.style.display = 'none';
+        /* Combat cluster stays visible — button fires only when target active */
         this.targetIndicatorGlow?.clear();
         this.targetIndicatorGlow?.setVisible(false);
         this.targetIndicator.clear();
@@ -4164,9 +4162,10 @@ handleResize(gameSize) {
         if (this.harpoonLabel) this.harpoonLabel.setVisible(false);
         if (this.harpoonBtnHit) this.harpoonBtnHit.disableInteractive();
 
-        /* DOM combat cluster — show only when a valid target is locked */
+        /* Combat cluster is always visible — opacity signals no-target state */
         if (this._combatClusterEl) {
-            this._combatClusterEl.style.display = hasTarget ? 'block' : 'none';
+            this._combatClusterEl.style.opacity = hasTarget ? '1' : '0.35';
+            this._combatClusterEl.style.pointerEvents = hasTarget ? 'auto' : 'none';
         }
 
         this.cancelAttackText.setVisible(true);
@@ -5342,10 +5341,10 @@ handleResize(gameSize) {
             'position:fixed',
             'right:8px',
             'bottom:8px',
-            'z-index:8100',
+            'z-index:9999',
             'width:120px',
             'height:120px',
-            'display:none',
+            'display:block',
             'pointer-events:auto',
         ].join(';');
 
