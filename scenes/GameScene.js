@@ -5355,12 +5355,16 @@ handleResize(gameSize) {
                 border: none;
                 box-shadow: none;
                 border-radius: 0;
-                transition: filter 0.1s, transform 0.08s;
                 filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8));
             }
-            #ahc-combat-cluster .cc-attack:active {
-                filter: brightness(1.35) drop-shadow(0 2px 8px rgba(255,180,0,0.8));
-                transform: scale(0.92);
+            @keyframes cc-punch {
+                0%   { transform: scale(1);    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)); }
+                20%  { transform: scale(0.85); filter: brightness(1.6) drop-shadow(0 0 18px rgba(255,160,40,0.9)); }
+                60%  { transform: scale(1.09); filter: brightness(1.2) drop-shadow(0 0 22px rgba(255,200,80,0.7)); }
+                100% { transform: scale(1);    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)); }
+            }
+            #ahc-combat-cluster .cc-attack.cc-punching {
+                animation: cc-punch 180ms ease-out forwards;
             }
             #ahc-combat-cluster .cc-attack.is-firing {
                 filter: drop-shadow(0 0 18px rgba(100,255,180,0.9)) brightness(1.15);
@@ -5402,6 +5406,11 @@ handleResize(gameSize) {
         attack.innerHTML = '';
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
+            /* punch animation */
+            attack.classList.remove('cc-punching');
+            void attack.offsetWidth; /* reflow to restart animation */
+            attack.classList.add('cc-punching');
+            attack.addEventListener('animationend', () => attack.classList.remove('cc-punching'), { once: true });
             this.handleAttackButtonPressed?.();
         });
 
