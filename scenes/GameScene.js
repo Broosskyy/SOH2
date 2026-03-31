@@ -3885,8 +3885,7 @@ handleResize(gameSize) {
         this.attackBtn?.setVisible(false);
         this.attackLabel?.setVisible(false);
         this.cancelAttackText?.setVisible(true);
-        /* Show cannon button immediately */
-        if (this._combatClusterEl) this._combatClusterEl.style.display = 'flex';
+        /* Button always visible — nothing to toggle here */
         /* Manual fire only — player must press FEUER to start shooting */
         this.refreshActionButtonStates();
     }
@@ -4081,8 +4080,7 @@ handleResize(gameSize) {
         this.attackBtn.setVisible(false);
         this.attackLabel.setVisible(false);
         this.cancelAttackText.setVisible(true);
-        /* Hide cannon button */
-        if (this._combatClusterEl) this._combatClusterEl.style.display = 'none';
+        /* Button stays visible always */
         this.targetIndicatorGlow?.clear();
         this.targetIndicatorGlow?.setVisible(false);
         this.targetIndicator.clear();
@@ -4164,10 +4162,7 @@ handleResize(gameSize) {
         if (this.harpoonLabel) this.harpoonLabel.setVisible(false);
         if (this.harpoonBtnHit) this.harpoonBtnHit.disableInteractive();
 
-        /* DOM combat cluster — show only when a valid target is locked */
-        if (this._combatClusterEl) {
-            this._combatClusterEl.style.display = hasTarget ? 'flex' : 'none';
-        }
+        /* DOM combat cluster — always visible; glow when firing */
 
         this.cancelAttackText.setVisible(true);
         this.cancelAttackText.setText(
