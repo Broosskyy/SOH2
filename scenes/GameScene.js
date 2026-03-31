@@ -3882,8 +3882,8 @@ handleResize(gameSize) {
         this.autoApproachActive = false;
         this.autoAttackMode = 'cannon';
         this.targetIndicator.setVisible(true);
-        this.attackBtn?.setVisible(true);
-        this.attackLabel?.setVisible(true);
+        this.attackBtn?.setVisible(false);
+        this.attackLabel?.setVisible(false);
         this.cancelAttackText?.setVisible(true);
         /* Manual fire only — player must press FEUER to start shooting */
         this.refreshActionButtonStates();
@@ -4151,39 +4151,18 @@ handleResize(gameSize) {
         const isLand = w2 > h2;
         this.chartNav?.setAttackVisible(hasTarget);
 
-        if (this.attackBtn) this.attackBtn.setVisible(hasTarget && !isLand);
-        if (this.attackLabel) {
-            this.attackLabel.setVisible(hasTarget && !isLand);
-            this.attackLabel.setText('ATTACK');
-        }
-
-        if (this.attackBtnHit) {
-            this.attackBtnHit.setVisible(hasTarget && !isLand);
-            if (hasTarget && !isLand) this.attackBtnHit.setInteractive({ useHandCursor: true });
-            else this.attackBtnHit.disableInteractive();
-        }
-
+        /* Phaser canvas attack button — permanently hidden; DOM cluster is the only visible button */
+        if (this.attackBtn) this.attackBtn.setVisible(false);
+        if (this.attackLabel) this.attackLabel.setVisible(false);
+        if (this.attackBtnHit) this.attackBtnHit.disableInteractive();
+        if (this.attackBtnRing) { this.attackBtnRing.clear(); this.attackBtnRing.setVisible(false); }
         if (this.harpoonBtn) this.harpoonBtn.setVisible(false);
         if (this.harpoonLabel) this.harpoonLabel.setVisible(false);
-        if (this.harpoonBtnHit) {
-            this.harpoonBtnHit.setVisible(false);
-            this.harpoonBtnHit.disableInteractive();
-        }
+        if (this.harpoonBtnHit) this.harpoonBtnHit.disableInteractive();
 
-        if (this.attackBtnRing) {
-            this.attackBtnRing.clear();
-            if (hasTarget && !isLand) {
-                this.attackBtnRing.setVisible(true);
-                this.attackBtnRing.lineStyle(4, cannonActive ? 0x7fffd4 : 0xffffff, cannonActive ? 0.95 : 0.28);
-                this.attackBtnRing.strokeCircle(0, 0, 66);
-            } else {
-                this.attackBtnRing.setVisible(false);
-            }
-        }
-
-        if (this.attackBtn) {
-            this.attackBtn.setAlpha(cannonActive ? 1 : 0.9);
-            this.attackBtn.setTint(cannonActive ? 0xbfffe6 : 0xffffff);
+        /* DOM combat cluster — show only when a valid target is locked */
+        if (this._combatClusterEl) {
+            this._combatClusterEl.style.display = hasTarget ? 'flex' : 'none';
         }
 
         this.cancelAttackText.setVisible(true);
@@ -5439,8 +5418,9 @@ handleResize(gameSize) {
             this.clearTargetAndAttackState?.();
         });
 
-        attack.appendChild(cancel);
+        root.style.display = 'none';
         root.appendChild(attack);
+        root.appendChild(cancel);
         document.body.appendChild(root);
 
         this._combatClusterEl   = root;
