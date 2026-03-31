@@ -5345,8 +5345,8 @@ handleResize(gameSize) {
                 -webkit-user-select: none;
             }
             #ahc-combat-cluster .cc-attack {
-                width: 118px;
-                height: 118px;
+                width: 160px;
+                height: 160px;
                 position: relative;
                 cursor: pointer;
                 touch-action: manipulation;
@@ -5356,17 +5356,17 @@ handleResize(gameSize) {
                 box-shadow: none;
                 border-radius: 0;
                 transition: filter 0.1s, transform 0.08s;
-                filter: drop-shadow(0 4px 12px rgba(0,0,0,0.7));
+                filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8));
             }
             #ahc-combat-cluster .cc-attack:active {
                 filter: brightness(1.35) drop-shadow(0 2px 8px rgba(255,180,0,0.8));
                 transform: scale(0.92);
             }
             #ahc-combat-cluster .cc-attack.is-firing {
-                filter: drop-shadow(0 0 14px rgba(100,255,180,0.9)) brightness(1.15);
+                filter: drop-shadow(0 0 18px rgba(100,255,180,0.9)) brightness(1.15);
             }
             @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack { width: 88px; height: 88px; }
+                #ahc-combat-cluster .cc-attack { width: 118px; height: 118px; }
             }
             #ahc-combat-cluster .cc-cancel {
                 position: absolute;
