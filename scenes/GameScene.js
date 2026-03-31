@@ -5347,74 +5347,26 @@ handleResize(gameSize) {
             #ahc-combat-cluster .cc-attack {
                 width: 118px;
                 height: 118px;
-                border-radius: 50%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
+                position: relative;
                 cursor: pointer;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
-                font-family: "Arial Black", Arial, sans-serif;
-                font-weight: 900;
-                font-size: 16px;
-                line-height: 1.2;
-                text-align: center;
-                color: #ffd060;
-                text-shadow: 0 0 10px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,1);
-                border: 4px solid #c8900a;
-                background: radial-gradient(circle at 36% 26%, rgba(255,220,100,0.18) 0%, rgba(110,18,0,0.97) 65%);
-                box-shadow:
-                    inset 0 0 18px rgba(255,100,0,0.25),
-                    0 0 0 2px #1a0400,
-                    0 0 0 5px #c8900a,
-                    0 0 0 7px #1a0400,
-                    0 6px 22px rgba(0,0,0,0.9);
-                position: relative;
-                overflow: hidden;
-                transition: filter 0.1s, transform 0.08s, box-shadow 0.15s, border-color 0.15s;
-            }
-            #ahc-combat-cluster .cc-attack::before {
-                content: '';
-                position: absolute;
-                top: 5%; left: 10%;
-                width: 42%; height: 36%;
-                border-radius: 50%;
-                background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 68%);
-                pointer-events: none;
-            }
-            #ahc-combat-cluster .cc-attack::after {
-                content: '';
-                position: absolute;
-                inset: 8px;
-                border-radius: 50%;
-                border: 2px solid rgba(255,100,0,0.45);
-                pointer-events: none;
+                background: url('/assets/attack_btn_cannon_nobg.png') center/contain no-repeat;
+                border: none;
+                box-shadow: none;
+                border-radius: 0;
+                transition: filter 0.1s, transform 0.08s;
+                filter: drop-shadow(0 4px 12px rgba(0,0,0,0.7));
             }
             #ahc-combat-cluster .cc-attack:active {
-                filter: brightness(1.5);
+                filter: brightness(1.35) drop-shadow(0 2px 8px rgba(255,180,0,0.8));
                 transform: scale(0.92);
-                box-shadow:
-                    inset 0 0 28px rgba(255,180,0,0.5),
-                    0 0 0 2px #1a0400,
-                    0 0 0 5px #ffe044,
-                    0 0 0 7px #1a0400,
-                    0 4px 28px rgba(255,120,0,0.6);
-            }
-            #ahc-combat-cluster .cc-attack .cc-icon {
-                font-size: 28px;
-                line-height: 1;
-                margin-bottom: 2px;
             }
             #ahc-combat-cluster .cc-attack.is-firing {
-                border-color: #5fffbb;
-                box-shadow:
-                    inset 0 0 22px rgba(100,255,180,0.22),
-                    0 0 0 2px #1a0400,
-                    0 0 0 5px #5fffbb,
-                    0 0 0 7px #1a0400,
-                    0 0 22px rgba(100,255,180,0.4),
-                    0 6px 22px rgba(0,0,0,0.9);
+                filter: drop-shadow(0 0 14px rgba(100,255,180,0.9)) brightness(1.15);
+            }
+            @media (max-height: 420px) {
+                #ahc-combat-cluster .cc-attack { width: 88px; height: 88px; }
             }
             #ahc-combat-cluster .cc-cancel {
                 position: absolute;
@@ -5439,11 +5391,6 @@ handleResize(gameSize) {
             }
             #ahc-combat-cluster .cc-cancel.visible { display: flex; }
             #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
-            @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack { width: 96px; height: 96px; font-size: 13px; }
-                #ahc-combat-cluster .cc-attack .cc-icon { font-size: 20px; }
-                #ahc-combat-cluster .cc-cancel { width: 30px; height: 30px; font-size: 13px; }
-            }
         `;
         document.head.appendChild(style);
 
@@ -5452,7 +5399,7 @@ handleResize(gameSize) {
 
         const attack = document.createElement('div');
         attack.className = 'cc-attack';
-        attack.innerHTML = `<span class="cc-icon">⚔</span>FEUER`;
+        attack.innerHTML = '';
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             this.handleAttackButtonPressed?.();
