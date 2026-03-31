@@ -205,7 +205,7 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('gold-bag', 'assets/loot_gold_bag_pro.webp');
         this.load.image('xp-orb', 'assets/loot_xp_orb_pro.webp');
 
-        this.load.image('attack-btn', 'assets/ui_button_attack_pro_v2.webp');
+        this.load.image('attack-btn', 'assets/attack_btn_cannon_nobg.png');
         this.load.image('harpoon-btn', 'assets/ui_button_harpoon_pro_v2.webp');
         this.load.image('inventory-btn', 'assets/ui_icon_inventory_pro.webp');
         this.load.image('shop-btn', 'assets/ui_icon_shop_pro.webp');
@@ -2996,7 +2996,7 @@ handleResize(gameSize) {
 
         this.actionsContainer = this.add.container(width - 210, height - 212).setDepth(5000);
         this.attackBtn = this.add.image(0, 0, 'attack-btn')
-            .setScale(0.225)
+            .setScale(0.15)
             .setVisible(false)
             .setDepth(5001);
         this.attackBtnRing = this.add.graphics().setDepth(5000).setVisible(false);
@@ -3011,13 +3011,9 @@ handleResize(gameSize) {
             pointer?.event?.stopPropagation?.();
             this.handleAttackButtonPressed();
         });
-        this.attackLabel = this.add.text(0, 116, 'ATTACK', {
-            fontSize: '22px',
-            fontFamily: 'Arial',
-            fill: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 3
-        }).setOrigin(0.5).setVisible(false).setDepth(5001);
+        this.attackLabel = this.add.text(0, 116, '', {
+            fontSize: '1px'
+        }).setOrigin(0.5).setVisible(false).setDepth(5001).setAlpha(0);
 
         this.harpoonBtn = this.add.image(-164, 10, 'harpoon-btn')
             .setScale(0.225)
