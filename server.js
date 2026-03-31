@@ -15,6 +15,13 @@ const pool = new Pool({
 const sessions = new Map();
 
 app.use(express.json({ limit: '4mb' }));
+app.use((req, res, next) => {
+    if (req.path.endsWith('.js') || req.path.endsWith('.mjs')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+    }
+    next();
+});
 app.use(express.static(path.join(__dirname, '.')));
 
 async function initDB() {

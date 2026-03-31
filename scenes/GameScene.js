@@ -5367,25 +5367,27 @@ handleResize(gameSize) {
                 -webkit-user-select: none;
             }
             #ahc-combat-cluster .cc-attack {
+                position: absolute;
+                right: 0;
+                bottom: 0;
                 width: 120px;
                 height: 120px;
-                border-radius: 50%;
                 object-fit: contain;
                 background: none;
                 border: none;
                 box-shadow: none;
+                padding: 0;
+                margin: 0;
                 cursor: pointer;
-                touch-action: manipulation;
-                -webkit-tap-highlight-color: transparent;
-                transition: transform 0.08s, filter 0.1s;
-                display: block;
-            }
-            #ahc-combat-cluster .cc-attack:active {
-                transform: scale(0.92);
-                filter: brightness(1.4);
             }
             #ahc-combat-cluster .cc-attack.is-firing {
                 filter: drop-shadow(0 0 8px #5fffbb);
+            }
+            @media (max-height: 420px) {
+                #ahc-combat-cluster .cc-attack {
+                    width: 95px;
+                    height: 95px;
+                }
             }
             #ahc-combat-cluster .cc-cancel {
                 position: absolute;
@@ -5411,7 +5413,6 @@ handleResize(gameSize) {
             #ahc-combat-cluster .cc-cancel.visible { display: flex; }
             #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
             @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack { width: 95px; height: 95px; }
                 #ahc-combat-cluster .cc-cancel { width: 30px; height: 30px; font-size: 13px; }
             }
         `;
@@ -5422,7 +5423,7 @@ handleResize(gameSize) {
 
         const attack = document.createElement('img');
         attack.className = 'cc-attack';
-        attack.src = 'assets/attack_btn_cannon.png?v=3';
+        attack.src = 'assets/attack_btn_cannon.png?v=5';
         attack.alt = 'FEUER';
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
