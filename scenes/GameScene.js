@@ -205,7 +205,7 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('gold-bag', 'assets/loot_gold_bag_pro.webp');
         this.load.image('xp-orb', 'assets/loot_xp_orb_pro.webp');
 
-        this.load.image('attack-btn', 'assets/attack_btn_cannon_nobg.png');
+        this.load.image('cannon-attack-btn', 'assets/attack_btn_cannon.png?v=2');
         this.load.image('harpoon-btn', 'assets/ui_button_harpoon_pro_v2.webp');
         this.load.image('inventory-btn', 'assets/ui_icon_inventory_pro.webp');
         this.load.image('shop-btn', 'assets/ui_icon_shop_pro.webp');
@@ -2995,7 +2995,7 @@ handleResize(gameSize) {
         this.panelQuickDock.setVisible(false);
 
         this.actionsContainer = this.add.container(width - 210, height - 212).setDepth(5000);
-        this.attackBtn = this.add.image(0, 0, 'attack-btn')
+        this.attackBtn = this.add.image(0, 0, 'cannon-attack-btn')
             .setScale(0.15)
             .setVisible(false)
             .setDepth(5001);
