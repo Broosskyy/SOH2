@@ -5333,8 +5333,8 @@ handleResize(gameSize) {
         style.textContent = `
             #ahc-combat-cluster {
                 position: fixed;
-                right: calc(8px + env(safe-area-inset-right, 0px));
-                bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                right: -30px;
+                bottom: -30px;
                 z-index: 8100;
                 display: flex;
                 flex-direction: row;
