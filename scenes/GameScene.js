@@ -3885,7 +3885,8 @@ handleResize(gameSize) {
         this.attackBtn?.setVisible(false);
         this.attackLabel?.setVisible(false);
         this.cancelAttackText?.setVisible(true);
-        /* Combat cluster is always visible — no toggle needed here */
+        /* Show cannon button immediately */
+        if (this._combatClusterEl) this._combatClusterEl.style.display = 'flex';
         /* Manual fire only — player must press FEUER to start shooting */
         this.refreshActionButtonStates();
     }
@@ -4080,7 +4081,8 @@ handleResize(gameSize) {
         this.attackBtn.setVisible(false);
         this.attackLabel.setVisible(false);
         this.cancelAttackText.setVisible(true);
-        /* Combat cluster stays visible — button fires only when target active */
+        /* Hide cannon button */
+        if (this._combatClusterEl) this._combatClusterEl.style.display = 'none';
         this.targetIndicatorGlow?.clear();
         this.targetIndicatorGlow?.setVisible(false);
         this.targetIndicator.clear();
@@ -4162,10 +4164,9 @@ handleResize(gameSize) {
         if (this.harpoonLabel) this.harpoonLabel.setVisible(false);
         if (this.harpoonBtnHit) this.harpoonBtnHit.disableInteractive();
 
-        /* Combat cluster is always visible — opacity signals no-target state */
+        /* DOM combat cluster — show only when a valid target is locked */
         if (this._combatClusterEl) {
-            this._combatClusterEl.style.opacity = hasTarget ? '1' : '0.35';
-            this._combatClusterEl.style.pointerEvents = hasTarget ? 'auto' : 'none';
+            this._combatClusterEl.style.display = hasTarget ? 'flex' : 'none';
         }
 
         this.cancelAttackText.setVisible(true);
@@ -4184,7 +4185,7 @@ handleResize(gameSize) {
             attackEl.classList.toggle('is-firing', !!cannonActive);
         }
         if (cancelEl) {
-            cancelEl.style.display = cannonActive ? 'flex' : 'none';
+            cancelEl.classList.toggle('visible', !!cannonActive);
         }
     }
 
@@ -5330,86 +5331,156 @@ handleResize(gameSize) {
     }
 
     _buildCombatCluster() {
-        /* Always rebuild fresh */
-        document.getElementById('ahc-combat-cluster')?.remove();
-        document.getElementById('ahc-combat-css')?.remove();
+        if (document.getElementById('ahc-combat-cluster')) return;
 
-        /* ── wrapper ── */
+        const style = document.createElement('style');
+        style.id = 'ahc-combat-css';
+        style.textContent = `
+            #ahc-combat-cluster {
+                position: fixed;
+                right: calc(8px + env(safe-area-inset-right, 0px));
+                bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                z-index: 8100;
+                display: flex;
+                flex-direction: row;
+                align-items: flex-end;
+                gap: 0;
+                pointer-events: auto;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            #ahc-combat-cluster .cc-attack {
+                width: 118px;
+                height: 118px;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-family: "Arial Black", Arial, sans-serif;
+                font-weight: 900;
+                font-size: 16px;
+                line-height: 1.2;
+                text-align: center;
+                color: #ffd060;
+                text-shadow: 0 0 10px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,1);
+                border: 4px solid #c8900a;
+                background: radial-gradient(circle at 36% 26%, rgba(255,220,100,0.18) 0%, rgba(110,18,0,0.97) 65%);
+                box-shadow:
+                    inset 0 0 18px rgba(255,100,0,0.25),
+                    0 0 0 2px #1a0400,
+                    0 0 0 5px #c8900a,
+                    0 0 0 7px #1a0400,
+                    0 6px 22px rgba(0,0,0,0.9);
+                position: relative;
+                overflow: hidden;
+                transition: filter 0.1s, transform 0.08s, box-shadow 0.15s, border-color 0.15s;
+            }
+            #ahc-combat-cluster .cc-attack::before {
+                content: '';
+                position: absolute;
+                top: 5%; left: 10%;
+                width: 42%; height: 36%;
+                border-radius: 50%;
+                background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 68%);
+                pointer-events: none;
+            }
+            #ahc-combat-cluster .cc-attack::after {
+                content: '';
+                position: absolute;
+                inset: 8px;
+                border-radius: 50%;
+                border: 2px solid rgba(255,100,0,0.45);
+                pointer-events: none;
+            }
+            #ahc-combat-cluster .cc-attack:active {
+                filter: brightness(1.5);
+                transform: scale(0.92);
+                box-shadow:
+                    inset 0 0 28px rgba(255,180,0,0.5),
+                    0 0 0 2px #1a0400,
+                    0 0 0 5px #ffe044,
+                    0 0 0 7px #1a0400,
+                    0 4px 28px rgba(255,120,0,0.6);
+            }
+            #ahc-combat-cluster .cc-attack .cc-icon {
+                font-size: 28px;
+                line-height: 1;
+                margin-bottom: 2px;
+            }
+            #ahc-combat-cluster .cc-attack.is-firing {
+                border-color: #5fffbb;
+                box-shadow:
+                    inset 0 0 22px rgba(100,255,180,0.22),
+                    0 0 0 2px #1a0400,
+                    0 0 0 5px #5fffbb,
+                    0 0 0 7px #1a0400,
+                    0 0 22px rgba(100,255,180,0.4),
+                    0 6px 22px rgba(0,0,0,0.9);
+            }
+            #ahc-combat-cluster .cc-cancel {
+                position: absolute;
+                bottom: 6px;
+                right: 6px;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                font-size: 16px;
+                font-weight: bold;
+                color: #ffccaa;
+                border: 2px solid rgba(255,100,60,0.85);
+                background: rgba(0,0,0,0.58);
+                z-index: 10;
+                transition: filter 0.1s, transform 0.08s;
+            }
+            #ahc-combat-cluster .cc-cancel.visible { display: flex; }
+            #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
+            @media (max-height: 420px) {
+                #ahc-combat-cluster .cc-attack { width: 96px; height: 96px; font-size: 13px; }
+                #ahc-combat-cluster .cc-attack .cc-icon { font-size: 20px; }
+                #ahc-combat-cluster .cc-cancel { width: 30px; height: 30px; font-size: 13px; }
+            }
+        `;
+        document.head.appendChild(style);
+
         const root = document.createElement('div');
         root.id = 'ahc-combat-cluster';
-        root.style.cssText = [
-            'position:fixed',
-            'right:8px',
-            'bottom:8px',
-            'z-index:9999',
-            'width:120px',
-            'height:120px',
-            'display:block',
-            'pointer-events:auto',
-        ].join(';');
 
-        /* ── cannon image ── */
-        const attack = document.createElement('img');
+        const attack = document.createElement('div');
         attack.className = 'cc-attack';
-        attack.src = '/assets/attack_btn_cannon.png?v=7';
-        attack.alt = 'FEUER';
-        attack.style.cssText = [
-            'display:block',
-            'width:120px',
-            'height:120px',
-            'object-fit:contain',
-            'background:none',
-            'border:none',
-            'box-shadow:none',
-            'padding:0',
-            'margin:0',
-            'cursor:pointer',
-            'touch-action:manipulation',
-            '-webkit-tap-highlight-color:transparent',
-        ].join(';');
+        attack.innerHTML = `<span class="cc-icon">⚔</span>FEUER`;
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             this.handleAttackButtonPressed?.();
         });
 
-        /* ── cancel button ── */
         const cancel = document.createElement('div');
         cancel.className = 'cc-cancel';
         cancel.textContent = '✕';
-        cancel.style.cssText = [
-            'position:absolute',
-            'bottom:4px',
-            'right:4px',
-            'width:30px',
-            'height:30px',
-            'border-radius:50%',
-            'display:none',
-            'align-items:center',
-            'justify-content:center',
-            'cursor:pointer',
-            'touch-action:manipulation',
-            'font-size:15px',
-            'font-weight:bold',
-            'color:#ffccaa',
-            'border:2px solid rgba(255,100,60,0.85)',
-            'background:rgba(0,0,0,0.65)',
-            'z-index:1',
-        ].join(';');
         cancel.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             e.preventDefault();
             this.clearTargetAndAttackState?.();
         });
 
+        attack.appendChild(cancel);
         root.appendChild(attack);
-        root.appendChild(cancel);
         document.body.appendChild(root);
 
         this._combatClusterEl   = root;
         this._cancelCombatBtnEl = cancel;
 
-        if (this.skillBar) this.skillBar.setVisible(false);
-        if (this.ammoRack) this.ammoRack.setVisible(false);
+        if (this.skillBar)  this.skillBar.setVisible(false);
+        if (this.ammoRack)  this.ammoRack.setVisible(false);
 
         this.events.once('shutdown', () => {
             root.remove();
