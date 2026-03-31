@@ -5345,8 +5345,8 @@ handleResize(gameSize) {
                 -webkit-user-select: none;
             }
             #ahc-combat-cluster .cc-attack {
-                width: 160px;
-                height: 160px;
+                width: 210px;
+                height: 210px;
                 position: relative;
                 cursor: pointer;
                 touch-action: manipulation;
@@ -5366,7 +5366,7 @@ handleResize(gameSize) {
                 filter: drop-shadow(0 0 18px rgba(100,255,180,0.9)) brightness(1.15);
             }
             @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack { width: 118px; height: 118px; }
+                #ahc-combat-cluster .cc-attack { width: 150px; height: 150px; }
             }
             #ahc-combat-cluster .cc-cancel {
                 position: absolute;
