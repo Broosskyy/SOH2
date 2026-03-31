@@ -5327,7 +5327,9 @@ handleResize(gameSize) {
     }
 
     _buildCombatCluster() {
-        if (document.getElementById('ahc-combat-cluster')) return;
+        /* Remove any stale instance so changes always take effect */
+        document.getElementById('ahc-combat-cluster')?.remove();
+        document.getElementById('ahc-combat-css')?.remove();
 
         const style = document.createElement('style');
         style.id = 'ahc-combat-css';
@@ -5337,18 +5339,14 @@ handleResize(gameSize) {
                 right: calc(8px + env(safe-area-inset-right, 0px));
                 bottom: calc(8px + env(safe-area-inset-bottom, 0px));
                 z-index: 8100;
-                display: flex;
-                flex-direction: row;
-                align-items: flex-end;
-                gap: 0;
+                width: 120px;
+                height: 120px;
                 pointer-events: auto;
                 user-select: none;
                 -webkit-user-select: none;
             }
             #ahc-combat-cluster .cc-attack {
-                position: absolute;
-                right: 0;
-                bottom: 0;
+                display: block;
                 width: 120px;
                 height: 120px;
                 object-fit: contain;
@@ -5358,22 +5356,23 @@ handleResize(gameSize) {
                 padding: 0;
                 margin: 0;
                 cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                transition: transform 0.08s, filter 0.1s;
+            }
+            #ahc-combat-cluster .cc-attack:active {
+                transform: scale(0.92);
+                filter: brightness(1.35);
             }
             #ahc-combat-cluster .cc-attack.is-firing {
-                filter: drop-shadow(0 0 8px #5fffbb);
-            }
-            @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack {
-                    width: 95px;
-                    height: 95px;
-                }
+                filter: drop-shadow(0 0 10px #5fffbb);
             }
             #ahc-combat-cluster .cc-cancel {
                 position: absolute;
-                bottom: 6px;
-                right: 6px;
-                width: 36px;
-                height: 36px;
+                bottom: 4px;
+                right: 4px;
+                width: 32px;
+                height: 32px;
                 border-radius: 50%;
                 display: none;
                 align-items: center;
@@ -5381,28 +5380,30 @@ handleResize(gameSize) {
                 cursor: pointer;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
-                font-size: 16px;
+                font-size: 15px;
                 font-weight: bold;
                 color: #ffccaa;
                 border: 2px solid rgba(255,100,60,0.85);
-                background: rgba(0,0,0,0.58);
-                z-index: 10;
+                background: rgba(0,0,0,0.65);
+                z-index: 1;
                 transition: filter 0.1s, transform 0.08s;
             }
             #ahc-combat-cluster .cc-cancel.visible { display: flex; }
-            #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
+            #ahc-combat-cluster .cc-cancel:active  { filter: brightness(1.5); transform: scale(0.88); }
             @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-cancel { width: 30px; height: 30px; font-size: 13px; }
+                #ahc-combat-cluster,
+                #ahc-combat-cluster .cc-attack { width: 90px; height: 90px; }
             }
         `;
         document.head.appendChild(style);
 
         const root = document.createElement('div');
         root.id = 'ahc-combat-cluster';
+        root.style.display = 'none';
 
         const attack = document.createElement('img');
         attack.className = 'cc-attack';
-        attack.src = 'assets/attack_btn_cannon.png?v=5';
+        attack.src = 'assets/attack_btn_cannon.png?v=6';
         attack.alt = 'FEUER';
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
@@ -5418,7 +5419,6 @@ handleResize(gameSize) {
             this.clearTargetAndAttackState?.();
         });
 
-        root.style.display = 'none';
         root.appendChild(attack);
         root.appendChild(cancel);
         document.body.appendChild(root);
@@ -5426,9 +5426,8 @@ handleResize(gameSize) {
         this._combatClusterEl   = root;
         this._cancelCombatBtnEl = cancel;
 
-        /* Hide old Phaser skill/ammo bar — replaced by this DOM cluster */
-        if (this.skillBar)  this.skillBar.setVisible(false);
-        if (this.ammoRack)  this.ammoRack.setVisible(false);
+        if (this.skillBar) this.skillBar.setVisible(false);
+        if (this.ammoRack) this.ammoRack.setVisible(false);
 
         this.events.once('shutdown', () => {
             root.remove();
