@@ -5,22 +5,28 @@ outputs = []
 id = "jphfW7eL67_1rx92mreXA"
 uri = "file://assets/npc_ship_tier1.png"
 type = "image"
-title = "pirate sloop tier1"
+title = "pirate sloop isometric"
 
 [[generated]]
 id = "Bq06LDQ-RzNqyfRfI8hc2"
 uri = "file://assets/npc_ship_tier2.png"
 type = "image"
-title = "navy warship tier2"
+title = "navy warship isometric"
 
 [[generated]]
 id = "3RAeksBXA8k8yCR0lq_BS"
 uri = "file://assets/npc_ship_tier3.png"
 type = "image"
-title = "black galleon tier3"
+title = "black galleon isometric"
 
 [[generated]]
 id = "9IwedFc3OIeEDK3isXfiL"
 uri = "file://assets/item_treasure_map.png"
 type = "image"
 title = "treasure map scroll"
+
+[[generated]]
+id = "XNSC--TBRLuGIrRpyemyL"
+uri = "file://assets/player_ship_royal_crimson_v2.png"
+type = "image"
+title = "royal crimson flagship"

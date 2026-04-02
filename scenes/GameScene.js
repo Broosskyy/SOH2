@@ -194,7 +194,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('player-ship',         'assets/player_ship_royal_crimson_v1.webp');
+        this.load.image('player-ship',         'assets/player_ship_royal_crimson_v2.png');
         this.load.image('player-ship-neon',    'assets/player_ship_neon_pro.webp');
         this.load.image('player-ship-pro',     'assets/player_ship_pro.webp');
         this.load.image('player-ship-frigate1','assets/player_ship_frigate_1.png');
@@ -5173,9 +5173,71 @@ handleResize(gameSize) {
             return;
         }
 
+        /* ── Seafight-Breitseiten-Salve: 3 kleine Kugeln staggered 55ms ─────────
+           Cannonball fires 3 small iron balls in a tight spread — like a real
+           broadside volley. Other ammo types fire a single dramatic projectile. */
+        if (ammoKey === 'cannonball') {
+            const BALL_COUNT   = 3;
+            const SPREAD_DEG   = 0.10;  /* Halbe Spreizung in Radians (~5.7°) */
+            const STAGGER_MS   = 55;    /* Zeitversatz zwischen den Kugeln */
+            const BALL_SIZE    = vis.size - 3; /* Kleiner als vorher (size=7 → 4) */
+            const goldenBall   = vis.golden ?? false;
+            let impactDone     = false;
+
+            for (let i = 0; i < BALL_COUNT; i++) {
+                const spread = (i - 1) * SPREAD_DEG; /* -0.10, 0, +0.10 */
+                const shotAngle = facingAngle + spread;
+                const bx = spawnX + Math.cos(shotAngle) * 8;
+                const by = spawnY + Math.sin(shotAngle) * 8;
+                /* Ziel leicht versetzt damit die Kugeln nicht exakt übereinander landen */
+                const tx = target.x + (i - 1) * 6 * Math.cos(facingAngle + Math.PI / 2);
+                const ty = target.y + (i - 1) * 6 * Math.sin(facingAngle + Math.PI / 2);
+
+                this.time.delayedCall(i * STAGGER_MS, () => {
+                    const ball  = this.add.circle(bx, by, BALL_SIZE, vis.color, 1).setDepth(1200);
+                    const smoke = this.add.circle(bx, by, BALL_SIZE + 2, 0x888888, 0.5)
+                                    .setBlendMode(Phaser.BlendModes.ADD).setDepth(1199);
+                    if (goldenBall) ball.setStrokeStyle(1, 0xffd700, 0.9);
+
+                    /* Mündungsblitz bei Abfeuern */
+                    const flash = this.add.circle(bx, by, 9, 0xffffaa, 0.9)
+                                    .setBlendMode(Phaser.BlendModes.ADD).setDepth(1201);
+                    this.tweens.add({ targets: flash, scaleX: 0, scaleY: 0, alpha: 0,
+                        duration: 90, onComplete: () => flash.destroy() });
+
+                    let tick = 0;
+                    this.tweens.add({
+                        targets: [ball, smoke], x: tx, y: ty,
+                        duration: vis.duration, ease: 'Linear',
+                        onUpdate: (tw) => {
+                            smoke.setPosition(ball.x, ball.y);
+                            tick += tw.delta ?? 16;
+                            if (tick >= 70) {
+                                tick = 0;
+                                const puff = this.add.circle(ball.x, ball.y, 4, 0xaaaaaa, 0.35)
+                                                .setBlendMode(Phaser.BlendModes.ADD).setDepth(1195);
+                                this.tweens.add({ targets: puff, scaleX: 2, scaleY: 2, alpha: 0,
+                                    duration: 280, onComplete: () => puff.destroy() });
+                            }
+                        },
+                        onComplete: () => {
+                            ball.destroy(); smoke.destroy();
+                            /* Nur die mittlere Kugel (i=1) löst Impact + Splash aus */
+                            if (i === 1 && !impactDone) {
+                                impactDone = true;
+                                this._spawnImpact(tx, ty, vis, false);
+                                this._spawnWaterSplash(tx, ty);
+                            }
+                        }
+                    });
+                });
+            }
+            return;
+        }
+
+        /* ── Alle anderen Ammo-Typen: einzelnes dramatisches Projektil ── */
         const projectile = this.add.circle(spawnX, spawnY, vis.size, vis.color, 1)
-            .setBlendMode(ammoKey !== 'cannonball' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL)
-            .setDepth(1200);
+            .setBlendMode(Phaser.BlendModes.ADD).setDepth(1200);
         const trail = this.add.circle(spawnX, spawnY, vis.trailSize, vis.trail, 0.4)
             .setBlendMode(Phaser.BlendModes.ADD).setDepth(1199);
 
@@ -5198,11 +5260,10 @@ handleResize(gameSize) {
             onUpdate: (tw) => {
                 trail.setPosition(projectile.x, projectile.y);
                 trail.alpha = projectile.alpha * 0.5;
-                /* Rauchpuff-Spur für alle Ammo-Typen */
                 _trailTick += tw.delta ?? 16;
                 if (_trailTick >= 88) {
                     _trailTick = 0;
-                    const puffColor = ammoKey === 'fire' ? 0xff3300 : ammoKey === 'chain' ? 0x886600 : 0xaaaaaa;
+                    const puffColor = ammoKey === 'fire' ? 0xff3300 : 0xaaaaaa;
                     const puff = this.add.circle(projectile.x, projectile.y, vis.trailSize + 2, puffColor, 0.45)
                         .setBlendMode(Phaser.BlendModes.ADD).setDepth(1195);
                     this.tweens.add({ targets: puff, scaleX: 2.2, scaleY: 2.2, alpha: 0,
@@ -5211,9 +5272,7 @@ handleResize(gameSize) {
             },
             onComplete: () => {
                 trail.destroy(); projectile.destroy();
-                this._spawnImpact(target.x, target.y, vis, ammoKey !== 'cannonball');
-                /* Water splash only for iron cannonballs — other ammo has its own drama */
-                if (ammoKey === 'cannonball') this._spawnWaterSplash(target.x, target.y);
+                this._spawnImpact(target.x, target.y, vis, true);
             }
         });
     }

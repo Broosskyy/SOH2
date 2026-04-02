@@ -178,11 +178,15 @@ export default class Ship extends Phaser.GameObjects.Container {
     }
 
     update() {
-        const diff = Phaser.Math.Angle.Wrap(this.targetAngle - this.sprite.rotation);
-        
+        /* Sprites in PNG zeigen Bug nach OBEN (North) — Phaser targetAngle 0 = RECHTS (East).
+           Versatz: +π/2 so dass das Schiff immer in die tatsächliche Bewegungsrichtung zeigt. */
+        const SPRITE_OFFSET = Math.PI / 2;
+        const visualTarget  = this.targetAngle + SPRITE_OFFSET;
+
         if (this.useSpriteRotation) {
+            const diff = Phaser.Math.Angle.Wrap(visualTarget - this.sprite.rotation);
             if (Math.abs(diff) < this.rotationSpeed) {
-                this.sprite.rotation = this.targetAngle;
+                this.sprite.rotation = visualTarget;
             } else {
                 this.sprite.rotation += Math.sign(diff) * this.rotationSpeed;
             }
@@ -192,7 +196,13 @@ export default class Ship extends Phaser.GameObjects.Container {
         }
         
         if (this.wake) {
-            this.wake.rotation = this.targetAngle + Math.PI;
+            /* Wake-Position dynamisch hinter dem Schiff (relativ zum Container) */
+            const behindDist = 22;
+            this.wake.setPosition(
+                Math.cos(this.targetAngle + Math.PI) * behindDist,
+                Math.sin(this.targetAngle + Math.PI) * behindDist
+            );
+            this.wake.rotation = this.targetAngle + Math.PI + SPRITE_OFFSET;
         }
 
         /* Foam trail — nur für Spielerschiff (this._isPlayer); NPCs erzeugen keinen Schaum
