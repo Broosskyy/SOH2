@@ -411,6 +411,9 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
 
+            /* A tower pointerdown already selected a proxy — don't clear it */
+            if (this._towerJustSelected) { this._towerJustSelected = false; return; }
+
             this.clearTargetAndAttackState();
             this.player.moveTo(worldPoint.x, worldPoint.y);
         });
@@ -1844,6 +1847,7 @@ handleResize(gameSize) {
                 }
             }
         };
+        this._towerJustSelected = true;
         this.selectTarget(proxy);
         const activeTowers = island.towers.filter(t => t.active).length;
         this.showStatusMsg(`🏰 Turm ${index + 1} anvisiert — ${activeTowers}/6 aktiv`, 0xffaa44);
