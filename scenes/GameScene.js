@@ -4525,6 +4525,89 @@ handleResize(gameSize) {
             this.tweens.add({ targets: _hf, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 210, ease: 'Cubic.Out', onComplete: () => _hf.destroy() });
         } catch {}
 
+        /* ── Ammo-type visual FX (purely cosmetic) ── */
+        try {
+            const _ax = target.x, _ay = target.y, _akey = ammoConfig?.key;
+            if (_akey === 'fire') {
+                /* flame particles: 6 small orange/red circles drift upward */
+                for (let i = 0; i < 6; i++) {
+                    const ang = (Math.PI * 2 / 6) * i + Phaser.Math.FloatBetween(-0.3, 0.3);
+                    const spd = Phaser.Math.FloatBetween(28, 55);
+                    const p = this.add.circle(
+                        _ax + Math.cos(ang) * 8, _ay + Math.sin(ang) * 8,
+                        Phaser.Math.Between(4, 8),
+                        [0xff6600, 0xff3300, 0xff9900, 0xffcc00][i % 4], 0.9
+                    ).setDepth(1760);
+                    this.tweens.add({ targets: p,
+                        x: p.x + Math.cos(ang) * spd,
+                        y: p.y + Math.sin(ang) * spd - 30,
+                        alpha: 0, scaleX: 0.3, scaleY: 0.3,
+                        duration: 520, ease: 'Quad.Out', onComplete: () => p.destroy() });
+                }
+            } else if (_akey === 'storm') {
+                /* electric sparks: 5 short bright rectangles at random angles */
+                for (let i = 0; i < 5; i++) {
+                    const ang = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                    const len = Phaser.Math.Between(14, 32);
+                    const spk = this.add.rectangle(
+                        _ax + Math.cos(ang) * 10, _ay + Math.sin(ang) * 10,
+                        len, Phaser.Math.Between(2, 4),
+                        i % 2 === 0 ? 0xeeddff : 0xffffff, 0.95
+                    ).setRotation(ang).setDepth(1760);
+                    this.tweens.add({ targets: spk,
+                        x: spk.x + Math.cos(ang) * len * 1.4,
+                        y: spk.y + Math.sin(ang) * len * 1.4,
+                        alpha: 0, scaleX: 0.2,
+                        duration: 260, ease: 'Cubic.Out', onComplete: () => spk.destroy() });
+                }
+                /* central bright flash */
+                const cf = this.add.circle(_ax, _ay, 18, 0xeeddff, 0.75).setDepth(1755);
+                this.tweens.add({ targets: cf, scaleX: 2.8, scaleY: 2.8, alpha: 0, duration: 180, onComplete: () => cf.destroy() });
+            } else if (_akey === 'chainshot') {
+                /* two metallic circles flying apart + brief chain glint */
+                for (let s = -1; s <= 1; s += 2) {
+                    const ball = this.add.circle(_ax, _ay, 7, 0xaabbcc, 0.9).setDepth(1760);
+                    this.tweens.add({ targets: ball,
+                        x: ball.x + s * Phaser.Math.Between(30, 52),
+                        y: ball.y + Phaser.Math.Between(-18, 18),
+                        alpha: 0, scaleX: 0.5, scaleY: 0.5,
+                        duration: 340, ease: 'Quad.Out', onComplete: () => ball.destroy() });
+                }
+                /* chain glint: horizontal rectangle */
+                const chain = this.add.rectangle(_ax, _ay, 60, 3, 0xccddee, 0.8).setDepth(1758);
+                this.tweens.add({ targets: chain, scaleX: 2.0, alpha: 0, duration: 280, ease: 'Cubic.Out', onComplete: () => chain.destroy() });
+            } else if (_akey === 'grapeshot') {
+                /* multi-pellet scatter: 8 tiny circles fan out */
+                const BASE_ANG = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                for (let i = 0; i < 8; i++) {
+                    const ang = BASE_ANG + Phaser.Math.FloatBetween(-0.9, 0.9);
+                    const spd = Phaser.Math.FloatBetween(22, 50);
+                    const pel = this.add.circle(
+                        _ax + Phaser.Math.Between(-5, 5), _ay + Phaser.Math.Between(-5, 5),
+                        Phaser.Math.Between(2, 5), 0xffe0a0, 0.88
+                    ).setDepth(1760);
+                    this.tweens.add({ targets: pel,
+                        x: pel.x + Math.cos(ang) * spd,
+                        y: pel.y + Math.sin(ang) * spd,
+                        alpha: 0, scaleX: 0.2, scaleY: 0.2,
+                        duration: 300, ease: 'Quad.Out', onComplete: () => pel.destroy() });
+                }
+            } else if (_akey === 'flare') {
+                /* bright glow ring that expands and fades */
+                const glow = this.add.circle(_ax, _ay, 22, 0x88ffff, 0.6).setDepth(1752);
+                this.tweens.add({ targets: glow, scaleX: 4.5, scaleY: 4.5, alpha: 0, duration: 480, ease: 'Sine.Out', onComplete: () => glow.destroy() });
+                /* inner bright core */
+                const core = this.add.circle(_ax, _ay, 10, 0xffffff, 0.9).setDepth(1758);
+                this.tweens.add({ targets: core, scaleX: 2.2, scaleY: 2.2, alpha: 0, duration: 220, ease: 'Cubic.Out', onComplete: () => core.destroy() });
+                /* 4 rays */
+                for (let r = 0; r < 4; r++) {
+                    const ang = (Math.PI / 4) + (Math.PI / 2) * r;
+                    const ray = this.add.rectangle(_ax, _ay, 36, 3, 0xaaffff, 0.7).setRotation(ang).setDepth(1756);
+                    this.tweens.add({ targets: ray, scaleX: 2.4, alpha: 0, duration: 360, ease: 'Quad.Out', onComplete: () => ray.destroy() });
+                }
+            }
+        } catch {}
+
         /* ── Burn DOT: fire ammo burnRatio > 0 ── */
         const burnRatio = ammoConfig?.burnRatio ?? 0;
         if (!isHarpoon && burnRatio > 0 && target.active) {
