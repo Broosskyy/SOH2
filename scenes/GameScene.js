@@ -1062,79 +1062,76 @@ export default class GameScene extends Phaser.Scene {
             this._killStreak = 1;
         }
         this._lastKillTime = now;
-        this._updateStreakHUD();
 
-        /* Milestone bonuses */
+        /* Milestone bonuses + kleine schwebendes Kombo-Label am Feind */
+        let bonusLine = '';
         if (this._killStreak === 3) {
             this.player.gold += 8; this.player.addXP(15);
-            this._showStreakToast('🔥 3er-Combo! +8 Gold +15 XP');
+            bonusLine = '+8💰 +15XP';
         } else if (this._killStreak === 5) {
             this.player.gold += 20; this.player.addXP(30);
-            this._showStreakToast('💀 5er-Combo! +20 Gold — RAGE MODUS!');
+            bonusLine = '+20💰 RAGE!';
             this._activateRageMode();
         } else if (this._killStreak === 10) {
             this.player.gold += 60; this.player.addXP(80);
-            this._showStreakToast('⚡ 10er-COMBO! +60 Gold +80 XP — LEGENDÄR!');
+            bonusLine = '+60💰 LEGENDÄR!';
         } else if (this._killStreak > 10 && this._killStreak % 5 === 0) {
             this.player.gold += 30; this.player.addXP(40);
-            this._showStreakToast(`🌟 ${this._killStreak}er-Combo! +30 Gold +40 XP`);
+            bonusLine = '+30💰 +40XP';
+        }
+
+        if (this._killStreak >= 2) {
+            this._showComboFloat(npc, this._killStreak, bonusLine);
         }
 
         /* Auto-reset streak if no kill in window */
         this.time.delayedCall(STREAK_WINDOW + 200, () => {
             if (Date.now() - this._lastKillTime >= STREAK_WINDOW) {
                 this._killStreak = 0;
-                this._updateStreakHUD();
             }
         });
     }
 
-    _updateStreakHUD() {
-        if (!this._streakHudEl) {
-            const el = document.createElement('div');
-            el.id = 'streak-hud';
-            el.style.cssText = `
-                position:fixed;top:14px;left:50%;transform:translateX(-50%);
-                z-index:19000;pointer-events:none;
-                display:flex;align-items:center;gap:6px;
-                font-family:Arial,sans-serif;transition:opacity 0.4s;
-            `;
-            document.body.appendChild(el);
-            this._streakHudEl = el;
-        }
-        const el = this._streakHudEl;
-        if (this._killStreak < 2) {
-            el.style.opacity = '0';
-            return;
-        }
-        const color = this._killStreak >= 10 ? '#ff3300' : this._killStreak >= 5 ? '#ff7700' : '#ffdd33';
-        const size  = this._killStreak >= 10 ? '18px' : this._killStreak >= 5 ? '16px' : '14px';
-        el.style.opacity = '1';
-        el.innerHTML = `
-            <div style="
-                background:rgba(10,10,20,0.82);border:2px solid ${color};
-                border-radius:20px;padding:4px 14px;
-                font-size:${size};font-weight:bold;color:${color};
-                letter-spacing:2px;text-shadow:0 0 8px ${color}88;
-            ">${'🔥'.repeat(Math.min(this._killStreak, 5))} ${this._killStreak}× COMBO</div>
-        `;
-    }
+    /* ── Schwebende Kombo-Anzeige direkt am getroffenen Feind ─────────────
+       Kleines Pill-Element erscheint an der Weltposition des NPCs,
+       wandert 40px nach oben und blendet in 1.4s aus. */
+    _showComboFloat(npc, streak, bonusLine = '') {
+        const cam  = this.cameras.main;
+        const sx   = (npc.x - cam.scrollX) * cam.zoom;
+        const sy   = (npc.y - cam.scrollY) * cam.zoom - 24;
 
-    _showStreakToast(msg) {
+        const color = streak >= 10 ? '#ff3300' : streak >= 5 ? '#ff8800' : '#ffdd33';
+        const fire  = '🔥'.repeat(Math.min(streak, 4));
+        const label = bonusLine
+            ? `${fire} ${streak}× COMBO<br><span style="font-size:9px;opacity:0.85">${bonusLine}</span>`
+            : `${fire} ${streak}× COMBO`;
+
         const el = document.createElement('div');
         el.style.cssText = `
-            position:fixed;top:52px;left:50%;transform:translateX(-50%) scale(0.8);
-            z-index:19001;pointer-events:none;
-            background:rgba(10,10,20,0.9);border:2px solid rgba(255,150,0,0.7);
-            border-radius:12px;padding:8px 18px;
-            font-size:13px;font-weight:bold;color:#ffd060;
-            font-family:Arial,sans-serif;letter-spacing:1px;text-align:center;
-            white-space:nowrap;transition:transform 0.15s ease,opacity 0.4s;
+            position:fixed;
+            left:${sx}px;top:${sy}px;
+            transform:translate(-50%,-50%);
+            z-index:19100;pointer-events:none;
+            background:rgba(8,8,18,0.78);
+            border:1.5px solid ${color};
+            border-radius:14px;
+            padding:3px 10px;
+            font-size:11px;font-weight:bold;color:${color};
+            font-family:Arial,sans-serif;letter-spacing:1.5px;text-align:center;
+            white-space:nowrap;text-shadow:0 0 6px ${color}99;
+            line-height:1.3;
+            transition:transform 1.4s ease-out,opacity 1.0s ease-in;
+            opacity:1;
         `;
-        el.textContent = msg;
+        el.innerHTML = label;
         document.body.appendChild(el);
-        requestAnimationFrame(() => { el.style.transform = 'translateX(-50%) scale(1)'; });
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 420); }, 2200);
+
+        /* Float nach oben */
+        requestAnimationFrame(() => {
+            el.style.transform = `translate(-50%,-50%) translateY(-40px)`;
+        });
+        setTimeout(() => { el.style.opacity = '0'; }, 600);
+        setTimeout(() => el.remove(), 1500);
     }
 
     _activateRageMode() {
