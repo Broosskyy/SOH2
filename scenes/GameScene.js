@@ -4577,6 +4577,33 @@ handleResize(gameSize) {
             }
         }
 
+        /* ── Snare: chainshot antiSailRatio > 0 ── */
+        const antiSailRatio = ammoConfig?.antiSailRatio ?? 0;
+        if (!isHarpoon && antiSailRatio > 0 && target.active && typeof target.speed === 'number') {
+            /* "SNARE" float */
+            try {
+                const ft = this.add.text(
+                    target.x + Phaser.Math.Between(-10, 10), target.y - 28,
+                    'SNARE', { fontSize: '14px', fontFamily: 'Arial Black, Arial', fontStyle: 'bold',
+                               fill: '#88eeff', stroke: '#003344', strokeThickness: 3 }
+                ).setOrigin(0.5).setDepth(1700);
+                this.tweens.add({ targets: ft, y: ft.y - 40, alpha: 0, duration: 850, ease: 'Cubic.Out', onComplete: () => ft.destroy() });
+            } catch {}
+
+            /* strong slow — stacks with shock only if shock already expired */
+            if (!target._snareActive) {
+                target._snareActive    = true;
+                target._snareOrigSpeed = target.speed;
+                target.speed           = target.speed * (1 - antiSailRatio);
+                this.time.delayedCall(2000, () => {
+                    if (target._snareActive) {
+                        target.speed        = target._snareOrigSpeed;
+                        target._snareActive = false;
+                    }
+                });
+            }
+        }
+
         /* --- Island tower destroyed → check conquest --- */
         if (target.isIslandTower && !target.active) {
             this._checkIslandConquest(target.parentIsland);
