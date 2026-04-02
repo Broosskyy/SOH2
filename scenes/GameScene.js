@@ -36,6 +36,61 @@ import CannonUpgradePanel from '../ui/CannonUpgradePanel.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
+/* ═══════════════════════════════════════════════════════════
+   EASTER EVENT CONFIG  — flip active:false to disable
+   ═══════════════════════════════════════════════════════════ */
+const EASTER_CFG = {
+    active: true,
+    eggPickupRadius: 28,   // world-px — ship centre must land within this of egg centre
+    npcs: {
+        easter_scout: {
+            label:         '[🥚 SCOUT] Osterhase',
+            tier:          1,
+            maxHP:         600,
+            speed:         6,
+            xpValue:       200,
+            goldDrop:      [80,  160],
+            eggDropChance: 0.40,
+            maxAlive:      5,
+            respawnDelay:  15000,
+            scale:         0.09,
+            tint:          0x88ffbb,
+        },
+        easter_guard: {
+            label:         '[🥚 GUARD] Oster-Wächter',
+            tier:          2,
+            maxHP:         1600,
+            speed:         4.5,
+            xpValue:       550,
+            goldDrop:      [200, 400],
+            eggDropChance: 0.65,
+            maxAlive:      3,
+            respawnDelay:  25000,
+            scale:         0.12,
+            tint:          0xff88dd,
+        },
+        easter_king: {
+            label:         '[👑 KÖNIG] Oster-König',
+            tier:          3,
+            maxHP:         4800,
+            speed:         3.5,
+            xpValue:       2000,
+            goldDrop:      [800, 1600],
+            eggDropChance: 1.00,
+            maxAlive:      1,
+            respawnDelay:  60000,
+            scale:         0.15,
+            tint:          0xffd700,
+            shipDesignDrop:true,
+        },
+    },
+    eggRewards: {
+        common:     { gold:[20,60],   xp:[15,40],   easterEggs:1, ammoChance:0.30 },
+        rare:       { gold:[80,180],  xp:[60,120],  easterEggs:3, ammoChance:0.70 },
+        rareChance: 0.15,
+    },
+};
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
@@ -510,7 +565,30 @@ export default class GameScene extends Phaser.Scene {
                 this.reputationHUD?.addReputation(repGain, 'NPC besiegt');
                 this.reputationHUD?.addBounty(Math.round(repGain * 2.5));
                 this._addRuf(5 + (npc.npcTier ?? 1) * 3, 'Schiff versenkt');
-                this.time.delayedCall(10000, () => this.spawnNPC());
+                /* ── Easter event: special respawn + egg/design drops ── */
+                if (npc._easterEventType && this._easterEventActive) {
+                    const etype = npc._easterEventType;
+                    const ecfg  = EASTER_CFG.npcs[etype];
+                    if (Math.random() < (ecfg?.eggDropChance ?? 0)) {
+                        const egg = this.createLootDrop(npc.x, npc.y, {
+                            type: 'gold-bag', goldValue: 0, xpValue: 0, hpValue: 0, materialValue: 0
+                        });
+                        egg._isEasterEgg = true;
+                    }
+                    if (ecfg?.shipDesignDrop) {
+                        try {
+                            const designs = JSON.parse(localStorage.getItem('ahc_ship_blueprints') || '[]');
+                            if (!designs.includes('easter')) {
+                                designs.push('easter');
+                                localStorage.setItem('ahc_ship_blueprints', JSON.stringify(designs));
+                            }
+                        } catch {}
+                        this.showStatusMsg('👑 Oster-König besiegt! +Schiffsplan: Oster-Galeone!', 0xffd700);
+                    }
+                    this.time.delayedCall(ecfg?.respawnDelay ?? 30000, () => this._spawnEasterNPC(etype));
+                } else {
+                    this.time.delayedCall(10000, () => this.spawnNPC());
+                }
             } else if (npc instanceof Monster) {
                 this.dailyQuestPanel?.addProgress('monsters', 1);
                 this._updateTrialProgress('monsters', 1);
@@ -2268,6 +2346,77 @@ handleResize(gameSize) {
         this.time.delayedCall(60000, () => clearInterval(doneCheck));
     }
 
+    /* ───────────────────────────────────────────────────────────
+       EASTER EVENT — integrated into the existing event system
+       ─────────────────────────────────────────────────────────── */
+    startEasterEvent() {
+        if (!EASTER_CFG.active) {
+            this.showStatusMsg('Oster-Event ist derzeit nicht aktiv.', 0xaaaaaa);
+            return;
+        }
+        if (this._easterEventActive) {
+            this.showStatusMsg('🥚 Oster-Event läuft bereits!', 0xffcc44);
+            return;
+        }
+        this._easterEventActive = true;
+        this._easterNPCs = { easter_scout: [], easter_guard: [], easter_king: [] };
+
+        /* Spawn initial wave */
+        for (let i = 0; i < EASTER_CFG.npcs.easter_scout.maxAlive; i++) this._spawnEasterNPC('easter_scout');
+        for (let i = 0; i < EASTER_CFG.npcs.easter_guard.maxAlive; i++) this._spawnEasterNPC('easter_guard');
+        this._spawnEasterNPC('easter_king');
+
+        /* Tag all existing ambient eggs as Easter eggs */
+        this.gifts?.getChildren().forEach(g => {
+            if (g.active && g.dropCategory === 'ambient') g._isEasterEgg = true;
+        });
+
+        this.showStatusMsg('🌸 OSTER-EVENT gestartet! Besiege Oster-NPCs & sammle Eier!', 0xff88cc);
+    }
+
+    _spawnEasterNPC(type) {
+        if (!this._easterEventActive) return;
+        const cfg = EASTER_CFG.npcs[type];
+        if (!cfg) return;
+
+        /* Respect per-type alive cap */
+        const alive = (this._easterNPCs[type] ?? []).filter(n => n?.active).length;
+        if (alive >= cfg.maxAlive) return;
+
+        /* Random position far from the player (min 600 px) */
+        let sx = 0, sy = 0, attempts = 0;
+        do {
+            sx = Phaser.Math.Between(200, this.mapWidth  - 200);
+            sy = Phaser.Math.Between(200, this.mapHeight - 200);
+            attempts++;
+        } while (
+            Phaser.Math.Distance.Between(sx, sy, this.player.x, this.player.y) < 600 &&
+            attempts < 25
+        );
+
+        try {
+            const npc = new NPCShip(this, sx, sy, Math.min(this.currentChartIndex ?? 1, 5));
+            npc.npcTier          = cfg.tier;
+            npc.maxHP            = cfg.maxHP;
+            npc.hp               = cfg.maxHP;
+            npc.speed            = cfg.speed;
+            npc.xpValue          = cfg.xpValue;
+            npc.npcName          = cfg.label;
+            npc._isEventShip     = true;
+            npc._eventId         = 'easter';
+            npc._easterEventType = type;
+            npc.sprite?.setScale(cfg.scale);
+            npc.sprite?.setTint(cfg.tint);
+            npc.nameLabel?.setText(npc.npcName);
+            npc.nameLabel?.setColor('#ffccee');
+            npc.healthBarWidth   = cfg.tier === 3 ? 100 : cfg.tier === 2 ? 80 : 60;
+            npc.updateHealthBar?.();
+            this.npcGroup.add(npc);
+            if (!this._easterNPCs[type]) this._easterNPCs[type] = [];
+            this._easterNPCs[type].push(npc);
+        } catch (e) { console.warn('Easter NPC spawn error:', e); }
+    }
+
     _showEventDirectionHUD(eventId, eventName, dirStr) {
         this._removeEventDirectionHUD();
         const icons = { konvoi: '⚓', geisterschiff: '👻', admiralsjagd: '👑' };
@@ -2439,6 +2588,7 @@ handleResize(gameSize) {
     spawnGift() {
         const point = this.getSpawnPointAroundPlayer(Phaser.Math.Between(0, 19), 20, 260, 1200);
         const gift = new Gift(this, point.x, point.y);
+        if (this._easterEventActive) gift._isEasterEgg = true;
         this.gifts.add(gift);
     }
 
@@ -2543,11 +2693,26 @@ handleResize(gameSize) {
         if (gift.giftType === 'gift-chest') rewards.push('+ammo');
         if (gift.giftType === 'xp-orb') rewards.push('+storm shot');
 
-        const label = rewards.length > 0
-            ? rewards.join(' • ')
-            : `${gift.giftType.replace('-', ' ').toUpperCase()} collected`;
+        /* ── Easter event: bonus rewards when egg is flagged ── */
+        let easterLabel = null;
+        if (gift._isEasterEgg && this._easterEventActive) {
+            const isRare  = Math.random() < EASTER_CFG.eggRewards.rareChance;
+            const tbl     = isRare ? EASTER_CFG.eggRewards.rare : EASTER_CFG.eggRewards.common;
+            const bonusGold = Phaser.Math.Between(tbl.gold[0], tbl.gold[1]);
+            const bonusXP   = Phaser.Math.Between(tbl.xp[0],  tbl.xp[1]);
+            player.gold  += bonusGold;
+            player.addXP(bonusXP);
+            player._easterEggsCurrency = (player._easterEggsCurrency ?? 0) + tbl.easterEggs;
+            if (Math.random() < tbl.ammoChance) player.addAmmoCharges('chainshot', 1);
+            const rareTag = isRare ? ' ✨ SELTEN!' : '';
+            easterLabel   = `🥚 Osterei! +${bonusGold}🪙 +${bonusXP}XP +${tbl.easterEggs} Ei${rareTag}`;
+        }
 
-        this.showStatusMsg(label, 0x00ff99);
+        const label = easterLabel ?? (rewards.length > 0
+            ? rewards.join(' • ')
+            : `${gift.giftType.replace('-', ' ').toUpperCase()} collected`);
+
+        this.showStatusMsg(label, gift._isEasterEgg ? 0xff88cc : 0x00ff99);
         this.playSound('collect');
         gift.destroy();
 
@@ -3610,6 +3775,10 @@ handleResize(gameSize) {
         }
         if (action === 'hafen') {
             this.hafenPanel?.toggle();
+            return;
+        }
+        if (action === 'easter') {
+            this.startEasterEvent();
             return;
         }
         this.showStatusMsg('Navigation menu ready', 0xbfe8ff);
@@ -5110,12 +5279,16 @@ handleResize(gameSize) {
 
         this.player.update();
 
-        /* ── Gift collection: ship centre must be exactly on the egg (≤22 px) ── */
+        /* ── Gift collection: ship centre must be on the egg ── */
         if (this.player?.active && this.gifts) {
-            const px = this.player.x, py = this.player.y;
+            const px  = this.player.x, py = this.player.y;
+            const rad = (this._easterEventActive && EASTER_CFG.active)
+                ? EASTER_CFG.eggPickupRadius   // 28 px during Easter event
+                : 28;                           // same default otherwise
             this.gifts.getChildren().forEach(g => {
                 if (!g.active) return;
-                if (Phaser.Math.Distance.Between(px, py, g.x, g.y) <= 22) {
+                /* g.spawnY is the stable base y (float tween only moves children) */
+                if (Phaser.Math.Distance.Between(px, py, g.x, g.spawnY ?? g.y) <= rad) {
                     this.collectGift(this.player, g);
                 }
             });

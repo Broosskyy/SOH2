@@ -54,10 +54,10 @@ export default class Gift extends Phaser.GameObjects.Container {
         this.add([this._ring, this._core, this._txt]);
         scene.add.existing(this);
 
-        /* Float animation */
+        /* Float animation — children move so container.y stays at spawnY (used for pickup check) */
         this.spawnY = y;
         scene.tweens.add({
-            targets: this, y: y - 9,
+            targets: [this._ring, this._core, this._txt], y: '-=9',
             duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
         });
 
