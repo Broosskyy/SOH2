@@ -1,3 +1,4 @@
+import NetworkManager from '../network/NetworkManager.js';
 import PlayerShip from '../entities/PlayerShip.js';
 import NPCShip from '../entities/NPCShip.js';
 import Gift from '../entities/Gift.js';
@@ -597,6 +598,12 @@ export default class GameScene extends Phaser.Scene {
             this.spawnLootFromDefeat(npc);
             this.missionPanel?.trackKill();
             this._onEnemyKilled(npc);
+            /* MMO: PvE Kill an Server melden */
+            this.network?.reportPveKill({
+                npcTier:   npc.npcTier ?? 1,
+                xpGained:  npc.xpValue ?? 0,
+                goldGained: npc.goldValue ?? 0,
+            });
             if (npc instanceof NPCShip) {
                 this._addWanted(npc.npcTier === 3 ? 0.6 : npc.npcTier === 2 ? 0.5 : 0.4);
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
@@ -807,8 +814,19 @@ export default class GameScene extends Phaser.Scene {
         /* Periodic autosave every 30 s — critical for mobile where beforeunload is unreliable */
         this.time.addEvent({ delay: 30000, callback: this._saveProgress, callbackScope: this, loop: true });
 
+        this._sessionStart = Date.now();
+
+        /* ── MMO Netzwerk (Socket.IO) ───────────────────────── */
+        this.network = new NetworkManager(this);
+        try {
+            const { getToken } = await import('../api.js');
+            const tok = getToken();
+            if (tok) this.network.connect(tok);
+        } catch (_) {}
+
         this.events.on('shutdown', () => {
             this._saveProgress();
+            this.network?.destroy();
             this._guildAttackBtnEl?.remove(); this._guildAttackBtnEl = null;
             this._stopGuildTowerCombat?.();
             this._guildAutoFireTimer?.remove(); this._guildAutoFireTimer = null;
@@ -861,7 +879,21 @@ export default class GameScene extends Phaser.Scene {
                 const loginStreak  = (() => { try { return JSON.parse(localStorage.getItem(`ahc_login_streak_${u}`)  || '{}'); } catch { return {}; } })();
                 const guildData    = (() => { try { return JSON.parse(localStorage.getItem('ahc_my_guild')            || '{}'); } catch { return {}; } })();
                 const cannonTier   = parseInt(localStorage.getItem(`ahc_cannon_tier_${u}`) || '0', 10);
-                apiSave({ gameData: data, shipData, upgrades, trialData, achievements, loginStreak, guildData, cannonTier });
+                apiSave({
+                    gameData: data, shipData, upgrades, trialData,
+                    achievements, loginStreak, guildData, cannonTier,
+                    /* MMO-Felder */
+                    level:       p.stats?.level  ?? p.level ?? 1,
+                    xp:          p.xp    ?? 0,
+                    gold:        p.gold  ?? 0,
+                    pearls:      p.gems  ?? 0,
+                    pvpMode:     p.pvpMode ?? false,
+                    shipClass:   p._selectedShipKey ?? 'sloop',
+                    chartId:     this.currentChartIndex ?? 1,
+                    posX:        p.x / (this.mapWidth  || 6000),
+                    posY:        p.y / (this.mapHeight || 6000),
+                    playtimeMins: Math.round((Date.now() - (this._sessionStart ?? Date.now())) / 60000),
+                });
             }
         } catch (e) {}
     }
@@ -5599,6 +5631,7 @@ handleResize(gameSize) {
         }
 
         this.player.update();
+        this.network?.update();
 
         /* ── Gift collection: ONLY collect the egg the player explicitly tapped ──
            Sailing near eggs without tapping does nothing. When the ship arrives
