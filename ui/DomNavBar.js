@@ -17,6 +17,7 @@ export default class DomNavBar {
            reachable without scrolling on small screens */
         return [
             { label: 'Werft',   icon: '⚓', action: () => this.scene.handleMenuAction('shipyard') },
+            { label: 'Klasse',  icon: '🚢', action: () => this.scene.handleMenuAction('shipclass') },
             { label: 'Hafen',   icon: '🏴', action: () => this.scene.handleMenuAction('hafen') },
             { label: 'Events',  icon: '⚔', action: () => this.scene.handleMenuAction('shipevents') },
             { label: 'Quests',  icon: '📋', action: () => this.scene.handleMenuAction('quests') },

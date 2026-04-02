@@ -866,9 +866,12 @@ export default class PlayerShip extends Ship {
             if (distance > 22) {
                 const angle   = Phaser.Math.Angle.Between(
                     this.x, this.y, this.moveTarget.x, this.moveTarget.y);
+                /* Wind-Multiplikator (Rang-3): ±20 % je nach Rücken-/Gegenwind */
+                const wMult = this._windSpeedMult ?? 1.0;
+                const effSpd = spd * wMult;
 
-                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(angle) * spd, STEER));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(angle) * spd, STEER));
+                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(angle) * effSpd, STEER));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(angle) * effSpd, STEER));
                 this.setWakeVisible(true);
 
                 /* Rotation follows ACTUAL velocity direction — same as NPCs */

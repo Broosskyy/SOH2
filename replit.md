@@ -30,7 +30,7 @@ Ein Phaser 3 Browser-Seeschlacht-Spiel mit Karten-Erkundung, Schiffskampf und Up
   - `AchievementPanel.js` – 15 Erfolge (NPC-Kills, Monster, Gold, Schüsse, HP, Items, Karten)
   - `LogbookPanel.js` – Schiffslogbuch mit vollständigen Statistiken (persistiert)
   - `MissionPanel.js`, `BonusPanel.js`, `EventsPanel.js`, `RangPanel.js`, `BoardPanel.js`, `CombatPanel.js`
-  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js` (15 Buttons: Admin, Werft, Gilde, Chat, Events, Mission, Bonus, Quests, Shop, Rang, Hafen, Erfolge, Logbuch, Multi, Kanone)
+  - `AmmoBar.js`, `ChartNav.js`, `DomNavBar.js` (16 Buttons: Admin, Werft, Klasse, Gilde, Chat, Events, Mission, Bonus, Quests, Shop, Rang, Hafen, Erfolge, Logbuch, Multi, Kanone)
 - `assets/` – Alle Bild-Assets (WebP, PNG, JPG)
   - `island_guild_fortress.png` – KI-generierte Gildeninsel Festung (top-down, mit Hafeneinfahrt Süd)
 

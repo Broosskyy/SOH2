@@ -3744,6 +3744,10 @@ handleResize(gameSize) {
             this.shipDesignPanel?.toggle();
             return;
         }
+        if (action === 'shipclass') {
+            this.openShipClassPanel();
+            return;
+        }
         if (action === 'shop') {
             this.premiumShopPanel?.toggle();
             return;
@@ -5564,6 +5568,10 @@ handleResize(gameSize) {
             this.playerReturnHighlightBlend.setPosition(this.player.x, this.player.y);
         }
 
+        /* ── Rang-3: Wind + Festung ── */
+        this._updateWindSystem(delta);
+        this._updateFortressAttack(delta);
+
         /* TilePosition 1:1 mit Kamera → Wasser scrollt mit Welt, UI bleibt fixiert */
         /* +Wellenanimation: langsame Sinus-Drift simuliert lebendige See */
         if (this.background) {
@@ -5591,7 +5599,12 @@ handleResize(gameSize) {
         this._initLogbook();
         this._initStormSystem();
         this._startTreasureChestTimer();
-        this.time.delayedCall(60000, () => this._scheduleMerchant()); /* Merchant: first spawn after 1 min */
+        this.time.delayedCall(60000,  () => this._scheduleMerchant());    /* Merchant first spawn after 1 min */
+        /* ── Rang-3 systems ── */
+        this._initWindSystem();
+        this.time.delayedCall(180000, () => this._scheduleConvoy());      /* Schatzflotte after 3 min */
+        this.time.delayedCall(90000,  () => this._scheduleDebrisWrecks()); /* Treibgut after 90 s */
+        this.time.delayedCall(240000, () => this._schedulePirateFortress()); /* Festung after 4 min */
     }
 
     _recalcPlayerSpeed() {
@@ -6749,6 +6762,609 @@ handleResize(gameSize) {
             if (gData) { guildTag = gData.tag ?? gData.name?.substring(0, 4).toUpperCase(); guildName = gData.name; }
         } catch (e) {}
         this.domNavBar.setPlayerInfo(name, level, guildTag, guildName);
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       RANG-3 SYSTEM A — WIND
+       Langsam rotierende Windrichtung, beeinflusst Schiffsgeschwindigkeit
+       ════════════════════════════════════════════════════════════════════ */
+    _initWindSystem() {
+        this._windAngle    = Math.random() * Math.PI * 2;
+        this._windTarget   = this._windAngle;
+        this._windStrength = 0.22;           /* ±22 % Geschwindigkeitseffekt */
+        this._windChangeTimer = 0;
+        this._windChangeInterval = Phaser.Math.Between(25000, 50000); /* alle 25-50 s neuer Ziel-Wind */
+        this._buildWindHUD();
+    }
+
+    _buildWindHUD() {
+        if (document.getElementById('ahc-wind-hud')) return;
+        const el = document.createElement('div');
+        el.id = 'ahc-wind-hud';
+        el.style.cssText = `
+            position:fixed;
+            left: calc(96px + env(safe-area-inset-left,0px));
+            bottom: calc(12px + env(safe-area-inset-bottom,0px));
+            width:62px; height:62px;
+            z-index:8060;
+            border-radius:50%;
+            background:radial-gradient(circle at 38% 30%,rgba(255,255,255,0.10) 0%,rgba(8,18,38,0.95) 65%);
+            border:2px solid rgba(80,160,255,0.55);
+            box-shadow:0 0 0 2px #050a18,0 3px 12px rgba(0,0,0,0.7);
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            font-family:Arial,sans-serif;pointer-events:none;user-select:none;
+        `;
+        el.innerHTML = `
+            <div id="ahc-wind-arrow" style="font-size:22px;line-height:1;transition:transform 0.6s ease;">🧭</div>
+            <div style="font-size:8px;color:#88bbff;margin-top:2px;letter-spacing:0.5px;">WIND</div>
+            <div id="ahc-wind-label" style="font-size:7px;color:#aaccff;font-weight:bold;"></div>
+        `;
+        document.body.appendChild(el);
+        this.events.once('shutdown', () => el.remove());
+    }
+
+    _updateWindSystem(delta) {
+        if (this._windAngle === undefined) return;
+
+        /* Slowly drift wind toward target */
+        this._windChangeTimer = (this._windChangeTimer || 0) + delta;
+        if (this._windChangeTimer >= this._windChangeInterval) {
+            this._windChangeTimer = 0;
+            this._windChangeInterval = Phaser.Math.Between(25000, 50000);
+            this._windTarget = Math.random() * Math.PI * 2;
+        }
+        /* Lerp angle (wrapping) */
+        let diff = Phaser.Math.Angle.Wrap(this._windTarget - this._windAngle);
+        this._windAngle += diff * 0.0008 * delta;
+
+        /* Apply speed multiplier to player */
+        if (this.player?.body && this.player.body.velocity.length() > 10) {
+            const velAngle = Math.atan2(this.player.body.velocity.y, this.player.body.velocity.x);
+            const dot = Math.cos(velAngle - this._windAngle);
+            this.player._windSpeedMult = 1 + dot * this._windStrength;
+        } else if (this.player) {
+            this.player._windSpeedMult = 1.0;
+        }
+
+        /* Update HUD compass arrow */
+        const arrow = document.getElementById('ahc-wind-arrow');
+        const lbl   = document.getElementById('ahc-wind-label');
+        if (arrow) {
+            const deg = (this._windAngle * 180 / Math.PI + 90) % 360;
+            arrow.style.transform = `rotate(${deg.toFixed(0)}deg)`;
+        }
+        if (lbl) {
+            const dirs = ['N','NO','O','SO','S','SW','W','NW'];
+            const idx  = Math.round(((this._windAngle * 180 / Math.PI + 90 + 360) % 360) / 45) % 8;
+            lbl.textContent = dirs[idx];
+        }
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       RANG-3 SYSTEM B — SCHATZFLOTTE (GOLD CONVOY)
+       4 NPC-Schiffe in Formation kreuzen die Karte; Vernichtung = Jackpot
+       ════════════════════════════════════════════════════════════════════ */
+    _scheduleConvoy() {
+        const delay = Phaser.Math.Between(600000, 900000); /* 10-15 min */
+        this.time.delayedCall(delay, () => {
+            if (!this.player?.active || this._convoyActive) { this._scheduleConvoy(); return; }
+            this._spawnConvoy();
+        });
+    }
+
+    _spawnConvoy() {
+        if (this._convoyActive) return;
+        this._convoyActive = true;
+        const { worldWidth, worldHeight } = this.currentChartConfig ?? { worldWidth: 4000, worldHeight: 4000 };
+
+        /* Choose random crossing direction (left→right, top→bottom, etc.) */
+        const side = Phaser.Math.Between(0, 3);
+        let sx, sy, ex, ey;
+        if (side === 0) { sx = 100;            sy = Phaser.Math.Between(400, worldHeight - 400); ex = worldWidth - 100; ey = sy; }
+        else if (side === 1) { sx = worldWidth - 100; sy = Phaser.Math.Between(400, worldHeight - 400); ex = 100; ey = sy; }
+        else if (side === 2) { sx = Phaser.Math.Between(400, worldWidth - 400); sy = 100; ex = sx; ey = worldHeight - 100; }
+        else { sx = Phaser.Math.Between(400, worldWidth - 400); sy = worldHeight - 100; ex = sx; ey = 100; }
+
+        const shipKeys = ['enemy-ship', 'npc-ship-2', 'enemy-ship', 'npc-ship-2'];
+        const FORMATION_SPREAD = 70;
+        const perpAngle = Math.atan2(ey - sy, ex - sx) + Math.PI / 2;
+
+        const ships = [];
+        const labels = [];
+
+        for (let i = 0; i < 4; i++) {
+            const offset = (i - 1.5) * FORMATION_SPREAD;
+            const ox = Math.cos(perpAngle) * offset;
+            const oy = Math.sin(perpAngle) * offset;
+
+            const spd = Phaser.Math.FloatBetween(30, 45);
+            const angle = Math.atan2(ey - sy, ex - sx);
+
+            const sh = this.physics.add.image(sx + ox, sy + oy, shipKeys[i] ?? 'enemy-ship')
+                .setScale(0.11).setDepth(510)
+                .setTint(0xffcc44)
+                .setRotation(angle + Math.PI / 2);
+            sh.setVelocity(Math.cos(angle) * spd, Math.sin(angle) * spd);
+            sh._isConvoyShip = true;
+            sh._convoyHp = 400;
+            sh._convoyMaxHp = 400;
+
+            const lbl = this.add.text(sx + ox, sy + oy - 55,
+                `⚓ GOLDKONVOI [${sh._convoyHp}]`,
+                { fontSize: '11px', fontFamily: 'Arial', fontStyle: 'bold',
+                  fill: '#ffdd44', stroke: '#000', strokeThickness: 3 })
+                .setOrigin(0.5).setDepth(511);
+
+            ships.push(sh);
+            labels.push(lbl);
+        }
+
+        this._convoyShips  = ships;
+        this._convoyLabels = labels;
+        this._convoyTarget = { x: ex, y: ey };
+
+        this.showStatusMsg('⚔️ GOLDKONVOI GESICHTET! Vernichte alle 4 Schiffe!', 0xffcc00);
+
+        /* Tap → select convoy ship as combat target proxy */
+        ships.forEach((sh, i) => {
+            sh.setInteractive();
+            sh.on('pointerdown', () => this._onConvoyShipTapped(sh, i));
+        });
+
+        /* Convoy update tick: move + check arrival/death */
+        this._convoyTimer = this.time.addEvent({
+            delay: 400,
+            loop: true,
+            callback: () => this._updateConvoy()
+        });
+    }
+
+    _onConvoyShipTapped(sh, idx) {
+        if (!sh.active || sh._convoyHp <= 0) return;
+        /* Deal player damage to this convoy ship */
+        const dmg = Math.round(Phaser.Math.Between(60, 120) * (this.playerShipBonus?.damageMult ?? 1));
+        sh._convoyHp = Math.max(0, sh._convoyHp - dmg);
+        const lbl = this._convoyLabels?.[idx];
+        if (lbl) lbl.setText(`⚓ GOLDKONVOI [${sh._convoyHp}]`);
+
+        this._spawnWaterSplash?.(sh.x, sh.y) ?? null;
+        this.cameras.main.shake(120, 0.004);
+
+        if (sh._convoyHp <= 0) {
+            sh.setTint(0x444444);
+            sh.setAlpha(0);
+            sh.setActive(false);
+            if (lbl) lbl.setAlpha(0);
+            /* Check if all dead */
+            const alive = this._convoyShips?.filter(s => s.active && s._convoyHp > 0).length ?? 0;
+            if (alive === 0) this._onConvoyDestroyed();
+        }
+    }
+
+    _updateConvoy() {
+        if (!this._convoyShips) return;
+        const alive = this._convoyShips.filter(s => s.active && s._convoyHp > 0);
+        if (alive.length === 0) return;
+
+        const { worldWidth, worldHeight } = this.currentChartConfig ?? { worldWidth: 4000, worldHeight: 4000 };
+        let anyOnMap = false;
+
+        this._convoyShips.forEach((sh, i) => {
+            if (!sh.active || sh._convoyHp <= 0) return;
+            /* Check if ship left the map */
+            if (sh.x < -200 || sh.x > worldWidth + 200 || sh.y < -200 || sh.y > worldHeight + 200) {
+                sh.setActive(false);
+                this._convoyLabels?.[i]?.setAlpha(0);
+            } else {
+                anyOnMap = true;
+                this._convoyLabels?.[i]?.setPosition(sh.x, sh.y - 55);
+            }
+        });
+
+        if (!anyOnMap) {
+            /* All escaped without being killed */
+            this.showStatusMsg('Der Goldkonvoi ist entkommen!', 0x888888);
+            this._cleanupConvoy();
+        }
+    }
+
+    _onConvoyDestroyed() {
+        const gold = Phaser.Math.Between(800, 1400);
+        this.player.gold = (this.player.gold ?? 0) + gold;
+        this._logbookAdd?.('gold_total', gold);
+        this.player.materials = (this.player.materials ?? 0) + 80;
+        this.showStatusMsg(`🏆 KONVOI VERNICHTET! +${gold} Gold! +80 Mat!`, 0xffd700);
+        this.cameras.main.shake(500, 0.012);
+
+        /* Spawn bonus loot at center of convoy wreckage */
+        const cx = this._convoyShips?.[0]?.x ?? (this.player.x + 200);
+        const cy = this._convoyShips?.[0]?.y ?? (this.player.y + 200);
+        for (let i = 0; i < 3; i++) {
+            this._spawnTreasureChest(
+                cx + Phaser.Math.Between(-80, 80),
+                cy + Phaser.Math.Between(-80, 80)
+            );
+        }
+        this._logbookAdd?.('convoy_destroyed', 1);
+        this.achievementPanel?.checkAll?.();
+        this._cleanupConvoy();
+    }
+
+    _cleanupConvoy() {
+        this._convoyTimer?.remove(false);
+        this._convoyShips?.forEach(sh => { try { sh.destroy(); } catch {} });
+        this._convoyLabels?.forEach(lb => { try { lb.destroy(); } catch {} });
+        this._convoyShips  = null;
+        this._convoyLabels = null;
+        this._convoyActive = false;
+        this.time.delayedCall(300000, () => this._scheduleConvoy()); /* Retry in 5 min */
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       RANG-3 SYSTEM C — TREIBGUT / WRACKFELD
+       Zufällige Schiffswracks treiben auf der See, zum Plündern antippen
+       ════════════════════════════════════════════════════════════════════ */
+    _scheduleDebrisWrecks() {
+        const next = Phaser.Math.Between(300000, 480000); /* 5-8 min */
+        this.time.delayedCall(next, () => {
+            if (this.player?.active) this._spawnDebrisWreck();
+            this._scheduleDebrisWrecks();
+        });
+    }
+
+    _spawnDebrisWreck() {
+        const { worldWidth, worldHeight } = this.currentChartConfig ?? { worldWidth: 4000, worldHeight: 4000 };
+        const count = Phaser.Math.Between(2, 3);
+        for (let i = 0; i < count; i++) {
+            const wx = Phaser.Math.Between(300, worldWidth - 300);
+            const wy = Phaser.Math.Between(300, worldHeight - 300);
+
+            const wreck = new Gift(this, wx, wy, {
+                type:          'gift-chest',
+                scale:         0.09,
+                goldValue:     Phaser.Math.Between(150, 320),
+                materialValue: Phaser.Math.Between(30, 70),
+                hpValue:       Phaser.Math.Between(20, 45),
+                xpValue:       Phaser.Math.Between(80, 160),
+                dropCategory:  'wreck'
+            });
+            wreck.setTint(0x5599bb);
+            if (this.gifts) this.gifts.add(wreck);
+
+            /* Gentle bobbing animation */
+            this.tweens.add({
+                targets: wreck,
+                y: wy + 6,
+                duration: 1800 + i * 300,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.InOut'
+            });
+
+            /* Blue glow */
+            const glow = this.add.circle(wx, wy, 24, 0x3388cc, 0.20).setDepth(899);
+            this.tweens.add({ targets: glow, scaleX: 1.35, scaleY: 1.35, alpha: 0.05,
+                duration: 1400, yoyo: true, repeat: -1 });
+            wreck._glowCircle = glow;
+
+            /* Auto-expire after 3 min */
+            this.time.delayedCall(180000, () => {
+                if (wreck?.active) wreck.destroy();
+                if (glow?.active) glow.destroy();
+            });
+        }
+        this.showStatusMsg('🚢 Schiffswrack treibt auf See! Plündere es!', 0x55aacc);
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       RANG-3 SYSTEM D — PIRATEN-FESTUNG (FEINDLICHE FESTUNG)
+       Aggressive Festungsinsel, schießt auf den Spieler, massive Belohnung
+       ════════════════════════════════════════════════════════════════════ */
+    _schedulePirateFortress() {
+        if (this._fortressActive) return;
+        this._fortressActive = false;
+        const delay = Phaser.Math.Between(60000, 120000);
+        this.time.delayedCall(delay, () => {
+            if (!this.player?.active) { this._schedulePirateFortress(); return; }
+            this._spawnPirateFortress();
+        });
+    }
+
+    _spawnPirateFortress() {
+        if (this._fortressSprite) return;
+        const { worldWidth, worldHeight } = this.currentChartConfig ?? { worldWidth: 4000, worldHeight: 4000 };
+
+        /* Spawn far from player */
+        let fx, fy, attempts = 0;
+        do {
+            fx = Phaser.Math.Between(300, worldWidth - 300);
+            fy = Phaser.Math.Between(300, worldHeight - 300);
+            attempts++;
+        } while (this.player && Phaser.Math.Distance.Between(fx, fy, this.player.x, this.player.y) < 800 && attempts < 20);
+
+        this._fortressHp    = 1200;
+        this._fortressMaxHp = 1200;
+        this._fortressActive = true;
+        this._fortressX = fx;
+        this._fortressY = fy;
+        this._fortressShootAccum = 0;
+
+        /* Visual: island base */
+        const base = this.add.image(fx, fy, 'island-volcanic')
+            .setScale(0.09).setDepth(480).setTint(0xcc3322);
+        const tower = this.add.circle(fx, fy - 18, 14, 0x880000, 0.9)
+            .setDepth(482).setStrokeStyle(3, 0xff3300);
+        const skull = this.add.text(fx, fy - 18, '💀', { fontSize: '16px' })
+            .setOrigin(0.5).setDepth(483);
+        const label = this.add.text(fx, fy - 60,
+            `☠ PIRATEN-FESTUNG [${this._fortressHp}/${this._fortressMaxHp}]`,
+            { fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold',
+              fill: '#ff4444', stroke: '#000', strokeThickness: 4 })
+            .setOrigin(0.5).setDepth(484);
+
+        /* HP bar */
+        const hpBg = this.add.rectangle(fx, fy - 48, 90, 8, 0x330000).setDepth(484);
+        const hpFg = this.add.rectangle(fx - 45, fy - 48, 90, 8, 0xff3300)
+            .setOrigin(0, 0.5).setDepth(485);
+
+        this._fortressSprite = base;
+        this._fortressTower  = tower;
+        this._fortressSkull  = skull;
+        this._fortressLabel  = label;
+        this._fortressHpBg   = hpBg;
+        this._fortressHpFg   = hpFg;
+
+        /* Make interactive — tap to attack */
+        base.setInteractive();
+        base.on('pointerdown', () => this._attackFortress());
+
+        this.showStatusMsg('💀 PIRATEN-FESTUNG AUFGETAUCHT! Zerstöre sie!', 0xff3300);
+
+        /* Red glow */
+        const glow = this.add.circle(fx, fy, 55, 0xff2200, 0.12).setDepth(479);
+        this.tweens.add({ targets: glow, scaleX: 1.3, scaleY: 1.3, alpha: 0.04,
+            duration: 900, yoyo: true, repeat: -1 });
+        this._fortressGlow = glow;
+    }
+
+    _attackFortress() {
+        if (!this._fortressActive || this._fortressHp <= 0) return;
+        const dmg = Math.round(
+            Phaser.Math.Between(40, 90) * (this.playerShipBonus?.damageMult ?? 1)
+        );
+        this._fortressHp = Math.max(0, this._fortressHp - dmg);
+        this._spawnMuzzleFlash(this.player.x, this.player.y, this.player.rotation);
+        this._spawnWaterSplash?.(this._fortressX, this._fortressY);
+
+        /* Update HP bar */
+        if (this._fortressHpFg) {
+            const pct = this._fortressHp / this._fortressMaxHp;
+            this._fortressHpFg.setScale(pct, 1);
+            this._fortressHpFg.setFillStyle(Phaser.Display.Color.HSVToRGB(pct * 0.33, 1, 1).color);
+        }
+        if (this._fortressLabel) {
+            this._fortressLabel.setText(
+                `☠ PIRATEN-FESTUNG [${this._fortressHp}/${this._fortressMaxHp}]`);
+        }
+
+        this._logbookAdd?.('shots_fired');
+        this.cameras.main.shake(100, 0.003);
+
+        if (this._fortressHp <= 0) this._destroyFortress();
+    }
+
+    _destroyFortress() {
+        const gold = Phaser.Math.Between(1500, 2200);
+        this.player.gold = (this.player.gold ?? 0) + gold;
+        this.player.materials = (this.player.materials ?? 0) + 120;
+        this._logbookAdd?.('gold_total', gold);
+        this.showStatusMsg(`💥 FESTUNG ZERSTÖRT! +${gold} Gold! +120 Mat!`, 0xff8800);
+        this.cameras.main.shake(700, 0.018);
+
+        /* Massive loot drop */
+        const fx = this._fortressX, fy = this._fortressY;
+        for (let i = 0; i < 4; i++) {
+            this._spawnTreasureChest(
+                fx + Phaser.Math.Between(-100, 100),
+                fy + Phaser.Math.Between(-100, 100)
+            );
+        }
+
+        /* Smoke explosion effect */
+        for (let i = 0; i < 12; i++) {
+            const ang = (i / 12) * Math.PI * 2;
+            const dist = Phaser.Math.FloatBetween(20, 80);
+            const s = this.add.circle(
+                fx + Math.cos(ang) * dist, fy + Math.sin(ang) * dist,
+                Phaser.Math.Between(8, 18), 0xff5500, 0.8
+            ).setDepth(900);
+            this.tweens.add({ targets: s, scaleX: 3, scaleY: 3, alpha: 0,
+                duration: Phaser.Math.Between(400, 900), ease: 'Quad.Out',
+                onComplete: () => s.destroy() });
+        }
+
+        this._cleanupFortress();
+        this.achievementPanel?.checkAll?.();
+        /* Respawn after 4 minutes */
+        this.time.delayedCall(240000, () => this._spawnPirateFortress());
+    }
+
+    _updateFortressAttack(delta) {
+        if (!this._fortressActive || !this.player?.active) return;
+        this._fortressShootAccum = (this._fortressShootAccum ?? 0) + delta;
+        if (this._fortressShootAccum < 3200) return;
+        this._fortressShootAccum = 0;
+        const dist = Phaser.Math.Distance.Between(
+            this.player.x, this.player.y, this._fortressX, this._fortressY
+        );
+        if (dist > 480) return;
+
+        /* Fire at player */
+        const angle = Phaser.Math.Angle.Between(
+            this._fortressX, this._fortressY, this.player.x, this.player.y
+        );
+        const ball = this.add.circle(this._fortressX, this._fortressY, 5, 0xff3300, 0.9)
+            .setDepth(820);
+        this.tweens.add({
+            targets: ball,
+            x: this.player.x, y: this.player.y,
+            duration: 700, ease: 'Linear',
+            onComplete: () => {
+                ball.destroy();
+                const dmg = Phaser.Math.Between(18, 38);
+                this.player.takeDamage(dmg);
+                this._spawnWaterSplash?.(this.player.x, this.player.y);
+            }
+        });
+    }
+
+    _cleanupFortress() {
+        [this._fortressSprite, this._fortressTower, this._fortressSkull,
+         this._fortressLabel, this._fortressHpBg, this._fortressHpFg, this._fortressGlow
+        ].forEach(o => { try { o?.destroy(); } catch {} });
+        this._fortressSprite = null;
+        this._fortressActive = false;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       RANG-3 SYSTEM E — SCHIFFSKLASSEN VOLLAUSBAU
+       Vollständiges Klassen-Panel mit Stat-Balken und Flavor-Texten
+       ════════════════════════════════════════════════════════════════════ */
+    openShipClassPanel() {
+        if (this._shipClassPanelEl) { this._shipClassPanelEl.remove(); this._shipClassPanelEl = null; return; }
+
+        const CLASSES = [
+            { id: 'Kutter',        icon: '🚤', color: '#44ddff',
+              desc: 'Schnellster Läufer der Meere. Wenig Panzerung, aber niemand kann ihn fangen.',
+              speed: 9, hp: 240, dmg: 0.80, gold: 1.00, unlock: 1  },
+            { id: 'Brigantine',    icon: '⛵', color: '#88eebb',
+              desc: 'Leichte Brigg — wendig, solide Bewaffnung. Das Lieblingschiff der Freibeuter.',
+              speed: 7, hp: 380, dmg: 0.90, gold: 1.10, unlock: 5  },
+            { id: 'Fregatte',      icon: '🛳️', color: '#aad4ff',
+              desc: 'Ausgewogene Kampffregatte. Verlässlich in jedem Gewässer.',
+              speed: 6, hp: 550, dmg: 1.00, gold: 1.00, unlock: 1  },
+            { id: 'Linienschiff',  icon: '⚓', color: '#ffaa44',
+              desc: 'Schwimmende Festung. Vernichtende Breitseite, aber schwerfällig.',
+              speed: 4, hp: 900, dmg: 1.25, gold: 1.00, unlock: 15 },
+            { id: 'Galeone',       icon: '🏴‍☠️', color: '#ffdd44',
+              desc: 'Piratengaleone — bauchig, reich beladen. +30% Goldbeute.',
+              speed: 5, hp: 700, dmg: 1.00, gold: 1.30, unlock: 10 },
+            { id: 'Kaperkreuzer',  icon: '💀', color: '#ff5566',
+              desc: 'Nur für die Elite. Schnell UND gepanzert. Preis: Legendären Status.',
+              speed: 7, hp: 800, dmg: 1.20, gold: 1.20, unlock: 25 },
+        ];
+
+        const playerLevel = this.player?.level ?? 1;
+        const currentClass = this.playerShipClass ?? 'Fregatte';
+
+        const panel = document.createElement('div');
+        this._shipClassPanelEl = panel;
+        panel.style.cssText = `
+            position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.78);z-index:15000;
+            display:flex;align-items:center;justify-content:center;
+            font-family:Arial,sans-serif;
+        `;
+
+        const mkBar = (val, max, color) => {
+            const pct = Math.round((val / max) * 100);
+            return `<div style="background:#111;border-radius:3px;height:7px;width:100%;margin:2px 0 6px;">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
+            </div>`;
+        };
+
+        const cards = CLASSES.map(c => {
+            const locked   = playerLevel < c.unlock;
+            const selected = c.id === currentClass;
+            const border   = selected ? `3px solid ${c.color}` : locked ? '2px solid #333' : '2px solid rgba(255,255,255,0.15)';
+            const opacity  = locked ? '0.45' : '1';
+            return `
+            <div data-cls="${c.id}" style="
+                width:140px;padding:12px;margin:6px;border-radius:10px;
+                background:${selected ? 'rgba(40,80,120,0.9)' : 'rgba(8,16,32,0.92)'};
+                border:${border};opacity:${opacity};cursor:${locked ? 'default' : 'pointer'};
+                transition:transform 0.12s,border-color 0.15s;
+                ${selected ? 'box-shadow:0 0 14px ' + c.color + '55;' : ''}
+            ">
+                <div style="font-size:28px;text-align:center;">${c.icon}</div>
+                <div style="font-size:12px;font-weight:bold;color:${c.color};text-align:center;margin:4px 0 2px;">${c.id}</div>
+                ${locked ? `<div style="font-size:9px;color:#ff6655;text-align:center;margin-bottom:4px;">Lvl ${c.unlock} benötigt</div>` : ''}
+                <div style="font-size:9px;color:#99bbcc;min-height:36px;margin-bottom:6px;line-height:1.3;">${c.desc}</div>
+                <div style="font-size:9px;color:#88aacc;">Geschwindigkeit</div>${mkBar(c.speed, 9, '#44ddff')}
+                <div style="font-size:9px;color:#88aacc;">Panzerung</div>${mkBar(c.hp, 900, '#44ff88')}
+                <div style="font-size:9px;color:#88aacc;">Schaden</div>${mkBar(c.dmg, 1.25, '#ff8844')}
+                <div style="font-size:9px;color:#88aacc;">Goldbonus</div>${mkBar(c.gold, 1.30, '#ffdd44')}
+                ${selected ? '<div style="text-align:center;font-size:10px;color:#44ff88;font-weight:bold;margin-top:4px;">✓ AKTIV</div>' : ''}
+            </div>`;
+        }).join('');
+
+        panel.innerHTML = `
+            <div style="max-width:95vw;max-height:95vh;overflow:auto;padding:10px;">
+                <div style="text-align:center;font-size:20px;font-weight:bold;color:#d4af37;
+                     margin-bottom:16px;text-shadow:0 0 12px rgba(212,175,55,0.5);">
+                    ⚓ Schiffsklasse wählen
+                </div>
+                <div style="display:flex;flex-wrap:wrap;justify-content:center;">${cards}</div>
+                <div style="text-align:center;margin-top:14px;">
+                    <button id="ahc-cls-close" style="
+                        background:rgba(40,60,100,0.9);color:#aad4ff;border:2px solid rgba(80,140,220,0.6);
+                        border-radius:8px;padding:10px 28px;font-size:13px;cursor:pointer;
+                        font-family:Arial,sans-serif;font-weight:bold;
+                    ">✖ Schließen</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        /* Click handlers */
+        panel.querySelectorAll('[data-cls]').forEach(card => {
+            const cls = card.dataset.cls;
+            const def = CLASSES.find(c => c.id === cls);
+            if (!def || playerLevel < def.unlock) return;
+            card.addEventListener('pointerdown', () => {
+                this._applyShipClass(def);
+                panel.remove();
+                this._shipClassPanelEl = null;
+            });
+        });
+
+        document.getElementById('ahc-cls-close')?.addEventListener('pointerdown', () => {
+            panel.remove();
+            this._shipClassPanelEl = null;
+        });
+    }
+
+    _applyShipClass(def) {
+        this.playerShipClass = def.id;
+        /* Speed: map 4-9 → 100-220 px/s */
+        const newSpeed = 100 + (def.speed - 4) * 20;
+        this._playerBaseSpeed = newSpeed;
+        this.player.speed = newSpeed;
+        this.player.maxHp = def.hp;
+        this.player.hp = Math.min(this.player.hp, def.hp);
+
+        /* Bonus multipliers */
+        this.playerShipBonus = {
+            ...(this.playerShipBonus ?? {}),
+            damageMult: def.dmg,
+            goldMult:   def.gold,
+            xpMult:     this.playerShipBonus?.xpMult ?? 1
+        };
+
+        /* Scale: Kutter small, Linienschiff large */
+        const scales = { Kutter:0.065, Brigantine:0.075, Fregatte:0.082, Linienschiff:0.102, Galeone:0.094, Kaperkreuzer:0.090 };
+        const sc = scales[def.id] ?? 0.082;
+        this.player.sprite?.setScale(sc);
+
+        /* Persist */
+        const u = window._loginUsername ?? 'player';
+        localStorage.setItem(`ahc_ship_${u}`, JSON.stringify({
+            cls: def.id, speed: newSpeed, maxHp: def.hp, bonus: this.playerShipBonus, scale: sc
+        }));
+
+        this.showStatusMsg(`⚓ ${def.icon} ${def.id} ausgerüstet!`, 0xd4af37);
+        this.updateUIBars?.();
     }
 }
 
