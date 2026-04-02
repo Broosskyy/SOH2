@@ -4685,6 +4685,7 @@ handleResize(gameSize) {
         this.playSound('shoot');
         this._logbookAdd('shots_fired');
         this.hafenPanel?.trackVertrag?.('shots_fired', 1);
+        this._spawnMuzzleFlash(this.player.x, this.player.y, this.player.rotation);
 
         let appliedDamage = isHarpoon
             ? Phaser.Math.Between(damageProfile.minDamage, damageProfile.maxDamage)
@@ -5188,11 +5189,22 @@ handleResize(gameSize) {
         } catch {}
     }
 
-    showDamagePopup(x, y, damage) {
+    showDamagePopup(x, y, damage, isPlayerHit = false) {
         if (damage === 0 || damage === '0') return;
         const isDodge = damage === 'DODGE';
         const critLike = !isDodge && damage >= 25;
         const label = isDodge ? 'DODGE!' : `-${damage}`;
+
+        /* Camera shake when OUR ship takes a hit */
+        const distToPlayer = this.player
+            ? Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y)
+            : 999;
+        if (distToPlayer < 60 && !isDodge) {
+            const shakeDur = critLike ? 260 : 160;
+            const shakeAmt = critLike ? 0.008 : 0.004;
+            this.cameras.main.shake(shakeDur, shakeAmt);
+        }
+
         const text = this.add.text(x, y, label, {
             fontSize: isDodge ? '28px' : critLike ? '36px' : '32px',
             fontFamily: 'Arial',
@@ -5200,13 +5212,7 @@ handleResize(gameSize) {
             fill: isDodge ? '#63d6ff' : critLike ? '#ff5b5b' : '#ffd95c',
             stroke: '#000000',
             strokeThickness: 5,
-            shadow: {
-                offsetX: 0,
-                offsetY: 2,
-                color: '#000000',
-                blur: 8,
-                fill: true
-            }
+            shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 8, fill: true }
         }).setOrigin(0.5).setDepth(1650);
 
         this.tweens.add({
@@ -5218,6 +5224,42 @@ handleResize(gameSize) {
             ease: 'Cubic.Out',
             onComplete: () => text.destroy()
         });
+    }
+
+    /* ── Mündungsblitz + Kanonenrauch ───────────────────────────────────────── */
+    _spawnMuzzleFlash(px, py, shipRot) {
+        /* Offset 90° seitlich (Breitseite), 28px vom Schiffszentrum */
+        const side = shipRot + Math.PI / 2;
+        const fx = px + Math.cos(side) * 28;
+        const fy = py + Math.sin(side) * 28;
+
+        /* Gelber Blitz-Kreis */
+        const flash = this.add.circle(fx, fy, 10, 0xffe066, 0.92).setDepth(1600);
+        this.tweens.add({
+            targets: flash,
+            scaleX: 2.8, scaleY: 2.8, alpha: 0,
+            duration: 140, ease: 'Quad.Out',
+            onComplete: () => flash.destroy()
+        });
+
+        /* 4 Rauchpartikel */
+        for (let i = 0; i < 4; i++) {
+            const ang = side + Phaser.Math.FloatBetween(-0.45, 0.45);
+            const dist = Phaser.Math.FloatBetween(14, 32);
+            const sx = fx + Math.cos(ang) * dist;
+            const sy = fy + Math.sin(ang) * dist;
+            const smoke = this.add.circle(sx, sy,
+                Phaser.Math.Between(4, 8), 0xcccccc, 0.55).setDepth(1595);
+            this.tweens.add({
+                targets: smoke,
+                x: sx + Math.cos(ang) * 22,
+                y: sy + Math.sin(ang) * 22,
+                scaleX: 2.2, scaleY: 2.2, alpha: 0,
+                duration: Phaser.Math.Between(320, 520),
+                ease: 'Sine.Out',
+                onComplete: () => smoke.destroy()
+            });
+        }
     }
 
     pushStatusFeedMessage(_msg, _color) { /* Combat feed removed */ }
@@ -5523,9 +5565,13 @@ handleResize(gameSize) {
         }
 
         /* TilePosition 1:1 mit Kamera → Wasser scrollt mit Welt, UI bleibt fixiert */
+        /* +Wellenanimation: langsame Sinus-Drift simuliert lebendige See */
         if (this.background) {
-            this.background.tilePositionX = this.cameras.main.scrollX;
-            this.background.tilePositionY = this.cameras.main.scrollY;
+            this._waveT = (this._waveT || 0) + 0.012;
+            const wx = Math.sin(this._waveT * 0.7) * 5 + Math.sin(this._waveT * 1.3) * 3;
+            const wy = Math.cos(this._waveT * 0.5) * 4 + Math.cos(this._waveT * 1.1) * 2;
+            this.background.tilePositionX = this.cameras.main.scrollX + wx;
+            this.background.tilePositionY = this.cameras.main.scrollY + wy;
         }
 
         this.updateUIBars();

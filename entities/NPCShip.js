@@ -33,16 +33,16 @@ export default class NPCShip extends Ship {
 
         if (rand < smallThreshold) {
             type = Phaser.Utils.Array.GetRandom(smallShips);
-            scale = 0.095; maxHP = 260; speed = 7; xpValue = 55; colliderRadius = 22;
-            tier = 1; factionPool = FACTIONS.small; healthBarW = 56; healthBarOffY = -62;
+            scale = 0.075; maxHP = 260; speed = 7; xpValue = 55; colliderRadius = 18;
+            tier = 1; factionPool = FACTIONS.small; healthBarW = 50; healthBarOffY = -52;
         } else if (rand < mediumThreshold) {
             type = Phaser.Utils.Array.GetRandom(mediumShips);
-            scale = 0.115; maxHP = 560; speed = 5; xpValue = 150; colliderRadius = 28;
+            scale = 0.112; maxHP = 560; speed = 5; xpValue = 150; colliderRadius = 28;
             tier = 2; factionPool = FACTIONS.medium; healthBarW = 68; healthBarOffY = -76;
         } else {
             type = Phaser.Utils.Array.GetRandom(largeShips);
-            scale = 0.14; maxHP = 1040; speed = 4; xpValue = 320; colliderRadius = 34;
-            tier = 3; factionPool = FACTIONS.large; healthBarW = 80; healthBarOffY = -90;
+            scale = 0.160; maxHP = 1040; speed = 4; xpValue = 320; colliderRadius = 40;
+            tier = 3; factionPool = FACTIONS.large; healthBarW = 86; healthBarOffY = -100;
         }
 
         super(scene, x, y, type);

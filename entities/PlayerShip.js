@@ -897,5 +897,25 @@ export default class PlayerShip extends Ship {
                 this.setWakeVisible(false);
             }
         }
+
+        /* ── Breitseiten-Kampfstellung (Seafight-style broadside) ─────────────
+           Wenn das Schiff nahezu steht UND ein Kampfziel gesetzt ist,
+           dreht das Schiff um 90° quer zum Feind — wie im echten Segelkampf.   */
+        if (this.combatFacingTarget && this.combatFacingTarget.active) {
+            const spd = this.body.velocity.length();
+            if (spd < 18) {
+                const angleToTarget = Phaser.Math.Angle.Between(
+                    this.x, this.y,
+                    this.combatFacingTarget.x, this.combatFacingTarget.y
+                );
+                /* Pick the broadside side that requires the smaller rotation */
+                const side1 = angleToTarget + Math.PI / 2;
+                const side2 = angleToTarget - Math.PI / 2;
+                const cur   = this.targetAngle ?? 0;
+                const diff1 = Math.abs(Phaser.Math.Angle.Wrap(side1 - cur));
+                const diff2 = Math.abs(Phaser.Math.Angle.Wrap(side2 - cur));
+                this.targetAngle = diff1 <= diff2 ? side1 : side2;
+            }
+        }
     }
 }
