@@ -15,7 +15,6 @@ export default class Ship extends Phaser.GameObjects.Container {
         this.sprite.setScale(0.12); 
         this.add(this.sprite);
 
-        // Ship Wake
         this.wake = scene.add.image(0, 30, 'ship-wake');
         this.wake.setScale(0.1);
         this.wake.setAlpha(0.4);
@@ -23,7 +22,6 @@ export default class Ship extends Phaser.GameObjects.Container {
         this.add(this.wake);
         this.wake.setVisible(false);
 
-        // Health bar
         this.maxHP = 100;
         this.hp = 100;
         this.healthBarWidth = 40;
@@ -34,9 +32,14 @@ export default class Ship extends Phaser.GameObjects.Container {
         this.targetAngle = 0;
         this.rotationSpeed = 0.05;
         this.speed = 150;
-        this.useSpriteRotation = true; // New flag to toggle sprite rotation
+        this.useSpriteRotation = true;
+
+        /* Wake foam trail timing */
+        this._lastFoamTime = 0;
+
+        /* Damage smoke timing */
+        this._lastSmokeTime = 0;
         
-        // Neon Particles Trail
         if (texture.includes('neon') || texture === 'player-ship') {
             this.particles = scene.add.particles(0, 0, 'xp-orb', {
                 scale: { start: 0.05, end: 0 },
@@ -51,6 +54,74 @@ export default class Ship extends Phaser.GameObjects.Container {
 
     setWakeVisible(visible) {
         if (this.wake) this.wake.setVisible(visible);
+    }
+
+    /* ── Kielwasser-Schaum: foam blob trails behind moving ship ── */
+    _emitWakeFoam(speed) {
+        const now = this.scene?.time?.now ?? 0;
+        const interval = speed > 80 ? 110 : 170;
+        if (now - this._lastFoamTime < interval) return;
+        this._lastFoamTime = now;
+
+        const behind = this.targetAngle + Math.PI;
+        const dist   = 18 + Math.random() * 10;
+        const bx     = this.x + Math.cos(behind) * dist + (Math.random() - 0.5) * 12;
+        const by     = this.y + Math.sin(behind) * dist + (Math.random() - 0.5) * 8;
+        const r      = 5 + Math.random() * 6;
+
+        const blob = this.scene.add.circle(bx, by, r, 0xd0f0ff, 0.55).setDepth(50);
+        this.scene.tweens.add({
+            targets: blob,
+            alpha:   0,
+            scaleX:  2.2,
+            scaleY:  1.1,
+            x:       bx + Math.cos(behind) * 18,
+            y:       by + Math.sin(behind) * 10,
+            duration: 780,
+            ease:    'Sine.Out',
+            onComplete: () => blob.destroy()
+        });
+    }
+
+    /* ── Rauch bei wenig HP: smoke + fire particles ── */
+    _emitDamageSmoke() {
+        const ratio = this.hp / this.maxHP;
+        if (ratio >= 0.30) return;
+
+        const now = this.scene?.time?.now ?? 0;
+        const interval = ratio < 0.15 ? 220 : 380;
+        if (now - this._lastSmokeTime < interval) return;
+        this._lastSmokeTime = now;
+
+        /* Smoke puff — dark grey, drifts upward */
+        const ox = (Math.random() - 0.5) * 20;
+        const oy = -10 + (Math.random() - 0.5) * 10;
+        const smoke = this.scene.add.circle(this.x + ox, this.y + oy, 8 + Math.random() * 7, 0x444444, 0.55).setDepth(1600);
+        this.scene.tweens.add({
+            targets:  smoke,
+            y:        smoke.y - 50 - Math.random() * 30,
+            alpha:    0,
+            scaleX:   3.5,
+            scaleY:   3.5,
+            duration: 900 + Math.random() * 400,
+            ease:     'Sine.Out',
+            onComplete: () => smoke.destroy()
+        });
+
+        /* Fire spark when critically low */
+        if (ratio < 0.15) {
+            const ox2 = (Math.random() - 0.5) * 16;
+            const spark = this.scene.add.circle(this.x + ox2, this.y - 6, 3 + Math.random() * 3, 0xff6600, 1)
+                .setBlendMode(Phaser.BlendModes.ADD).setDepth(1601);
+            this.scene.tweens.add({
+                targets:  spark,
+                y:        spark.y - 28 - Math.random() * 18,
+                x:        spark.x + (Math.random() - 0.5) * 18,
+                alpha:    0,
+                duration: 420 + Math.random() * 200,
+                onComplete: () => spark.destroy()
+            });
+        }
     }
 
     createHealthBar() {
@@ -82,9 +153,6 @@ export default class Ship extends Phaser.GameObjects.Container {
         this.hp -= amount;
         this.updateHealthBar();
 
-        /* Only emit damage-popup for the PLAYER ship.
-           Enemy ships get their own floating damage number from GameScene
-           via showEnemyDamageFloat() to avoid double display. */
         if (this.scene?.player === this) {
             this.scene.events.emit('damage-popup', this.x, this.y - 20, amount);
         }
@@ -99,7 +167,6 @@ export default class Ship extends Phaser.GameObjects.Container {
     }
 
     update() {
-        // Update rotation towards targetAngle
         const diff = Phaser.Math.Angle.Wrap(this.targetAngle - this.sprite.rotation);
         
         if (this.useSpriteRotation) {
@@ -109,14 +176,23 @@ export default class Ship extends Phaser.GameObjects.Container {
                 this.sprite.rotation += Math.sign(diff) * this.rotationSpeed;
             }
         } else {
-            // Limited rotation: just flip sprite based on movement direction
             const isRight = Math.abs(this.targetAngle) < Math.PI / 2;
             this.sprite.setScale(isRight ? Math.abs(this.sprite.scaleX) : -Math.abs(this.sprite.scaleX), this.sprite.scaleY);
         }
         
-        // Sync wake rotation (always follows targetAngle)
         if (this.wake) {
             this.wake.rotation = this.targetAngle + Math.PI;
+        }
+
+        /* Foam trail when wake is visible (ship is moving) */
+        if (this.wake?.visible && this.body) {
+            const spd = this.body.velocity.length();
+            if (spd > 15) this._emitWakeFoam(spd);
+        }
+
+        /* Low-HP damage smoke — always runs regardless of movement */
+        if (this.hp < this.maxHP * 0.30 && this.scene) {
+            this._emitDamageSmoke();
         }
     }
 }

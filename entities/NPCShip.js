@@ -142,27 +142,45 @@ export default class NPCShip extends Ship {
         super.takeDamage(amount);
         if (!this.scene || !this.scene.time) return;
         this.isUnderAttack = true;
-        this.lastHitTime = this.scene.time.now;
-        this.moveTarget = null;
-        if (this.body) this.body.setVelocity(0, 0);
-        this.setWakeVisible(false);
+        this.lastHitTime   = this.scene.time.now;
+        /* ── Patrol improvement: don't freeze — pick an evasive wander point ── */
+        this._chooseEvasiveTarget();
+    }
+
+    _chooseEvasiveTarget() {
+        if (!this.scene) return;
+        /* Pick a point away from the player if possible, otherwise random */
+        const player = this.scene.player;
+        let awayAngle;
+        if (player?.active) {
+            awayAngle = Phaser.Math.Angle.Between(player.x, player.y, this.x, this.y)
+                        + Phaser.Math.FloatBetween(-0.6, 0.6);
+        } else {
+            awayAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        }
+        const dist    = Phaser.Math.Between(120, 260);
+        const padding = 180;
+        const tx = Phaser.Math.Clamp(this.x + Math.cos(awayAngle) * dist, padding, (this.scene.mapWidth  ?? 4000) - padding);
+        const ty = Phaser.Math.Clamp(this.y + Math.sin(awayAngle) * dist, padding, (this.scene.mapHeight ?? 4000) - padding);
+        this.moveTarget     = new Phaser.Math.Vector2(tx, ty);
+        this.nextWanderTime = (this.scene.time?.now ?? 0) + Phaser.Math.Between(2500, 5000);
     }
 
     chooseWanderTarget() {
-        if (this.isUnderAttack || !this.scene) return;
-        const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-        const distance = Phaser.Math.Between(140, this.wanderRadius);
-        const padding = 180;
-        const targetX = Phaser.Math.Clamp(this.homeX + Math.cos(angle) * distance, padding, this.scene.mapWidth - padding);
-        const targetY = Phaser.Math.Clamp(this.homeY + Math.sin(angle) * distance, padding, this.scene.mapHeight - padding);
-        this.moveTarget = new Phaser.Math.Vector2(targetX, targetY);
-        this.targetAngle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
-        this.nextWanderTime = this.scene.time.now + Phaser.Math.Between(7000, 12000);
+        if (!this.scene) return;
+        const angle    = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        const distance = Phaser.Math.Between(120, this.wanderRadius);
+        const padding  = 180;
+        const targetX  = Phaser.Math.Clamp(this.homeX + Math.cos(angle) * distance, padding, (this.scene.mapWidth  ?? 4000) - padding);
+        const targetY  = Phaser.Math.Clamp(this.homeY + Math.sin(angle) * distance, padding, (this.scene.mapHeight ?? 4000) - padding);
+        this.moveTarget     = new Phaser.Math.Vector2(targetX, targetY);
+        this.targetAngle    = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
+        this.nextWanderTime = (this.scene.time?.now ?? 0) + Phaser.Math.Between(3500, 7000);
     }
 
     stopCompletely() {
         this.moveTarget = null;
-        this.body.setVelocity(0, 0);
+        if (this.body) this.body.setVelocity(0, 0);
         this.setWakeVisible(false);
     }
 
@@ -177,39 +195,43 @@ export default class NPCShip extends Ship {
         if (!this.scene || !this.scene.time || !this.body) return;
 
         const now = this.scene.time.now;
-        const vx = this.body.velocity.x;
-        const vy = this.body.velocity.y;
+        const vx  = this.body.velocity.x;
+        const vy  = this.body.velocity.y;
 
-        if (this.isUnderAttack && now > this.lastHitTime + 5000) {
-            this.isUnderAttack = false;
-            this.nextWanderTime = now + Phaser.Math.Between(1000, 2500);
+        /* Cool down from "under attack" state after 4 s of no hits */
+        if (this.isUnderAttack && now > this.lastHitTime + 4000) {
+            this.isUnderAttack  = false;
+            this.nextWanderTime = now + Phaser.Math.Between(800, 2000);
         }
 
-        if (this.isUnderAttack) { this.stopCompletely(); return; }
-
-        const tetherDistance = Phaser.Math.Distance.Between(this.x, this.y, this.homeX, this.homeY);
-        if (tetherDistance > this.wanderRadius + 120) {
+        /* ── Patrol logic: NPCs ALWAYS keep moving ── */
+        const tether = Phaser.Math.Distance.Between(this.x, this.y, this.homeX, this.homeY);
+        if (tether > this.wanderRadius + 120) {
+            /* Too far from home — return */
             this.moveTarget = new Phaser.Math.Vector2(this.homeX, this.homeY);
         } else if (!this.moveTarget && now >= this.nextWanderTime) {
             this.chooseWanderTarget();
         }
 
+        /* Use slightly higher speed when under attack (evasive) */
+        const spd = this.isUnderAttack ? this.speed * 1.3 : this.speed;
+
         if (this.moveTarget) {
-            const distance = Phaser.Math.Distance.Between(this.x, this.y, this.moveTarget.x, this.moveTarget.y);
-            if (distance <= this.arrivalThreshold) {
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, this.moveTarget.x, this.moveTarget.y);
+            if (dist <= this.arrivalThreshold) {
                 this.moveTarget = null;
-                this.body.setVelocityX(Phaser.Math.Linear(vx, 0, 0.08));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, 0, 0.08));
-                this.setWakeVisible(this.body.velocity.length() > 4);
+                this.body.setVelocityX(Phaser.Math.Linear(vx, 0, 0.06));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, 0, 0.06));
                 if (this.body.velocity.length() < 2) { this.body.setVelocity(0, 0); this.setWakeVisible(false); }
+                else this.setWakeVisible(true);
             } else {
                 const angle = Phaser.Math.Angle.Between(this.x, this.y, this.moveTarget.x, this.moveTarget.y);
-                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(angle) * this.speed, this.steeringLerp));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(angle) * this.speed, this.steeringLerp));
-                this.targetAngle = Math.atan2(this.body.velocity.y, this.body.velocity.x);
+                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(angle) * spd, this.steeringLerp));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(angle) * spd, this.steeringLerp));
                 this.setWakeVisible(this.body.velocity.length() > 6);
             }
         } else {
+            /* Gentle coast-to-stop then wander timer fires */
             this.body.setVelocityX(Phaser.Math.Linear(vx, 0, this.idleDrag));
             this.body.setVelocityY(Phaser.Math.Linear(vy, 0, this.idleDrag));
             if (this.body.velocity.length() < 2) { this.body.setVelocity(0, 0); this.setWakeVisible(false); }

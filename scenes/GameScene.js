@@ -5098,7 +5098,59 @@ handleResize(gameSize) {
             onComplete: () => {
                 trail.destroy(); projectile.destroy();
                 this._spawnImpact(target.x, target.y, vis, ammoKey !== 'cannonball');
+                /* Water splash only for iron cannonballs — other ammo has its own drama */
+                if (ammoKey === 'cannonball') this._spawnWaterSplash(target.x, target.y);
             }
+        });
+    }
+
+    /* ── Kanoneneinschlag-Wasserspritzer ── */
+    _spawnWaterSplash(x, y) {
+        /* Central splash image */
+        try {
+            const splash = this.add.image(x, y, 'water-splash')
+                .setScale(0.04)
+                .setAlpha(0.85)
+                .setDepth(1198);
+            this.tweens.add({
+                targets: splash,
+                scaleX: 0.18, scaleY: 0.14,
+                alpha: 0,
+                y: y - 18,
+                duration: 480,
+                ease: 'Sine.Out',
+                onComplete: () => splash.destroy()
+            });
+        } catch {}
+
+        /* Water droplet sprays in all directions */
+        for (let i = 0; i < 7; i++) {
+            const angle  = (i / 7) * Math.PI * 2 + Phaser.Math.FloatBetween(-0.25, 0.25);
+            const dist   = Phaser.Math.Between(14, 36);
+            const drop   = this.add.circle(x, y, Phaser.Math.Between(2, 5), 0x88ddff, 0.8)
+                .setBlendMode(Phaser.BlendModes.ADD).setDepth(1199);
+            this.tweens.add({
+                targets:  drop,
+                x:        x + Math.cos(angle) * dist,
+                y:        y + Math.sin(angle) * dist - Phaser.Math.Between(8, 22),
+                alpha:    0,
+                scaleX:   0.3,
+                scaleY:   0.3,
+                duration: Phaser.Math.Between(280, 480),
+                ease:     'Sine.Out',
+                onComplete: () => drop.destroy()
+            });
+        }
+
+        /* Ripple ring on the water surface */
+        const ripple = this.add.circle(x, y, 5, 0xaaddff, 0.45).setDepth(1197);
+        this.tweens.add({
+            targets:  ripple,
+            scaleX:   7, scaleY: 3,
+            alpha:    0,
+            duration: 520,
+            ease:     'Sine.Out',
+            onComplete: () => ripple.destroy()
         });
     }
 
