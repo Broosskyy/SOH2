@@ -4512,6 +4512,39 @@ handleResize(gameSize) {
             this.tweens.add({ targets: _hf, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 210, ease: 'Cubic.Out', onComplete: () => _hf.destroy() });
         } catch {}
 
+        /* ── Burn DOT: fire ammo burnRatio > 0 ── */
+        const burnRatio = ammoConfig?.burnRatio ?? 0;
+        if (!isHarpoon && burnRatio > 0 && target.active) {
+            const tickDmg  = Math.max(1, Math.round(appliedDamage * burnRatio / 6));
+            let   ticks    = 0;
+            const MAX_TICKS = 6; /* 6 × 500 ms = 3 s */
+            const burnTimer = this.time.addEvent({
+                delay: 500,
+                repeat: MAX_TICKS - 1,
+                callback: () => {
+                    ticks++;
+                    if (!target.active || target.hp <= 0 || !this.player?.active) {
+                        burnTimer.remove();
+                        return;
+                    }
+                    target.takeDamage(tickDmg);
+                    this.events.emit('damage-dealt', tickDmg);
+                    /* 🔥 float at target position */
+                    try {
+                        const fx = target.x + Phaser.Math.Between(-14, 14);
+                        const fy = target.y - 20;
+                        const ft = this.add.text(fx, fy, '🔥', {
+                            fontSize: '18px', stroke: '#000', strokeThickness: 2
+                        }).setOrigin(0.5).setDepth(1700);
+                        this.tweens.add({ targets: ft, y: fy - 40, alpha: 0, duration: 700, ease: 'Cubic.Out', onComplete: () => ft.destroy() });
+                    } catch {}
+                    /* advance hp bar on NPC-style targets */
+                    if (target.updateHPBar) target.updateHPBar();
+                    if (!target.active || target.hp <= 0) burnTimer.remove();
+                }
+            });
+        }
+
         /* --- Island tower destroyed → check conquest --- */
         if (target.isIslandTower && !target.active) {
             this._checkIslandConquest(target.parentIsland);
