@@ -18,6 +18,7 @@ import BoardPanel from '../ui/BoardPanel.js';
 import CombatPanel from '../ui/CombatPanel.js';
 import AmmoBar from '../ui/AmmoBar.js';
 import ChartNav from '../ui/ChartNav.js';
+import EdgeMapButtons from '../ui/EdgeMapButtons.js';
 import DomNavBar from '../ui/DomNavBar.js';
 import ShipDesignPanel from '../ui/ShipDesignPanel.js';
 import ChatPanel from '../ui/ChatPanel.js';
@@ -573,6 +574,7 @@ export default class GameScene extends Phaser.Scene {
         this.combatPanel     = new CombatPanel(this);
         this.ammoBar         = new AmmoBar(this);
         this.chartNav        = new ChartNav(this);
+        this.edgeMapButtons  = new EdgeMapButtons(this);
         this.domNavBar       = new DomNavBar(this);
         this.shipDesignPanel  = new ShipDesignPanel(this);
         this.domChatPanel     = new ChatPanel(this);
@@ -597,7 +599,7 @@ export default class GameScene extends Phaser.Scene {
             this.scale.off('resize', this.handleResize, this);
             [this.premiumShopPanel, this.guildPanel, this.shipEventPanel, this.missionPanel, this.bonusPanel,
              this.eventsPanel, this.rangPanel, this.boardPanel, this.combatPanel, this.ammoBar,
-             this.chartNav, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
+             this.chartNav, this.edgeMapButtons, this.domNavBar, this.shipDesignPanel, this.domChatPanel,
              this.adminPanel, this.talentPanel, this.multiplayerPanel,
              this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD,
              this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel,
@@ -1479,6 +1481,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createChartConfigs() {
+        /* ── Seafight-Stil: 2×5 Kartengitter ──────────────────────────────
+           Zeile 0 (Karten 1–5): Anfänger → Fortgeschritten
+           Zeile 1 (Karten 6–10): Veteran  → Legende
+           Jede Karte kennt ihre direkten Nachbarn (east/west/north/south).
+           ─────────────────────────────────────────────────────────────── */
+        const GRID_COLS  = 5;
+        const GRID_ROWS  = 2;
         const CHART_THEMES = [
             { name: 'Karibisches Becken',   color: 0x4bc8ff, stars: 1 },
             { name: 'Stürmische Passage',   color: 0x78d8f5, stars: 2 },
@@ -1493,10 +1502,22 @@ export default class GameScene extends Phaser.Scene {
         ];
         return Array.from({ length: this.maxChartIndex }, (_, index) => {
             const chart = index + 1;
+            const col   = index % GRID_COLS;
+            const row   = Math.floor(index / GRID_COLS);
             const size  = 4200 + (index * 220);
             const theme = CHART_THEMES[index] ?? CHART_THEMES[CHART_THEMES.length - 1];
+
+            /* Nachbarn nach Himmelsrichtung */
+            const neighbors = {};
+            if (col < GRID_COLS - 1) neighbors.east  = chart + 1;
+            if (col > 0)             neighbors.west  = chart - 1;
+            if (row < GRID_ROWS - 1) neighbors.south = chart + GRID_COLS;
+            if (row > 0)             neighbors.north = chart - GRID_COLS;
+
             return {
                 index: chart,
+                col,  row,
+                neighbors,
                 name:         theme.name,
                 displayName:  `Karte ${chart}: ${theme.name}`,
                 themeColor:   theme.color,
@@ -1566,13 +1587,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     getOppositeEntryDirection(direction) {
-        const entryMap = {
-            east: 'east',
-            west: 'west',
-            north: 'north',
-            south: 'south'
-        };
-        return entryMap[direction] ?? 'center';
+        /* entryDirection = Reiserichtung → bestimmt Spawn-Position auf der neuen Karte.
+           east-Reise → spawne am linken Rand (west), west-Reise → am rechten Rand, usw.
+           Die Spawn-Logik in setChartSpawnPointFromEntry() wertet den gleichen Wert aus. */
+        return direction ?? 'center';
     }
 
     _generateOceanTexture() {
@@ -1676,7 +1694,13 @@ handleResize(gameSize) {
             return;
         }
 
-        const travelRatioY = Phaser.Math.Clamp(this.player ? (this.player.y / this.mapHeight) : 0.5, 0.08, 0.92);
+        /* Bei Ost/West-Reise speichern wir die Y-Ratio (Eintrittshöhe auf neuer Karte).
+           Bei Nord/Süd-Reise speichern wir die X-Ratio (Eintrittsbreite). */
+        const isNS = travelDirection === 'north' || travelDirection === 'south';
+        const travelRatioY = Phaser.Math.Clamp(
+            this.player ? (isNS ? (this.player.x / this.mapWidth) : (this.player.y / this.mapHeight)) : 0.5,
+            0.08, 0.92
+        );
         this.pendingMapTransition = true;
 
         /* Reset Wanted level on chart change */
@@ -1704,14 +1728,27 @@ handleResize(gameSize) {
         if (!this.player || !this.player.active || this.pendingMapTransition) return;
         if (this.time.now < this.chartTravelGraceUntil) return;
 
-        const edgePadding = 26;
-        if (this.player.x >= this.mapWidth - edgePadding) {
-            this.transitionToChart(this.currentChartIndex + 1, 'east');
-            return;
-        }
-        if (this.player.x <= edgePadding) {
-            this.transitionToChart(this.currentChartIndex - 1, 'west');
-        }
+        const EDGE_ZONE = 300; /* Pixel vom Rand: ab hier erscheint der Button */
+        const { x, y }  = this.player;
+        const nb         = this.currentChartConfig?.neighbors ?? {};
+
+        /* Welche Ränder hat der Spieler gerade betreten? */
+        const edgeNearby = {
+            east:  x >= this.mapWidth  - EDGE_ZONE ? (nb.east  ?? null) : null,
+            west:  x <= EDGE_ZONE                  ? (nb.west  ?? null) : null,
+            south: y >= this.mapHeight - EDGE_ZONE ? (nb.south ?? null) : null,
+            north: y <= EDGE_ZONE                  ? (nb.north ?? null) : null,
+        };
+
+        this.edgeMapButtons?.update(edgeNearby);
+
+        /* Harte Randsperre: Schiff kann nicht über den Weltrand hinausfahren,
+           wenn es in diese Richtung keine Nachbarkarte gibt. */
+        const HARD = 18;
+        if (!nb.east  && x > this.mapWidth  - HARD) this.player.x = this.mapWidth  - HARD;
+        if (!nb.west  && x < HARD)                  this.player.x = HARD;
+        if (!nb.south && y > this.mapHeight - HARD)  this.player.y = this.mapHeight - HARD;
+        if (!nb.north && y < HARD)                   this.player.y = HARD;
     }
 
     createPlayerVisualEffects() {
@@ -1959,9 +1996,82 @@ handleResize(gameSize) {
     }
 
     toggleSeaGateVisibility() {
-        this.isSeaGateVisible = !this.isSeaGateVisible;
-        this.showStatusMsg(this.isSeaGateVisible ? 'Sea gate panel expanded' : 'Sea gate panel minimized', 0x8be7ff);
-        this.updateUIBars();
+        this._showMapOverview();
+    }
+
+    _showMapOverview() {
+        if (this._mapOverlayEl) { this._mapOverlayEl.remove(); this._mapOverlayEl = null; return; }
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position:fixed; inset:0; z-index:9200;
+            background:rgba(4,14,28,0.88);
+            display:flex; align-items:center; justify-content:center;
+            font-family:Arial,sans-serif;
+        `;
+
+        const panel = document.createElement('div');
+        panel.style.cssText = `
+            background:linear-gradient(160deg,#081828,#0c2440);
+            border:1.5px solid rgba(99,214,255,0.5);
+            border-radius:14px; padding:18px 24px;
+            min-width:320px; max-width:460px;
+            box-shadow:0 0 40px rgba(40,160,255,0.2);
+            color:#dff8ff;
+        `;
+
+        const title = document.createElement('div');
+        title.style.cssText = 'font-size:15px;font-weight:bold;letter-spacing:2px;color:#63d6ff;margin-bottom:14px;text-align:center;';
+        title.textContent = '⚓ SEEKARTEN ATLAS';
+        panel.appendChild(title);
+
+        const COLS = 5;
+        const grid = document.createElement('div');
+        grid.style.cssText = `display:grid;grid-template-columns:repeat(${COLS},1fr);gap:6px;`;
+
+        const charts = this.availableCharts ?? [];
+        charts.forEach((cfg) => {
+            const cell = document.createElement('div');
+            const isCurrent  = cfg.index === this.currentChartIndex;
+            const isUnlocked = this.canAccessChart(cfg.index);
+            const hex = '#' + (cfg.themeColor ?? 0x4bc8ff).toString(16).padStart(6, '0');
+            cell.style.cssText = `
+                background:${isCurrent ? 'rgba(60,160,255,0.3)' : isUnlocked ? 'rgba(10,30,55,0.9)' : 'rgba(5,15,30,0.9)'};
+                border:1.5px solid ${isCurrent ? '#63d6ff' : isUnlocked ? 'rgba(80,180,255,0.3)' : 'rgba(40,70,100,0.4)'};
+                border-radius:8px; padding:8px 4px; text-align:center; cursor:${isUnlocked ? 'pointer' : 'default'};
+                transition:background 0.15s;
+            `;
+            const num = document.createElement('div');
+            num.style.cssText = `font-size:11px;font-weight:bold;color:${hex};margin-bottom:2px;`;
+            num.textContent = `${isCurrent ? '▶ ' : ''}K${cfg.index}`;
+            const name = document.createElement('div');
+            name.style.cssText = 'font-size:8px;color:#8ab0cc;line-height:1.2;';
+            name.textContent = isUnlocked ? cfg.name : `🔒 Lvl ${cfg.requiredLevel}`;
+            cell.appendChild(num);
+            cell.appendChild(name);
+            if (isUnlocked && cfg.index !== this.currentChartIndex) {
+                cell.addEventListener('pointerdown', () => {
+                    overlay.remove(); this._mapOverlayEl = null;
+                    this.transitionToChart(cfg.index, 'center');
+                });
+                cell.addEventListener('mouseenter', () => { cell.style.background = 'rgba(30,100,200,0.35)'; });
+                cell.addEventListener('mouseleave', () => { cell.style.background = 'rgba(10,30,55,0.9)'; });
+            }
+            grid.appendChild(cell);
+        });
+        panel.appendChild(grid);
+
+        const close = document.createElement('div');
+        close.style.cssText = 'margin-top:14px;text-align:center;font-size:11px;color:#4a8aaa;cursor:pointer;';
+        close.textContent = '✕ Schließen';
+        close.addEventListener('pointerdown', () => { overlay.remove(); this._mapOverlayEl = null; });
+        panel.appendChild(close);
+
+        overlay.appendChild(panel);
+        overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) { overlay.remove(); this._mapOverlayEl = null; } });
+        document.body.appendChild(overlay);
+        this._mapOverlayEl = overlay;
+        this.events.once('shutdown', () => { overlay.remove(); });
     }
 
     toggleReturnToShipVisibility() {
@@ -3403,7 +3513,7 @@ handleResize(gameSize) {
         this.panelQuickDockButtons = [];
         [
             { key: 'nav', label: 'HUD', handler: () => this.handleMenuAction('menu') },
-            { key: 'gate', label: 'GATE', handler: () => this.toggleSeaGateVisibility() },
+            { key: 'gate', label: 'KARTE', handler: () => this.toggleSeaGateVisibility() },
             { key: 'chat', label: 'CHAT', handler: () => this.toggleChatSize() },
             { key: 'ship', label: 'SHIP', handler: () => this.toggleReturnToShipVisibility() }
         ].forEach((def, index) => {

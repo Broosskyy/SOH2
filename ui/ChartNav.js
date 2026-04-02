@@ -123,9 +123,8 @@ export default class ChartNav {
     }
 
     refresh() {
-        const s = this.scene;
+        const s   = this.scene;
         const idx = s.currentChartIndex ?? 1;
-        const max = s.maxChartIndex ?? 10;
         const cfg = s.getChartConfig?.(idx);
 
         const numEl   = document.getElementById('chart-nav-num');
@@ -133,13 +132,20 @@ export default class ChartNav {
         const westBtn = document.getElementById('chart-nav-west');
         const eastBtn = document.getElementById('chart-nav-east');
 
-        if (numEl)  numEl.textContent  = String(idx);
+        /* Gitter-Position anzeigen: Zeile/Spalte wie Seafight */
+        const col = cfg?.col ?? 0;
+        const row = cfg?.row ?? 0;
+        const gridPos = `[${col + 1}-${row + 1}]`;
+
+        if (numEl)  numEl.textContent  = `K${idx} ${gridPos}`;
         if (nameEl) nameEl.textContent = cfg?.name ?? `Seekarte ${idx}`;
 
-        const canWest = idx > 1;
-        const canEast = idx < max;
-        if (westBtn) { westBtn.style.opacity = canWest ? '1' : '0.35'; westBtn.style.cursor = canWest ? 'pointer' : 'default'; }
-        if (eastBtn) { eastBtn.style.opacity = canEast ? '1' : '0.35'; eastBtn.style.cursor = canEast ? 'pointer' : 'default'; }
+        /* Buttons zeigen ob ein Nachbar in diese Richtung existiert */
+        const nb = cfg?.neighbors ?? {};
+        const canWest = !!nb.west;
+        const canEast = !!nb.east;
+        if (westBtn) { westBtn.style.opacity = canWest ? '1' : '0.25'; westBtn.style.cursor = canWest ? 'pointer' : 'default'; }
+        if (eastBtn) { eastBtn.style.opacity = canEast ? '1' : '0.25'; eastBtn.style.cursor = canEast ? 'pointer' : 'default'; }
     }
 
     setShipVisible(_v) { /* ship button now lives as #ahc-ship-btn (bottom-left) */ }
