@@ -53,10 +53,25 @@ export default class PlayerShip extends Ship {
 
         this.moveTarget = null;
         this.useSpriteRotation = true;
-        this.navigationRotationSpeed = 0.045; /* Smooth, nautical turn rate */
-        this.combatRotationSpeed     = 0.045; /* Same — no wild combat spin */
+        this.navigationRotationSpeed = 0.045;
+        this.combatRotationSpeed     = 0.045;
         this.rotationSpeed = this.navigationRotationSpeed;
         this.combatFacingTarget = null;
+
+        /* ── 8-Richtungs-Frame-System (Seafight-Style) ──────────────────────────
+           Reihenfolge: [E, SE, S, SW, W, NW, N, NE]
+           entspricht targetAngle 0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°.
+           Wenn alle Texturen geladen, wird Frame gewechselt statt gedreht.      */
+        this._dirTextureKeys = [
+            'player-dir-e',
+            'player-dir-se',
+            'player-dir-s',
+            'player-dir-sw',
+            'player-dir-w',
+            'player-dir-nw',
+            'player-dir-n',
+            'player-dir-ne',
+        ];
 
         this.body.setCollideWorldBounds(true);
         this.body.setCircle(22);

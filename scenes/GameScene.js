@@ -194,7 +194,17 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('player-ship',         'assets/ship_top_player.png');
+        /* Pumpkin Reaper — 8 Richtungs-Frames (Seafight-Style Frame-Switch) */
+        this.load.image('player-dir-e',  'assets/pumpkin_dir_e.png');
+        this.load.image('player-dir-se', 'assets/pumpkin_dir_se.png');
+        this.load.image('player-dir-s',  'assets/pumpkin_dir_s.png');
+        this.load.image('player-dir-sw', 'assets/pumpkin_dir_sw.png');
+        this.load.image('player-dir-w',  'assets/pumpkin_dir_w.png');
+        this.load.image('player-dir-nw', 'assets/pumpkin_dir_nw.png');
+        this.load.image('player-dir-n',  'assets/pumpkin_dir_n.png');
+        this.load.image('player-dir-ne', 'assets/pumpkin_dir_ne.png');
+        /* Fallback-Textur für player-ship (z.B. Shop-Vorschau) */
+        this.load.image('player-ship',   'assets/pumpkin_dir_se.png');
         this.load.image('player-ship-neon',    'assets/player_ship_neon_pro.webp');
         this.load.image('player-ship-pro',     'assets/player_ship_pro.webp');
         this.load.image('player-ship-frigate1','assets/player_ship_frigate_1.png');

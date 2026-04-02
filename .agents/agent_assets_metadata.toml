@@ -54,3 +54,51 @@ id = "797UJGK6yadQABt-CXWiv"
 uri = "file://assets/ship_top_player.png"
 type = "image"
 title = "overhead player flagship sprite"
+
+[[generated]]
+id = "tCEhELGXwDHWd0FgRFZqO"
+uri = "file://assets/pumpkin_dir_e.png"
+type = "image"
+title = "Pumpkin Reaper East"
+
+[[generated]]
+id = "1ZuwZ0ghhI4iuF6Pn_feF"
+uri = "file://assets/pumpkin_dir_se.png"
+type = "image"
+title = "Pumpkin Reaper SE"
+
+[[generated]]
+id = "EsAQZURrVh4dDeR2AbseF"
+uri = "file://assets/pumpkin_dir_s.png"
+type = "image"
+title = "Pumpkin Reaper South"
+
+[[generated]]
+id = "eDT2Fp6rCn9mtABSZYPru"
+uri = "file://assets/pumpkin_dir_sw.png"
+type = "image"
+title = "Pumpkin Reaper SW"
+
+[[generated]]
+id = "h0k24BpZcWv9YPT_J_Acf"
+uri = "file://assets/pumpkin_dir_w.png"
+type = "image"
+title = "Pumpkin Reaper West"
+
+[[generated]]
+id = "5WpKFLsWk6NUF7NTU4ZGH"
+uri = "file://assets/pumpkin_dir_nw.png"
+type = "image"
+title = "Pumpkin Reaper NW"
+
+[[generated]]
+id = "2ZEr11Md0fNK0Spbl8-0H"
+uri = "file://assets/pumpkin_dir_n.png"
+type = "image"
+title = "Pumpkin Reaper North"
+
+[[generated]]
+id = "U4rFhJfzYPqiZybPE-5-Y"
+uri = "file://assets/pumpkin_dir_ne.png"
+type = "image"
+title = "Pumpkin Reaper NE"

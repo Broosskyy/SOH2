@@ -178,23 +178,32 @@ export default class Ship extends Phaser.GameObjects.Container {
     }
 
     update() {
-        /* Sprites in PNG zeigen Bug nach OBEN (North) — Phaser targetAngle 0 = RECHTS (East).
-           Versatz: +π/2 so dass das Schiff immer in die tatsächliche Bewegungsrichtung zeigt. */
-        const SPRITE_OFFSET = Math.PI / 2;
-        const visualTarget  = this.targetAngle + SPRITE_OFFSET;
-
-        if (this.useSpriteRotation) {
-            /* ── 8-Richtungs-System — Seafight-Style: SOFORT snappen ──────────────
-               Das Sprite rastet sofort in eine der 8 Richtungen (45°-Schritte) ein.
-               Kein Smooth-Drehen — so wie in Seafight/BOS wo die Richtung
-               unmittelbar wechselt. Overhead-Sprites sehen bei jeder Rotation korrekt aus. */
+        /* ── Modus 1: Echter 8-Richtungs-Frame-Wechsel (Seafight-Stil) ──────────
+           Wenn this._dirTextureKeys gesetzt ist (Array mit 8 Textur-Keys),
+           wird das Sprite-Bild direkt gewechselt — keine Rotation, kein Drehen.
+           Reihenfolge der Keys: [E, SE, S, SW, W, NW, N, NE]
+           entsprechend targetAngle 0 → 7π/4 in 45°-Schritten. */
+        if (this._dirTextureKeys && this._dirTextureKeys.length === 8) {
+            const TWO_PI  = Math.PI * 2;
+            const STEP    = Math.PI / 4;
+            const wrapped = ((this.targetAngle % TWO_PI) + TWO_PI) % TWO_PI;
+            const index   = Math.round(wrapped / STEP) % 8;
+            const key     = this._dirTextureKeys[index];
+            if (this.sprite.texture?.key !== key) {
+                this.sprite.setTexture(key);
+            }
+            this.sprite.rotation = 0; /* Kein Drehen — Frame übernimmt die Richtung */
+        } else if (this.useSpriteRotation) {
+            /* ── Modus 2: Overhead-Sprite mit 8-Richtungs-Snap-Rotation ─────────
+               Für Overhead-Sprites die gedreht werden können. */
+            const SPRITE_OFFSET = Math.PI / 2;
+            const visualTarget  = this.targetAngle + SPRITE_OFFSET;
             const TWO_PI = Math.PI * 2;
-            const STEP   = Math.PI / 4; /* 45° je Richtung */
-
+            const STEP   = Math.PI / 4;
             const wrapped = ((visualTarget % TWO_PI) + TWO_PI) % TWO_PI;
-            /* Sofortiger Snap zum nächsten 45°-Schritt */
             this.sprite.rotation = Math.round(wrapped / STEP) * STEP;
         } else {
+            /* ── Modus 3: Seitenansicht — nur links/rechts Spiegeln ─────────────*/
             const isRight = Math.abs(this.targetAngle) < Math.PI / 2;
             this.sprite.setScale(isRight ? Math.abs(this.sprite.scaleX) : -Math.abs(this.sprite.scaleX), this.sprite.scaleY);
         }
