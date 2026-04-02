@@ -1513,7 +1513,50 @@ handleResize(gameSize) {
             }
         });
 
+        /* ── Guild island towers: check each active tower position ── */
+        if (this.guildIsland && !this.guildIsland.capturedBy) {
+            const gi = this.guildIsland;
+            gi.towers.forEach((tower, i) => {
+                if (!tower.active) return;
+                const tx = gi.x + tower.tx;
+                const ty = gi.y + tower.ty;
+                const dist = Phaser.Math.Distance.Between(worldX, worldY, tx, ty);
+                if (dist <= 80 && dist < closestDistance) {
+                    closestDistance = dist;
+                    closestTarget = this._makeTowerProxy(gi, i);
+                }
+            });
+        }
+
         return closestTarget;
+    }
+
+    /* Build a live proxy object for a guild island tower */
+    _makeTowerProxy(island, index) {
+        const scene   = this;
+        const tower   = island.towers[index];
+        const proxy   = {
+            isGuildTowerProxy: true,
+            guildIsland:       island,
+            towerIndex:        index,
+            active:            true,
+            isDead:            false,
+            x:                 island.x + tower.tx,
+            y:                 island.y + tower.ty,
+            hp:                tower.hp,
+            maxHP:             tower.maxHp,
+            selectionRadius:   80,
+            takeDamage(dmg) {
+                const guildName = scene.player?.guildName ?? window._loginUsername ?? 'Spieler';
+                island.attackTower(this.towerIndex, dmg, guildName);
+                const t = island.towers[this.towerIndex];
+                if (t) {
+                    this.hp = t.hp;
+                    if (!t.active) { this.active = false; this.isDead = true; }
+                }
+            }
+        };
+        return proxy;
     }
 
     smoothCenterCameraOnPlayer() {
@@ -1822,31 +1865,7 @@ handleResize(gameSize) {
         if (!tower || !tower.active) {
             this.showStatusMsg('💥 Alle Türme bereits zerstört!', 0x888888); return;
         }
-        const scene = this;
-        const proxy = {
-            isGuildTowerProxy: true,
-            guildIsland: island,
-            towerIndex: index,
-            active: true,
-            isDead: false,
-            x: island.x + tower.tx,
-            y: island.y + tower.ty,
-            hp: tower.hp,
-            maxHP: tower.maxHp,
-            selectionRadius: 80,
-            takeDamage(dmg) {
-                const guildName = scene.player?.guildName ?? window._loginUsername ?? 'Spieler';
-                island.attackTower(this.towerIndex, dmg, guildName);
-                const t = island.towers[this.towerIndex];
-                if (t) {
-                    this.hp = t.hp;
-                    if (!t.active) {
-                        this.active = false;
-                        this.isDead = true;
-                    }
-                }
-            }
-        };
+        const proxy = this._makeTowerProxy(island, index);
         this._towerJustSelected = true;
         this.selectTarget(proxy);
         const activeTowers = island.towers.filter(t => t.active).length;
