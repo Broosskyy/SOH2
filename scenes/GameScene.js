@@ -4545,6 +4545,38 @@ handleResize(gameSize) {
             });
         }
 
+        /* ── Shock: storm ammo shockRatio > 0 ── */
+        const shockRatio = ammoConfig?.shockRatio ?? 0;
+        if (!isHarpoon && shockRatio > 0 && target.active) {
+            /* small instant bonus damage */
+            const shockDmg = Math.max(1, Math.round(appliedDamage * shockRatio));
+            target.takeDamage(shockDmg);
+            this.events.emit('damage-dealt', shockDmg);
+            if (target.updateHPBar) target.updateHPBar();
+
+            /* ⚡ float */
+            try {
+                const ft = this.add.text(
+                    target.x + Phaser.Math.Between(-12, 12), target.y - 24,
+                    '⚡', { fontSize: '20px', stroke: '#000', strokeThickness: 2 }
+                ).setOrigin(0.5).setDepth(1700);
+                this.tweens.add({ targets: ft, y: ft.y - 44, alpha: 0, duration: 750, ease: 'Cubic.Out', onComplete: () => ft.destroy() });
+            } catch {}
+
+            /* slow target for 1.5 s if it exposes a numeric speed */
+            if (typeof target.speed === 'number' && !target._shockActive) {
+                target._shockActive    = true;
+                target._shockOrigSpeed = target.speed;
+                target.speed           = target.speed * 0.7;
+                this.time.delayedCall(1500, () => {
+                    if (target._shockActive) {
+                        target.speed       = target._shockOrigSpeed;
+                        target._shockActive = false;
+                    }
+                });
+            }
+        }
+
         /* --- Island tower destroyed → check conquest --- */
         if (target.isIslandTower && !target.active) {
             this._checkIslandConquest(target.parentIsland);
