@@ -1702,7 +1702,7 @@ handleResize(gameSize) {
         let closestDistance = Number.POSITIVE_INFINITY;
 
         candidates.forEach((entity) => {
-            const hitRadius = entity.selectionRadius ?? 64;
+            const hitRadius = entity.selectionRadius ?? 36; /* Fallback: vernünftiger Mindestradius */
             const distance = Phaser.Math.Distance.Between(worldX, worldY, entity.x, entity.y);
 
             if (distance <= hitRadius && distance < closestDistance) {

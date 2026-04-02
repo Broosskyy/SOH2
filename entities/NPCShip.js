@@ -85,9 +85,15 @@ export default class NPCShip extends Ship {
 
         this._buildNameLabel();
 
-        this.setSize(180, 180);
-        this.setInteractive(new Phaser.Geom.Rectangle(-90, -90, 180, 180), Phaser.Geom.Rectangle.Contains);
-        this.selectionRadius = 76;
+        /* Trefferzone = Kreis direkt um das sichtbare Sprite.
+           colliderRadius passt bereits zur Sprite-Größe; +10px Extra für Mobile-Touch. */
+        const hitR = colliderRadius + 10;
+        this.setSize(hitR * 2, hitR * 2);
+        this.setInteractive(
+            new Phaser.Geom.Circle(0, 0, hitR),
+            Phaser.Geom.Circle.Contains
+        );
+        this.selectionRadius = hitR;
 
         this.on('pointerdown', () => { this.scene.events.emit('npc-selected', this); });
 

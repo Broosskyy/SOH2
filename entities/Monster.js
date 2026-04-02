@@ -8,30 +8,37 @@ export default class Monster extends Ship {
         super(scene, x, y, type);
         
         this.monsterType = type;
+        let monsterHitR = 52;
         if (type === 'monster-kraken') {
             this.sprite.setScale(0.15);
             this.maxHP = 760;
             this.xpValue = 240;
+            monsterHitR = 52;
         } else if (type === 'monster-leviathan') {
             this.sprite.setScale(0.18);
             this.maxHP = 1400;
             this.xpValue = 420;
+            monsterHitR = 62;
         } else if (type === 'monster-shark') {
             this.sprite.setScale(0.2);
             this.maxHP = 380;
             this.xpValue = 110;
+            monsterHitR = 68;
         } else {
             this.sprite.setScale(0.15);
             this.maxHP = 620;
             this.xpValue = 190;
+            monsterHitR = 52;
         }
         this.hp = this.maxHP;
         this.updateHealthBar();
 
-        this.setSize(120, 120);
-        this.setInteractive(new Phaser.Geom.Rectangle(-60, -60, 120, 120), Phaser.Geom.Rectangle.Contains);
-
-        this.selectionRadius = 82;
+        this.setSize(monsterHitR * 2, monsterHitR * 2);
+        this.setInteractive(
+            new Phaser.Geom.Circle(0, 0, monsterHitR),
+            Phaser.Geom.Circle.Contains
+        );
+        this.selectionRadius = monsterHitR;
 
         this.on('pointerdown', () => {
             this.scene.events.emit('npc-selected', this);
