@@ -5760,10 +5760,16 @@ handleResize(gameSize) {
 
         this.handleSeaBorderTravel();
 
+        /* ── Kamera folgt dem Schiff automatisch ────────────
+           Nur überschrieben wenn der Nutzer aktiv am Draggen ist */
         const cam = this.cameras.main;
+        if (!this.cameraDragState && this.player?.active) {
+            this.cameraTargetX = this.player.x - cam.width  / (2 * cam.zoom);
+            this.cameraTargetY = this.player.y - cam.height / (2 * cam.zoom);
+        }
         this.clampCameraTarget();
-        cam.scrollX = Phaser.Math.Linear(cam.scrollX, this.cameraTargetX, 0.22);
-        cam.scrollY = Phaser.Math.Linear(cam.scrollY, this.cameraTargetY, 0.22);
+        cam.scrollX = Phaser.Math.Linear(cam.scrollX, this.cameraTargetX, 0.12);
+        cam.scrollY = Phaser.Math.Linear(cam.scrollY, this.cameraTargetY, 0.12);
 
         if (this.minimap) {
             this.minimap.setDepth(2050);

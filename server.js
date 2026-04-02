@@ -577,6 +577,18 @@ io.on('connection', async (socket) => {
     const username = socket.username;
     console.log(`[WS] ${username} verbunden (${socket.id})`);
 
+    /* Bereits verbundene Session mit diesem Account trennen (kein Doppel-Login) */
+    const existing = onlinePlayers.get(username);
+    if (existing?.socketId && existing.socketId !== socket.id) {
+        const oldSock = io.sockets.sockets.get(existing.socketId);
+        if (oldSock) {
+            oldSock.emit('kicked', { reason: 'Neues Gerät hat sich eingeloggt.' });
+            oldSock.disconnect(true);
+        }
+        onlinePlayers.delete(username);
+        console.log(`[WS] ${username} alte Session getrennt (Doppel-Login)`);
+    }
+
     /* Spielerdaten aus DB laden */
     let playerRow;
     try {

@@ -127,6 +127,12 @@ export default class NetworkManager {
             alert(`Du wurdest gebannt: ${reason}`);
             window.location.reload();
         });
+
+        /* Doppel-Login: andere Session hat diesen Account übernommen */
+        this.socket.on('kicked', ({ reason }) => {
+            this._showSystemMsg(`⚠️ Verbindung getrennt: ${reason}`, 0xff8844);
+            this.connected = false;
+        });
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -236,71 +242,124 @@ export default class NetworkManager {
 
     _createPlayerSprite(username, x, y, level, pvpMode) {
         const scene = this.scene;
+        const shipColor  = pvpMode ? 0xff5555 : 0x55aaff;
+        const hullColor  = pvpMode ? 0xcc2222 : 0x2255aa;
 
-        /* Schiff-Sprite */
-        const texKey = scene.textures.exists('npc-ship-tier2') ? 'npc-ship-tier2'
-                     : scene.textures.exists('ship_top_tier2') ? 'ship_top_tier2'
-                     : 'player';
-        const sprite = scene.add.image(x, y, texKey)
-            .setDisplaySize(48, 48)
-            .setDepth(30)
-            .setTint(0x88ccff);  /* Blauer Tint für andere Spieler */
+        /* ── Schiff als Graphics (funktioniert immer, egal welche Texturen geladen sind) */
+        const gfx = scene.add.graphics().setDepth(30);
+        this._drawShipGfx(gfx, 0, 0, shipColor, hullColor);
 
-        /* Name-Tag */
-        const pvpBadge = pvpMode ? ' ⚔️' : ' 🛡️';
-        const nameTag = scene.add.text(x, y - 36, `[${level}] ${username}${pvpBadge}`, {
-            fontFamily: 'Georgia, serif',
-            fontSize:   '11px',
-            color:      pvpMode ? '#ff8888' : '#aaddff',
-            stroke:     '#000000',
-            strokeThickness: 3,
-            shadow: { blur: 4, color: '#000', fill: true },
-        }).setOrigin(0.5, 1).setDepth(31);
+        /* Container hält Grafik + folgt Position */
+        const container = scene.add.container(x, y, [gfx]).setDepth(30);
 
-        /* HP-Balken Hintergrund */
-        const hpBg = scene.add.rectangle(x, y - 40, 40, 4, 0x222222, 0.8)
-            .setDepth(31).setOrigin(0.5, 0.5);
+        /* Versuche zusätzlich ein echtes Schiff-Sprite zu laden */
+        const texCandidates = ['npc-ship-tier2', 'ship_top_tier2', 'npc-ship-tier1', 'player-dir-n'];
+        const texKey = texCandidates.find(k => scene.textures.exists(k));
+        let shipImg = null;
+        if (texKey) {
+            shipImg = scene.add.image(0, 0, texKey)
+                .setDisplaySize(44, 44)
+                .setAlpha(0.9)
+                .setTint(shipColor);
+            container.add(shipImg);
+        }
 
-        /* HP-Balken Füllung */
-        const hpFill = scene.add.rectangle(x - 20, y - 40, 40, 4, pvpMode ? 0xff4444 : 0x44ff88, 1)
-            .setDepth(32).setOrigin(0, 0.5);
+        /* ── Name-Tag als DOM-Element (immer lesbar, kein Phaser-Font-Problem) */
+        const nameEl = document.createElement('div');
+        nameEl.style.cssText = `
+            position:fixed; pointer-events:none; z-index:7500;
+            font:bold 11px Georgia,serif;
+            color:${pvpMode ? '#ffaaaa' : '#aaddff'};
+            text-shadow:0 0 4px #000,1px 1px 0 #000,-1px -1px 0 #000;
+            transform:translateX(-50%) translateY(-100%);
+            white-space:nowrap; user-select:none;
+        `;
+        nameEl.textContent = `[${level}] ${username} ${pvpMode ? '⚔️' : '🛡️'}`;
+        document.body.appendChild(nameEl);
+
+        /* ── HP-Balken (DOM) */
+        const hpEl = document.createElement('div');
+        hpEl.style.cssText = `
+            position:fixed; pointer-events:none; z-index:7499;
+            width:44px; height:5px; border-radius:3px;
+            background:#111; border:1px solid #333;
+            transform:translateX(-50%);
+        `;
+        const hpFillEl = document.createElement('div');
+        hpFillEl.style.cssText = `
+            height:100%; border-radius:3px;
+            background:${pvpMode ? '#ff4444' : '#44ff88'};
+            width:100%; transition:width 0.3s;
+        `;
+        hpEl.appendChild(hpFillEl);
+        document.body.appendChild(hpEl);
 
         return {
-            sprite, nameTag, hpBg, hpFill,
+            container, gfx, shipImg, nameEl, hpEl, hpFillEl,
+            /* Legacy compat — update loop checks entry.sprite */
+            get sprite() { return container; },
             data: { username, level, pvpMode, hp: 100 },
         };
     }
 
+    _drawShipGfx(gfx, cx, cy, shipColor, hullColor) {
+        gfx.clear();
+        /* Rumpf */
+        gfx.fillStyle(hullColor, 1);
+        gfx.fillEllipse(cx, cy, 20, 36);
+        /* Deck */
+        gfx.fillStyle(shipColor, 1);
+        gfx.fillEllipse(cx, cy, 14, 26);
+        /* Bug (vorne) */
+        gfx.fillStyle(0xffffff, 0.6);
+        gfx.fillTriangle(cx, cy - 18, cx - 4, cy - 10, cx + 4, cy - 10);
+        /* Mast */
+        gfx.fillStyle(0xddcc88, 1);
+        gfx.fillRect(cx - 1, cy - 12, 2, 24);
+        /* Segel */
+        gfx.fillStyle(0xffffff, 0.85);
+        gfx.fillTriangle(cx, cy - 10, cx - 7, cy + 6, cx + 7, cy + 6);
+    }
+
     _updateNameTag(username) {
         const entry = this.online.get(username);
-        if (!entry?.nameTag?.active) return;
-        const { level, pvpMode } = entry.data;
-        const pvpBadge = pvpMode ? ' ⚔️' : ' 🛡️';
-        entry.nameTag.setText(`[${level}] ${username}${pvpBadge}`);
-        entry.nameTag.setColor(pvpMode ? '#ff8888' : '#aaddff');
-        entry.nameTag.x = entry.sprite.x;
-        entry.nameTag.y = entry.sprite.y - 36;
-        entry.hpBg.x  = entry.sprite.x;
-        entry.hpBg.y  = entry.sprite.y - 44;
-        entry.hpFill.x = entry.sprite.x - 20;
-        entry.hpFill.y = entry.sprite.y - 44;
+        if (!entry?.container?.active) return;
+        if (!entry.nameEl || !entry.hpEl) return;
+
+        const scene = this.scene;
+        const cam   = scene.cameras.main;
+        const wx    = entry.container.x;
+        const wy    = entry.container.y;
+
+        /* Welt → Bildschirm Koordinaten */
+        const sx = (wx - cam.scrollX) * cam.zoom;
+        const sy = (wy - cam.scrollY) * cam.zoom;
+
+        entry.nameEl.style.left = `${sx}px`;
+        entry.nameEl.style.top  = `${sy - 28}px`;
+        entry.hpEl.style.left   = `${sx}px`;
+        entry.hpEl.style.top    = `${sy - 20}px`;
+
+        /* Unsichtbar machen wenn außerhalb des Viewports */
+        const vis = sx > -60 && sx < window.innerWidth + 60 && sy > -60 && sy < window.innerHeight + 60;
+        entry.nameEl.style.display = vis ? 'block' : 'none';
+        entry.hpEl.style.display   = vis ? 'block' : 'none';
     }
 
     _updateHpBar(username, hpPercent) {
         const entry = this.online.get(username);
-        if (!entry?.hpFill?.active) return;
+        if (!entry?.hpFillEl) return;
         const pct = Math.max(0, Math.min(100, hpPercent ?? 100));
-        entry.hpFill.setSize(pct * 0.4, 4);
+        entry.hpFillEl.style.width = `${pct}%`;
         entry.data.hp = pct;
     }
 
     _removePlayer(username) {
         const entry = this.online.get(username);
         if (!entry) return;
-        entry.sprite?.destroy();
-        entry.nameTag?.destroy();
-        entry.hpBg?.destroy();
-        entry.hpFill?.destroy();
+        entry.container?.destroy();
+        entry.nameEl?.remove();
+        entry.hpEl?.remove();
         this.online.delete(username);
     }
 
