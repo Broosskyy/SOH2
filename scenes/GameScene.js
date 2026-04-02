@@ -28,7 +28,7 @@ import ItemBar from '../ui/ItemBar.js';
 import PirateTrialPanel, { PIRATE_TRIALS } from '../ui/PirateTrialPanel.js';
 import DailyQuestPanel from '../ui/DailyQuestPanel.js';
 import ReputationHUD from '../ui/ReputationHUD.js';
-import { apiSave, isLoggedIn } from '../api.js';
+import { apiSave, isLoggedIn, getToken } from '../api.js';
 import LoginBonusPanel from '../ui/LoginBonusPanel.js';
 import AchievementPanel from '../ui/AchievementPanel.js';
 import LogbookPanel from '../ui/LogbookPanel.js';
@@ -819,7 +819,6 @@ export default class GameScene extends Phaser.Scene {
         /* ── MMO Netzwerk (Socket.IO) ───────────────────────── */
         this.network = new NetworkManager(this);
         try {
-            const { getToken } = await import('../api.js');
             const tok = getToken();
             if (tok) this.network.connect(tok);
         } catch (_) {}
