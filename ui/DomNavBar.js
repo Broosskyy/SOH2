@@ -227,6 +227,22 @@ export default class DomNavBar {
                 <span id="nav-mats-val" style="font-size:10px;color:#b8f0ff;min-width:22px;">0</span>
                 <span id="nav-gold-deck" style="font-size:8px;color:#ffd36a;margin-left:2px;">🟠🟠🟠</span>
             </div>
+            <!-- PvP-Toggle -->
+            <div style="display:flex;align-items:center;gap:3px;margin-top:1px;">
+                <span id="nav-pvp-badge" style="
+                    font-size:8px;font-weight:bold;
+                    color:#6bff9f;
+                    background:rgba(10,60,30,0.5);
+                    border:1px solid rgba(80,255,130,0.35);
+                    border-radius:4px;padding:1px 5px;
+                    cursor:pointer;touch-action:manipulation;
+                    -webkit-tap-highlight-color:transparent;
+                    pointer-events:auto;
+                    user-select:none;
+                    -webkit-user-select:none;
+                    transition:all 0.15s;
+                ">🛡 PvP AUS</span>
+            </div>
         `;
         document.body.appendChild(stats);
         this._statsEl = stats;

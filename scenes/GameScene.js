@@ -35,6 +35,7 @@ import AchievementPanel from '../ui/AchievementPanel.js';
 import LogbookPanel from '../ui/LogbookPanel.js';
 import HafenPanel         from '../ui/HafenPanel.js';
 import CannonUpgradePanel from '../ui/CannonUpgradePanel.js';
+import CoordHUD from '../ui/CoordHUD.js';
 import Phaser from 'phaser';
 import * as Tone from 'tone';
 
@@ -591,6 +592,8 @@ export default class GameScene extends Phaser.Scene {
         this.logbookPanel     = new LogbookPanel(this);
         this.hafenPanel           = new HafenPanel(this);
         this.cannonUpgradePanel   = new CannonUpgradePanel(this);
+        this.coordHUD             = new CoordHUD(this);
+        this._bindPvpToggle();
 
         this.navBar.setVisible(false);
 
@@ -603,7 +606,7 @@ export default class GameScene extends Phaser.Scene {
              this.adminPanel, this.talentPanel, this.multiplayerPanel,
              this.itemBar, this.pirateTrialPanel, this.dailyQuestPanel, this.reputationHUD,
              this.loginBonusPanel, this.achievementPanel, this.logbookPanel, this.hafenPanel,
-             this.cannonUpgradePanel]
+             this.cannonUpgradePanel, this.coordHUD]
                 .forEach(p => p?.destroy());
             this._removeEventDirectionHUD?.();
             this._streakHudEl?.remove();    this._streakHudEl = null;
@@ -1722,6 +1725,88 @@ handleResize(gameSize) {
                 travelRatioY
             });
         });
+    }
+
+    /* ── Koordinaten: Karten-Sektor + Feld innerhalb der Karte ──
+       Karten-Sektor: 2×5 Atlas-Grid → "A1" bis "E2"
+           Spalte A–E (west→ost), Zeile 1–2 (nord→süd)
+       Feld: Aktuelle Karte in 8×8 Felder geteilt → "A1" bis "H8" */
+    _computeCoordLabels(x, y) {
+        const cfg    = this.currentChartConfig;
+        const mapW   = this.mapWidth  || cfg?.worldWidth  || 4200;
+        const mapH   = this.mapHeight || cfg?.worldHeight || 4200;
+        const col    = cfg?.col ?? 0;   /* 0–4 (west→ost) */
+        const row    = cfg?.row ?? 0;   /* 0–1 (nord→süd) */
+
+        /* Karten-Sektor: Spalte A–E, Zeile 1–2 */
+        const colLetter = String.fromCharCode(65 + col);          /* A–E */
+        const rowNum    = row + 1;                                  /* 1–2 */
+        const sector    = `${colLetter}${rowNum}`;
+
+        /* Feld innerhalb der Karte: 8×8 Raster */
+        const GRID = 8;
+        const fx = Math.min(GRID - 1, Math.floor((x / mapW) * GRID));
+        const fy = Math.min(GRID - 1, Math.floor((y / mapH) * GRID));
+        const fieldLetter = String.fromCharCode(65 + fx);          /* A–H */
+        const fieldNum    = fy + 1;                                 /* 1–8 */
+        const field       = `${fieldLetter}${fieldNum}`;
+
+        return { sector, field };
+    }
+
+    /* ── PvP-Toggle: Badge anklicken schaltet Modus um ── */
+    _bindPvpToggle() {
+        const retry = () => {
+            const el = document.getElementById('nav-pvp-badge');
+            if (!el) { setTimeout(retry, 200); return; }
+            el.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                if (!this.player) return;
+                this.player.pvpMode = !this.player.pvpMode;
+                this._updatePvpBadge();
+                /* Server informieren — nutzt vorhandenen player:setMode Event */
+                this.network?.socket?.emit('player:setMode', { pvpMode: this.player.pvpMode });
+                /* Kurzfeedback als kleiner DOM-Toast */
+                const msg   = this.player.pvpMode ? '⚔ PvP-Modus aktiviert!' : '🛡 PvP-Modus deaktiviert';
+                const color = this.player.pvpMode ? '#ff4444' : '#44ff88';
+                this._showPvpToast(msg, color);
+            });
+        };
+        retry();
+    }
+
+    /* ── Kleiner DOM-Toast für PvP-Feedback ── */
+    _showPvpToast(msg, color = '#ffffff') {
+        const t = document.createElement('div');
+        t.textContent = msg;
+        t.style.cssText = `
+            position:fixed;left:50%;top:20%;transform:translateX(-50%);
+            z-index:9999;background:rgba(8,18,36,0.92);
+            color:${color};border:1px solid ${color}55;
+            border-radius:8px;padding:6px 16px;
+            font-family:'Courier New',monospace;font-size:11px;font-weight:bold;
+            pointer-events:none;user-select:none;
+            animation:ahc-toast-fade 1.8s ease forwards;
+        `;
+        if (!document.getElementById('ahc-toast-style')) {
+            const s = document.createElement('style');
+            s.id = 'ahc-toast-style';
+            s.textContent = `@keyframes ahc-toast-fade{0%{opacity:0;top:22%}10%{opacity:1;top:20%}80%{opacity:1;top:20%}100%{opacity:0;top:18%}}`;
+            document.head.appendChild(s);
+        }
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+
+    /* ── PvP-Badge im Stats-Panel live aktualisieren ── */
+    _updatePvpBadge() {
+        const el = document.getElementById('nav-pvp-badge');
+        if (!el || !this.player) return;
+        const on = !!this.player.pvpMode;
+        el.textContent  = on ? '⚔ PvP AN' : '🛡 PvP AUS';
+        el.style.color  = on ? '#ff6b6b' : '#6bff9f';
+        el.style.border = `1px solid ${on ? 'rgba(255,80,80,0.5)' : 'rgba(80,255,130,0.35)'}`;
+        el.style.background = on ? 'rgba(120,20,20,0.6)' : 'rgba(10,60,30,0.5)';
     }
 
     handleSeaBorderTravel() {
@@ -5877,6 +5962,28 @@ handleResize(gameSize) {
         }
 
         this.handleSeaBorderTravel();
+
+        /* ── Throttled HUD Live-Updates (250ms) ─────────────────
+           HP/XP, Koordinaten und PvP-Badge werden hier aktualisiert
+           ohne jeden Frame neu zu schreiben (DOM-Optimierung). */
+        this._hudThrottle = (this._hudThrottle ?? 0) + delta;
+        if (this._hudThrottle >= 250 && this.player?.active) {
+            this._hudThrottle = 0;
+            /* HP/XP/Gold live aktualisieren */
+            this.domNavBar?.updateStats(
+                this.player.xp, 100 * this.player.level,
+                this.player.hp, this.player.maxHP,
+                this.player.goldDeckSlots, this.player.pearlDeckSlots,
+                this.player.gold, this.player.materials
+            );
+            /* Koordinaten-HUD */
+            if (this.coordHUD && this.mapWidth > 0 && this.mapHeight > 0) {
+                const { sector, field } = this._computeCoordLabels(this.player.x, this.player.y);
+                this.coordHUD.update(sector, field, this.player.x, this.player.y);
+            }
+            /* PvP-Badge im Stats-Panel */
+            this._updatePvpBadge();
+        }
 
         /* ── Kamera folgt dem Schiff NUR wenn es sich bewegt ────
            Wenn das Schiff steht, kann die Karte frei gezogen werden */
