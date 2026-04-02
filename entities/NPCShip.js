@@ -71,9 +71,12 @@ export default class NPCShip extends Ship {
         this.healthBarOffsetY = healthBarOffY;
         this.updateHealthBar();
 
-        /* Tint higher-chart NPCs progressively redder */
-        if (chartLevel >= 8)       this.sprite?.setTint(0xff5555);
-        else if (chartLevel >= 5)  this.sprite?.setTint(0xffa07a);
+        /* Tier-Farben: klare visuelle Abgrenzung zwischen Kleinen, Mittleren und Großen.
+           Chart-Level überlagert die Tier-Farbe mit einem rötlichen Ton bei Chart ≥ 5/8. */
+        const tierTints = { 1: 0xffdd88, 2: 0x88ccff, 3: 0xff4444 };
+        this.sprite?.setTint(tierTints[tier] ?? 0xffffff);
+        if      (chartLevel >= 8) this.sprite?.setTint(Phaser.Display.Color.IntegerToColor(tierTints[tier] ?? 0xffffff).darken(30).color);
+        else if (chartLevel >= 5) this.sprite?.setTint(Phaser.Display.Color.IntegerToColor(tierTints[tier] ?? 0xffffff).darken(12).color);
 
         this._buildNameLabel();
 

@@ -85,6 +85,7 @@ export default class LoginScene extends Phaser.Scene {
 
                     <!-- LOGIN FORM -->
                     <div id="form-login">
+                        <form id="form-login-fields" autocomplete="on" onsubmit="return false;" style="margin:0;padding:0;">
                         <div style="border:1px solid #7a6520;background:rgba(0,0,0,0.3);padding:20px 16px;margin-bottom:18px;border-radius:2px;">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                                 <div style="flex:1;display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
@@ -94,7 +95,7 @@ export default class LoginScene extends Phaser.Scene {
                             </div>
                             <div style="display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
                                 <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#b8952a;font-size:16px;">🔒</div>
-                                <input id="login-pass" type="password" placeholder="Passwort" value="" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:15px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
+                                <input id="login-pass" type="password" placeholder="Passwort" value="" autocomplete="current-password" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:15px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
                             </div>
                         </div>
                         <div style="display:flex;gap:12px;margin-bottom:12px;">
@@ -103,10 +104,12 @@ export default class LoginScene extends Phaser.Scene {
                         <div style="text-align:left;">
                             <a id="btn-forgot" href="#" style="color:#a08030;font-size:13px;text-decoration:none;cursor:pointer;">Passwort vergessen?</a>
                         </div>
+                        </form>
                     </div>
 
                     <!-- REGISTER FORM -->
                     <div id="form-register" style="display:none;">
+                        <form id="form-register-fields" autocomplete="off" onsubmit="return false;" style="margin:0;padding:0;">
                         <div style="border:1px solid #7a6520;background:rgba(0,0,0,0.3);padding:20px 16px;margin-bottom:18px;border-radius:2px;display:flex;flex-direction:column;gap:10px;">
                             <div style="display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
                                 <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#b8952a;font-size:14px;">⚓</div>
@@ -118,14 +121,15 @@ export default class LoginScene extends Phaser.Scene {
                             </div>
                             <div style="display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
                                 <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#b8952a;font-size:14px;">🔒</div>
-                                <input id="reg-pass" type="password" placeholder="Passwort (min. 6 Zeichen)" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:14px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
+                                <input id="reg-pass" type="password" placeholder="Passwort (min. 6 Zeichen)" autocomplete="new-password" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:14px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
                             </div>
                             <div style="display:flex;align-items:center;border:1px solid #7a6520;background:rgba(10,20,35,0.8);border-radius:2px;overflow:hidden;">
                                 <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#b8952a;font-size:14px;">🔑</div>
-                                <input id="reg-pass2" type="password" placeholder="Passwort bestätigen" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:14px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
+                                <input id="reg-pass2" type="password" placeholder="Passwort bestätigen" autocomplete="new-password" style="flex:1;background:transparent;border:none;outline:none;color:#ddd;font-size:14px;font-family:Georgia,serif;padding:8px 4px;caret-color:#b8952a;"/>
                             </div>
                         </div>
                         <button id="btn-do-register" style="width:100%;padding:11px 0;background:linear-gradient(135deg,#1a1a3a,#0e0e26);border:1px solid #4a4a8a;color:#b8b8ff;font-size:14px;font-family:Georgia,serif;letter-spacing:1px;cursor:pointer;border-radius:2px;touch-action:manipulation;text-transform:uppercase;margin-bottom:10px;">Konto erstellen</button>
+                        </form>
                     </div>
 
                     <!-- Messages -->

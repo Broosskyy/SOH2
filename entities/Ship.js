@@ -184,15 +184,21 @@ export default class Ship extends Phaser.GameObjects.Container {
             this.wake.rotation = this.targetAngle + Math.PI;
         }
 
-        /* Foam trail when wake is visible (ship is moving) */
-        if (this.wake?.visible && this.body) {
+        /* Foam trail — nur für Spielerschiff (this._isPlayer); NPCs erzeugen keinen Schaum
+           → verhindert hunderte gleichzeitige Partikel auf Mobilgeräten */
+        if (this._isPlayer && this.wake?.visible && this.body) {
             const spd = this.body.velocity.length();
             if (spd > 15) this._emitWakeFoam(spd);
         }
 
-        /* Low-HP damage smoke — always runs regardless of movement */
+        /* Low-HP damage smoke — Spielerschiff immer, NPCs budgetiert */
         if (this.hp < this.maxHP * 0.30 && this.scene) {
-            this._emitDamageSmoke();
+            if (this._isPlayer) {
+                this._emitDamageSmoke();
+            } else {
+                /* NPCs: max. 3 rauchende Schiffe gleichzeitig im Bild */
+                if ((this.scene._globalSmokeCount ?? 0) < 3) this._emitDamageSmoke();
+            }
         }
     }
 }

@@ -6783,9 +6783,9 @@ handleResize(gameSize) {
         el.id = 'ahc-wind-hud';
         el.style.cssText = `
             position:fixed;
-            left: calc(96px + env(safe-area-inset-left,0px));
-            bottom: calc(12px + env(safe-area-inset-bottom,0px));
-            width:62px; height:62px;
+            left: calc(104px + env(safe-area-inset-left,0px));
+            bottom: calc(16px + env(safe-area-inset-bottom,0px));
+            width:54px; height:54px;
             z-index:8060;
             border-radius:50%;
             background:radial-gradient(circle at 38% 30%,rgba(255,255,255,0.10) 0%,rgba(8,18,38,0.95) 65%);
@@ -6881,7 +6881,7 @@ handleResize(gameSize) {
             const angle = Math.atan2(ey - sy, ex - sx);
 
             const sh = this.physics.add.image(sx + ox, sy + oy, shipKeys[i] ?? 'enemy-ship')
-                .setScale(0.11).setDepth(510)
+                .setScale(0.13).setDepth(510)
                 .setTint(0xffcc44)
                 .setRotation(angle + Math.PI / 2);
             sh.setVelocity(Math.cos(angle) * spd, Math.sin(angle) * spd);
@@ -6889,9 +6889,12 @@ handleResize(gameSize) {
             sh._convoyHp = 400;
             sh._convoyMaxHp = 400;
 
-            const lbl = this.add.text(sx + ox, sy + oy - 55,
+            /* Großer Trefferbereich (80px Radius) für komfortable Mobilbedienung */
+            sh.setInteractive(new Phaser.Geom.Circle(0, 0, 80), Phaser.Geom.Circle.Contains);
+
+            const lbl = this.add.text(sx + ox, sy + oy - 62,
                 `⚓ GOLDKONVOI [${sh._convoyHp}]`,
-                { fontSize: '11px', fontFamily: 'Arial', fontStyle: 'bold',
+                { fontSize: '12px', fontFamily: 'Arial', fontStyle: 'bold',
                   fill: '#ffdd44', stroke: '#000', strokeThickness: 3 })
                 .setOrigin(0.5).setDepth(511);
 
@@ -6907,7 +6910,6 @@ handleResize(gameSize) {
 
         /* Tap → select convoy ship as combat target proxy */
         ships.forEach((sh, i) => {
-            sh.setInteractive();
             sh.on('pointerdown', () => this._onConvoyShipTapped(sh, i));
         });
 
