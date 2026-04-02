@@ -5403,21 +5403,14 @@ handleResize(gameSize) {
                 animation: cc-cooldown-fade var(--cc-reload-dur, 1.5s) ease-out forwards;
             }
 
-            /* ── cancel button: bolder when firing ── */
-            #ahc-combat-cluster .cc-cancel.visible {
-                display: flex;
-                border-color: rgba(255,80,40,0.95);
-                box-shadow: 0 0 10px rgba(255,80,40,0.55);
-            }
-            @media (max-height: 420px) {
-                #ahc-combat-cluster .cc-attack { width: 200px; height: 200px; }
-            }
+            /* ── cancel button ── */
             #ahc-combat-cluster .cc-cancel {
                 position: absolute;
-                bottom: 6px;
-                right: 6px;
-                width: 36px;
-                height: 36px;
+                top: 38px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 52px;
+                height: 52px;
                 border-radius: 50%;
                 display: none;
                 align-items: center;
@@ -5425,16 +5418,52 @@ handleResize(gameSize) {
                 cursor: pointer;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
-                font-size: 16px;
-                font-weight: bold;
-                color: #ffccaa;
-                border: 2px solid rgba(255,100,60,0.85);
-                background: rgba(0,0,0,0.58);
+                font-size: 20px;
+                font-weight: 900;
+                color: #fff;
+                letter-spacing: 0;
+                border: 2.5px solid rgba(255,70,40,0.9);
+                background: rgba(120,20,10,0.82);
+                box-shadow: 0 0 14px rgba(255,60,30,0.5), inset 0 0 8px rgba(255,80,40,0.25);
                 z-index: 10;
-                transition: filter 0.1s, transform 0.08s;
+                transition: filter 0.1s, transform 0.1s;
             }
-            #ahc-combat-cluster .cc-cancel.visible { display: flex; }
-            #ahc-combat-cluster .cc-cancel:active { filter: brightness(1.5); transform: scale(0.88); }
+            #ahc-combat-cluster .cc-cancel.visible {
+                display: flex;
+                animation: cc-cancel-appear 0.18s ease-out forwards;
+            }
+            @keyframes cc-cancel-appear {
+                from { opacity: 0; transform: translateX(-50%) scale(0.7); }
+                to   { opacity: 1; transform: translateX(-50%) scale(1); }
+            }
+            #ahc-combat-cluster .cc-cancel:active {
+                filter: brightness(1.6);
+                transform: translateX(-50%) scale(0.88);
+            }
+
+            /* ── attack label chip (shown below PNG, not blocking image) ── */
+            #ahc-combat-cluster .cc-label {
+                position: absolute;
+                bottom: 42px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-family: "Arial Black", Arial, sans-serif;
+                font-size: 11px;
+                font-weight: 900;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: rgba(255,220,100,0.85);
+                text-shadow: 0 1px 6px rgba(0,0,0,1);
+                white-space: nowrap;
+                pointer-events: none;
+                user-select: none;
+            }
+
+            @media (max-height: 420px) {
+                #ahc-combat-cluster .cc-attack { width: 200px; height: 200px; }
+                #ahc-combat-cluster .cc-cancel { width: 42px; height: 42px; font-size: 17px; top: 28px; }
+                #ahc-combat-cluster .cc-label  { font-size: 9px; bottom: 30px; }
+            }
         `;
         document.head.appendChild(style);
 
@@ -5443,7 +5472,7 @@ handleResize(gameSize) {
 
         const attack = document.createElement('div');
         attack.className = 'cc-attack';
-        attack.innerHTML = '';
+        attack.innerHTML = '<span class="cc-label">ANGRIFF</span>';
         attack.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             /* punch animation */
