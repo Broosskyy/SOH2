@@ -27,7 +27,7 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
         this._islandImg = scene.add.image(0, 0, 'island-guild-fortress')
             .setScale(0.45).setDepth(10)
             .setInteractive({ useHandCursor: true,
-                hitArea: new Phaser.Geom.Circle(0, 0, 280),
+                hitArea: new Phaser.Geom.Circle(0, 0, 90),
                 hitAreaCallback: Phaser.Geom.Circle.Contains });
         this._islandImg.on('pointerdown', () => {
             scene.events.emit('guild-island-attack-tap', { island: this });
@@ -72,7 +72,7 @@ export default class GuildIsland extends Phaser.GameObjects.Container {
 
             const towerImg = scene.add.image(wx, wy, 'guild-tower')
                 .setScale(0.13).setDepth(22)
-                .setInteractive({ useHandCursor: true, hitArea: new Phaser.Geom.Circle(0, 0, 55), hitAreaCallback: Phaser.Geom.Circle.Contains });
+                .setInteractive({ useHandCursor: true, hitArea: new Phaser.Geom.Circle(0, 0, 72), hitAreaCallback: Phaser.Geom.Circle.Contains });
 
             this._towerImgs.push(towerImg);
 

@@ -598,6 +598,7 @@ export default class GameScene extends Phaser.Scene {
             this._saveProgress();
             this._guildAttackBtnEl?.remove(); this._guildAttackBtnEl = null;
             this._stopGuildTowerCombat?.();
+            this._guildAutoFireTimer?.remove(); this._guildAutoFireTimer = null;
         });
         const _saveFn = () => this._saveProgress();
         window.addEventListener('beforeunload', _saveFn);
@@ -2101,6 +2102,7 @@ handleResize(gameSize) {
 
     _spawnGuildIsland(worldWidth, worldHeight) {
         if (this.guildIsland) { try { this.guildIsland.destroy(); } catch {} this.guildIsland = null; }
+        this._guildAutoFireTimer?.remove(); this._guildAutoFireTimer = null;
         try {
             const gx = Math.round(worldWidth * 0.5 + (Math.random() - 0.5) * worldWidth * 0.3);
             const gy = Math.round(worldHeight * 0.5 + (Math.random() - 0.5) * worldHeight * 0.3);
@@ -2115,6 +2117,50 @@ handleResize(gameSize) {
             proxy.setData('isGuildIsland', true);
             proxy.setData('minimapRadius', 22);
             this.islands.add(proxy);
+
+            /* ── Tower auto-return fire: shoot at player when within 380 px ── */
+            this._guildAutoFireTimer = this.time.addEvent({
+                delay: 2800,
+                loop: true,
+                callback: () => {
+                    const gi = this.guildIsland;
+                    if (!gi || !this.player?.active || gi.capturedBy) return;
+                    /* skip if player is already in manual guild combat (handled there) */
+                    if (this._guildCombatIsland) return;
+
+                    const dist = Phaser.Math.Distance.Between(
+                        this.player.x, this.player.y, gi.x, gi.y);
+                    if (dist > 380) return;
+
+                    /* Find nearest active tower in range */
+                    const { tower, index } = gi.getNearestActiveTower(this.player.x, this.player.y);
+                    if (!tower) return;
+
+                    /* Tower fires back — damage scales with tower count still alive */
+                    const activeTowers = gi.towers.filter(t => t.active).length;
+                    const baseDmg = Phaser.Math.Between(18, 36);
+                    const dmg    = Math.round(baseDmg * (activeTowers / 6));
+                    const tx = gi.x + tower.tx;
+                    const ty = gi.y + tower.ty;
+
+                    /* Visual: show a cannonball flying from tower → player */
+                    try {
+                        const ball = this.add.circle(tx, ty, 5, 0xff6600, 1).setDepth(50);
+                        this.tweens.add({
+                            targets: ball, x: this.player.x, y: this.player.y,
+                            duration: 380, ease: 'Linear',
+                            onComplete: () => ball.destroy()
+                        });
+                    } catch {}
+
+                    this.time.delayedCall(380, () => {
+                        if (!this.player?.active) return;
+                        this.player.takeDamage(dmg);
+                        this.showEnemyDamageFloat?.(this.player.x, this.player.y - 18, dmg, false);
+                        this.showStatusMsg(`🏰 Turm ${index + 1} feuert! -${dmg} HP`, 0xff6633);
+                    });
+                }
+            });
         } catch(e) { console.warn('[AHC] GuildIsland spawn error:', e?.message || e); }
     }
 
