@@ -237,41 +237,41 @@ export default class DomNavBar {
         el.id = 'level-up-popup';
         el.style.cssText = `
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%,-50%) scale(0.5);
+            top: 58px;
+            right: -320px;
             z-index: 18000;
-            display: none;
+            display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            padding: 24px 32px 20px;
-            background: radial-gradient(ellipse at 50% 0%, rgba(20,50,100,0.98) 0%, rgba(4,12,28,0.99) 70%);
-            border: 2px solid rgba(212,175,55,0.85);
-            border-radius: 20px;
-            box-shadow: 0 0 80px rgba(212,175,55,0.4), 0 0 180px rgba(74,200,255,0.15), inset 0 0 50px rgba(0,0,0,0.5);
+            gap: 4px;
+            padding: 10px 14px 10px 12px;
+            background: linear-gradient(135deg,rgba(10,28,60,0.97) 0%,rgba(4,12,28,0.99) 100%);
+            border: 1.5px solid rgba(212,175,55,0.75);
+            border-radius: 12px;
+            box-shadow: 0 0 24px rgba(212,175,55,0.25), -4px 0 20px rgba(0,0,0,0.5);
             pointer-events: auto;
             font-family: Arial, sans-serif;
-            text-align: center;
             opacity: 0;
-            transition: transform 0.45s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
-            min-width: 260px;
-            max-width: min(340px, 90vw);
+            transition: right 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.3s ease;
+            width: 200px;
+            max-width: min(200px, 60vw);
         `;
         el.innerHTML = `
-            <div id="lu-star" style="font-size:52px;line-height:1;">⭐</div>
-            <div style="font-size:11px;color:#9fdcff;text-transform:uppercase;letter-spacing:3px;font-weight:bold;">Aufgestiegen!</div>
-            <div id="lu-level" style="font-size:40px;font-weight:900;color:#ffd36a;text-shadow:0 0 24px rgba(255,211,106,0.7);line-height:1;">Level 2</div>
-            <div id="lu-rewards" style="font-size:12px;color:#b8f0ff;line-height:1.8;"></div>
-            <div id="lu-trial-notice" style="display:none;font-size:11px;color:#ffa040;padding:6px 16px;background:rgba(255,160,64,0.12);border:1px solid rgba(255,160,64,0.45);border-radius:10px;"></div>
-            <button id="lu-close" style="
-                margin-top:6px;padding:10px 36px;
-                background:linear-gradient(135deg,#1a5a9a,#0d3a6a);
-                border:1px solid rgba(74,200,255,0.5);border-radius:10px;
-                color:#9fdcff;font-size:14px;font-weight:bold;
-                cursor:pointer;letter-spacing:0.5px;touch-action:manipulation;
-                -webkit-tap-highlight-color:transparent;
-            ">Weiter ▶</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:22px;line-height:1;">⭐</span>
+                <div>
+                    <div style="font-size:9px;color:#9fdcff;text-transform:uppercase;letter-spacing:2px;font-weight:bold;opacity:0.8;">Aufgestiegen!</div>
+                    <div id="lu-level" style="font-size:20px;font-weight:900;color:#ffd36a;text-shadow:0 0 10px rgba(255,211,106,0.6);line-height:1.1;">Level 2</div>
+                </div>
+                <button id="lu-close" style="
+                    margin-left:auto;width:22px;height:22px;
+                    background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);
+                    border-radius:50%;color:#aaa;font-size:12px;line-height:1;
+                    cursor:pointer;touch-action:manipulation;flex-shrink:0;
+                    -webkit-tap-highlight-color:transparent;
+                ">✕</button>
+            </div>
+            <div id="lu-rewards" style="font-size:10px;color:#b8f0ff;line-height:1.6;border-top:1px solid rgba(255,255,255,0.1);padding-top:5px;"></div>
+            <div id="lu-trial-notice" style="display:none;font-size:9.5px;color:#ffa040;padding:3px 8px;background:rgba(255,160,64,0.12);border:1px solid rgba(255,160,64,0.35);border-radius:6px;"></div>
         `;
         document.body.appendChild(el);
         el.querySelector('#lu-close').addEventListener('click', () => this.hideLevelUp());
@@ -288,19 +288,21 @@ export default class DomNavBar {
         if (trialNotice) { trialEl.textContent = `⚔ ${trialNotice}`; trialEl.style.display = 'block'; }
         else { trialEl.style.display = 'none'; }
         el.style.display = 'flex';
+        /* Slide in from right */
         requestAnimationFrame(() => {
             el.style.opacity = '1';
-            el.style.transform = 'translate(-50%,-50%) scale(1)';
+            el.style.right = '8px';
         });
-        setTimeout(() => this.hideLevelUp(), 7000);
+        if (this._levelUpTimer) clearTimeout(this._levelUpTimer);
+        this._levelUpTimer = setTimeout(() => this.hideLevelUp(), 5000);
     }
 
     hideLevelUp() {
         const el = this._levelUpEl;
         if (!el) return;
         el.style.opacity = '0';
-        el.style.transform = 'translate(-50%,-50%) scale(0.75)';
-        setTimeout(() => { el.style.display = 'none'; }, 350);
+        el.style.right = '-320px';
+        setTimeout(() => { el.style.display = 'none'; }, 420);
     }
 
     setPlayerInfo(name, level, guildTag, guildName) {
