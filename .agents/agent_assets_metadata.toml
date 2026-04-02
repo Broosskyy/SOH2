@@ -30,3 +30,27 @@ id = "XNSC--TBRLuGIrRpyemyL"
 uri = "file://assets/player_ship_royal_crimson_v2.png"
 type = "image"
 title = "royal crimson flagship"
+
+[[generated]]
+id = "fFsqMMlU4zuHrnNMx0fEX"
+uri = "file://assets/ship_top_tier1.png"
+type = "image"
+title = "overhead sloop sprite"
+
+[[generated]]
+id = "a7PHx4W7fPZqCZsYyaEwh"
+uri = "file://assets/ship_top_tier2.png"
+type = "image"
+title = "overhead warship sprite"
+
+[[generated]]
+id = "bEu7mySGdNdj3EUMebxAQ"
+uri = "file://assets/ship_top_tier3.png"
+type = "image"
+title = "overhead galleon sprite"
+
+[[generated]]
+id = "797UJGK6yadQABt-CXWiv"
+uri = "file://assets/ship_top_player.png"
+type = "image"
+title = "overhead player flagship sprite"

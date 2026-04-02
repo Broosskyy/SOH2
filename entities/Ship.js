@@ -184,27 +184,16 @@ export default class Ship extends Phaser.GameObjects.Container {
         const visualTarget  = this.targetAngle + SPRITE_OFFSET;
 
         if (this.useSpriteRotation) {
-            /* ── 8-Richtungs-System (Seafight-Style) ──────────────────────────────
-               Wie in Seafight/BOS: das Schiff snappt zu einer von 8 Richtungen
-               (N, NO, O, SO, S, SW, W, NW) statt sich frei zu drehen.
-               Wir schnappen den visualTarget auf das nächste Vielfache von 45° (π/4).
-               Dann drehen wir das Sprite schnell (aber nicht instant) zur neuen
-               Snap-Richtung — flüssiger Übergang ohne endlose Zwischenpositionen. */
-            const TWO_PI   = Math.PI * 2;
-            const STEP     = Math.PI / 4; /* 45° pro Schritt = 8 Richtungen */
+            /* ── 8-Richtungs-System — Seafight-Style: SOFORT snappen ──────────────
+               Das Sprite rastet sofort in eine der 8 Richtungen (45°-Schritte) ein.
+               Kein Smooth-Drehen — so wie in Seafight/BOS wo die Richtung
+               unmittelbar wechselt. Overhead-Sprites sehen bei jeder Rotation korrekt aus. */
+            const TWO_PI = Math.PI * 2;
+            const STEP   = Math.PI / 4; /* 45° je Richtung */
 
-            /* Wrap visualTarget → 0 … 2π, dann nächsten 45°-Schritt wählen */
-            const wrapped  = ((visualTarget % TWO_PI) + TWO_PI) % TWO_PI;
-            const snapped  = Math.round(wrapped / STEP) * STEP;
-
-            /* Glätte den Übergang: dreht sich mit 3× Geschwindigkeit zum Snap-Punkt */
-            const snapSpeed = this.rotationSpeed * 3.5;
-            const diff      = Phaser.Math.Angle.Wrap(snapped - this.sprite.rotation);
-            if (Math.abs(diff) < snapSpeed) {
-                this.sprite.rotation = snapped;
-            } else {
-                this.sprite.rotation += Math.sign(diff) * snapSpeed;
-            }
+            const wrapped = ((visualTarget % TWO_PI) + TWO_PI) % TWO_PI;
+            /* Sofortiger Snap zum nächsten 45°-Schritt */
+            this.sprite.rotation = Math.round(wrapped / STEP) * STEP;
         } else {
             const isRight = Math.abs(this.targetAngle) < Math.PI / 2;
             this.sprite.setScale(isRight ? Math.abs(this.sprite.scaleX) : -Math.abs(this.sprite.scaleX), this.sprite.scaleY);

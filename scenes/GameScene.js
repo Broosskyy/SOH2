@@ -194,7 +194,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('player-ship',         'assets/player_ship_royal_crimson_v2.png');
+        this.load.image('player-ship',         'assets/ship_top_player.png');
         this.load.image('player-ship-neon',    'assets/player_ship_neon_pro.webp');
         this.load.image('player-ship-pro',     'assets/player_ship_pro.webp');
         this.load.image('player-ship-frigate1','assets/player_ship_frigate_1.png');
@@ -204,9 +204,10 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('player-ship-neon-galleon',  'assets/ship_neon_galleon.png');
 
         /* KI-generierte NPC-Schiff-Sprites (Rang 1/2/3) */
-        this.load.image('npc-ship-tier1', 'assets/npc_ship_tier1.png');
-        this.load.image('npc-ship-tier2', 'assets/npc_ship_tier2.png');
-        this.load.image('npc-ship-tier3', 'assets/npc_ship_tier3.png');
+        /* Overhead-Sprites (90° Draufsicht) — korrekte Darstellung bei Rotation */
+        this.load.image('npc-ship-tier1', 'assets/ship_top_tier1.png');
+        this.load.image('npc-ship-tier2', 'assets/ship_top_tier2.png');
+        this.load.image('npc-ship-tier3', 'assets/ship_top_tier3.png');
         this.load.image('item-treasure-map', 'assets/item_treasure_map.png');
 
         this.load.image('ship-small-1', 'assets/ship_cutter_1.png');
