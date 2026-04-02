@@ -217,57 +217,39 @@ export default class LoginScene extends Phaser.Scene {
             const emailEl = document.getElementById('reg-email');
             const passEl  = document.getElementById('reg-pass');
             const pass2El = document.getElementById('reg-pass2');
-            if (!userEl || !emailEl || !passEl || !pass2El) return;   /* DOM already torn down */
+            if (!userEl || !emailEl || !passEl || !pass2El) return;
             const user  = userEl.value.trim();
             const email = emailEl.value.trim();
             const pass  = passEl.value;
             const pass2 = pass2El.value;
-            _registerBusy = true;
 
-            if (user.length < 3 || user.length > 20) { showErr('Benutzername: 3–20 Zeichen.'); return; }
-            if (!/^[a-zA-Z0-9_äöüÄÖÜß]+$/.test(user)) { showErr('Benutzername: nur Buchstaben, Zahlen, _'); return; }
+            /* Validierung ZUERST — _registerBusy erst danach setzen */
+            if (user.length < 3 || user.length > 50) { showErr('Benutzername: 3–50 Zeichen.'); return; }
+            if (!/^[a-zA-Z0-9_\-]+$/.test(user)) { showErr('Benutzername: nur Buchstaben, Zahlen, _ und -'); return; }
             if (!email.includes('@') || !email.includes('.')) { showErr('Bitte gültige E-Mail eingeben.'); return; }
             if (pass.length < 6) { showErr('Passwort: mindestens 6 Zeichen.'); return; }
             if (pass !== pass2) { showErr('Passwörter stimmen nicht überein.'); return; }
 
+            _registerBusy = true;
             btnDoReg.disabled = true;
             btnDoReg.textContent = 'Erstelle Konto...';
             try {
                 await apiRegister(user, email, pass);
-                const accounts = this._getAccounts();
-                if (!accounts.find(a => a.username.toLowerCase() === user.toLowerCase())) {
-                    accounts.push({ username: user, email, password: pass, createdAt: Date.now() });
-                    this._saveAccounts(accounts);
-                }
                 showOk(`✓ Konto "${user}" erstellt! Du kannst dich jetzt anmelden.`);
                 setTimeout(() => {
-                    document.getElementById('login-user').value = user;
-                    document.getElementById('login-pass').value = pass;
+                    const lu = document.getElementById('login-user');
+                    const lp = document.getElementById('login-pass');
+                    if (lu) lu.value = user;
+                    if (lp) lp.value = pass;
                     switchTab(true);
                 }, 1200);
             } catch (e) {
                 if (e.message.includes('vergeben')) {
                     showErr('Benutzername bereits vergeben.');
                 } else {
-                    const accounts = this._getAccounts();
-                    if (accounts.find(a => a.username.toLowerCase() === user.toLowerCase())) {
-                        showErr('Benutzername bereits vergeben.');
-                        btnDoReg.disabled = false;
-                        btnDoReg.textContent = 'Konto erstellen';
-                        return;
-                    }
-                    accounts.push({ username: user, email, password: pass, createdAt: Date.now() });
-                    this._saveAccounts(accounts);
-                    showOk(`✓ Konto "${user}" erstellt (Offline-Modus)!`);
-                    setTimeout(() => {
-                        /* Elements may be gone if scene transitioned — use optional chaining */
-                        const lu = document.getElementById('login-user');
-                        const lp = document.getElementById('login-pass');
-                        if (lu) lu.value = user;
-                        if (lp) lp.value = pass;
-                        if (lu || lp) switchTab(true);
-                    }, 1200);
+                    showErr(`Registrierung fehlgeschlagen: ${e.message}`);
                 }
+                _registerBusy = false;
                 btnDoReg.disabled = false;
                 btnDoReg.textContent = 'Konto erstellen';
             }
