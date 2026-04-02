@@ -117,7 +117,7 @@ export default class GameScene extends Phaser.Scene {
         this.panelDragState = null;
         this.uiPanelPositions = {};
         this.cameraReturnTween = null;
-        this.cameraDefaultZoom = 1.6;
+        this.cameraDefaultZoom = 1.0;
         this.isMinimapMinimized = true;
         this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
@@ -437,34 +437,11 @@ export default class GameScene extends Phaser.Scene {
             };
         });
 
-        /* ── Kamera-Drag + Pinch-Zoom (ein einziger Handler) ─────── */
+        /* ── Kamera-Drag ─────────────────────────────────────────── */
         this.input.on('pointermove', (pointer) => {
             if (pointer.isDown && this.panelDragState) {
                 this.updatePanelDrag(pointer);
                 return;
-            }
-
-            /* Pinch-Zoom mit zwei Fingern — erkennung in pointermove */
-            if (pointer.isDown) {
-                const allDown = this.input.manager.pointers.filter(p => p.isDown);
-                if (allDown.length >= 2) {
-                    const p1 = allDown[0];
-                    const p2 = allDown[1];
-                    const curDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-                    if (!this._pinchState) {
-                        /* Pinch startet — Baseline setzen */
-                        this._pinchState = { startDist: curDist, startZoom: this.cameras.main.zoom };
-                        this.cameraDragState = null;
-                    } else {
-                        /* Pinch läuft — Zoom relativ zur Baseline berechnen */
-                        if (curDist > 10 && this._pinchState.startDist > 10) {
-                            const scale = curDist / this._pinchState.startDist;
-                            const newZ  = Phaser.Math.Clamp(this._pinchState.startZoom * scale, 0.5, 2.5);
-                            if (this.player?.active) this.setCameraZoom(newZ);
-                        }
-                    }
-                    return;
-                }
             }
 
             if (!pointer.isDown || !this.cameraDragState) return;
@@ -491,14 +468,8 @@ export default class GameScene extends Phaser.Scene {
         });
 
 
-        /* ── Pointer-Up: Kamera-Drag auswerten + Pinch zurücksetzen ─ */
+        /* ── Pointer-Up: Kamera-Drag auswerten ─────────────────────── */
         this.input.on('pointerup', (pointer) => {
-            /* Pinch beenden wenn weniger als 2 Finger übrig */
-            const stillDown = this.input.manager.pointers.filter(p => p.isDown && p.id !== pointer.id);
-            if (stillDown.length < 2) {
-                this._pinchState = null;
-            }
-
             if (this.panelDragState) {
                 this.endPanelDrag();
                 return;
@@ -1987,19 +1958,14 @@ handleResize(gameSize) {
 
         this.isReturnToShipVisible = true;
         this.cameraDragState = null;
-        this._pinchState = null;
         if (this.cameraReturnTween) {
             this.cameraReturnTween.stop();
             this.cameraReturnTween = null;
         }
 
-        /* Zoom auf Standard zurücksetzen und auf Spieler zentrieren */
-        const RESET_ZOOM = 1.6;
         const cam = this.cameras.main;
-        cam.setZoom(RESET_ZOOM);
-        this.cameraDefaultZoom = RESET_ZOOM;
-        this.cameraTargetX = this.player.x - (cam.width / (2 * RESET_ZOOM));
-        this.cameraTargetY = this.player.y - (cam.height / (2 * RESET_ZOOM));
+        this.cameraTargetX = this.player.x - (cam.width / (2 * cam.zoom));
+        this.cameraTargetY = this.player.y - (cam.height / (2 * cam.zoom));
         this.clampCameraTarget();
         cam.scrollX = this.cameraTargetX;
         cam.scrollY = this.cameraTargetY;
