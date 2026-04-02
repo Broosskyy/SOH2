@@ -91,6 +91,7 @@ export default class ChatPanel {
     }
 
     _submit() {
+        if (!this._inputEl) return;
         const val = this._inputEl.value.trim();
         if (!val) return;
         this._inputEl.value = '';

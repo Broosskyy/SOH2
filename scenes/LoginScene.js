@@ -172,11 +172,17 @@ export default class LoginScene extends Phaser.Scene {
         tabLogin.addEventListener('click', () => switchTab(true));
         tabReg.addEventListener('click',   () => switchTab(false));
 
+        let _loginBusy = false;
         const doLogin = async () => {
-            const user = document.getElementById('login-user').value.trim();
-            const pass = document.getElementById('login-pass').value;
+            if (_loginBusy) return;
+            const userEl = document.getElementById('login-user');
+            const passEl = document.getElementById('login-pass');
+            if (!userEl || !passEl) return;           /* DOM already torn down — ignore */
+            const user = userEl.value.trim();
+            const pass = passEl.value;
             if (!user) { showErr('Bitte Benutzernamen eingeben.'); return; }
             if (!pass) { showErr('Bitte Passwort eingeben.'); return; }
+            _loginBusy = true;
             errEl.textContent = '';
             btnLogin.disabled = true;
             btnLogin.textContent = 'Prüfe...';
@@ -200,11 +206,19 @@ export default class LoginScene extends Phaser.Scene {
             }
         };
 
+        let _registerBusy = false;
         const doRegister = async () => {
-            const user  = document.getElementById('reg-user').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const pass  = document.getElementById('reg-pass').value;
-            const pass2 = document.getElementById('reg-pass2').value;
+            if (_registerBusy) return;
+            const userEl  = document.getElementById('reg-user');
+            const emailEl = document.getElementById('reg-email');
+            const passEl  = document.getElementById('reg-pass');
+            const pass2El = document.getElementById('reg-pass2');
+            if (!userEl || !emailEl || !passEl || !pass2El) return;   /* DOM already torn down */
+            const user  = userEl.value.trim();
+            const email = emailEl.value.trim();
+            const pass  = passEl.value;
+            const pass2 = pass2El.value;
+            _registerBusy = true;
 
             if (user.length < 3 || user.length > 20) { showErr('Benutzername: 3–20 Zeichen.'); return; }
             if (!/^[a-zA-Z0-9_äöüÄÖÜß]+$/.test(user)) { showErr('Benutzername: nur Buchstaben, Zahlen, _'); return; }
@@ -242,9 +256,12 @@ export default class LoginScene extends Phaser.Scene {
                     this._saveAccounts(accounts);
                     showOk(`✓ Konto "${user}" erstellt (Offline-Modus)!`);
                     setTimeout(() => {
-                        document.getElementById('login-user').value = user;
-                        document.getElementById('login-pass').value = pass;
-                        switchTab(true);
+                        /* Elements may be gone if scene transitioned — use optional chaining */
+                        const lu = document.getElementById('login-user');
+                        const lp = document.getElementById('login-pass');
+                        if (lu) lu.value = user;
+                        if (lp) lp.value = pass;
+                        if (lu || lp) switchTab(true);
                     }, 1200);
                 }
                 btnDoReg.disabled = false;
