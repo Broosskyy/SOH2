@@ -20,8 +20,8 @@ export default class CoordHUD {
         el.id = 'ahc-coord-hud';
         el.style.cssText = `
             position: fixed;
-            right: 8px;
-            bottom: 265px;
+            right: 10px;
+            bottom: 5px;
             z-index: 8100;
             background: linear-gradient(160deg, rgba(6,16,34,0.95), rgba(8,22,46,0.97));
             border: 1px solid rgba(99,214,255,0.4);

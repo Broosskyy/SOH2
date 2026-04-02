@@ -425,13 +425,6 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
 
-            /* Sobald ein zweiter Finger aufsetzt → Pinch starten */
-            const downPtrs = this.input.manager.pointers.filter(p => p.isDown);
-            if (downPtrs.length >= 2) {
-                this._startPinch(downPtrs[0], downPtrs[1]);
-                return;
-            }
-
             this.cameraDragState = {
                 startX: pointer.x,
                 startY: pointer.y,
@@ -451,17 +444,26 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
 
-            /* Pinch-Zoom mit zwei Fingern */
-            if (pointer.isDown && this._pinchState) {
-                const activePointers = this.input.manager.pointers.filter(p => p.isDown);
-                if (activePointers.length >= 2) {
-                    const p1 = activePointers[0];
-                    const p2 = activePointers[1];
-                    this._applyPinch(p1, p2);
+            /* Pinch-Zoom mit zwei Fingern — erkennung in pointermove */
+            if (pointer.isDown) {
+                const allDown = this.input.manager.pointers.filter(p => p.isDown);
+                if (allDown.length >= 2) {
+                    const p1 = allDown[0];
+                    const p2 = allDown[1];
+                    const curDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+                    if (!this._pinchState) {
+                        /* Pinch startet — Baseline setzen */
+                        this._pinchState = { startDist: curDist, startZoom: this.cameras.main.zoom };
+                        this.cameraDragState = null;
+                    } else {
+                        /* Pinch läuft — Zoom relativ zur Baseline berechnen */
+                        if (curDist > 10 && this._pinchState.startDist > 10) {
+                            const scale = curDist / this._pinchState.startDist;
+                            const newZ  = Phaser.Math.Clamp(this._pinchState.startZoom * scale, 0.5, 2.5);
+                            if (this.player?.active) this.setCameraZoom(newZ);
+                        }
+                    }
                     return;
-                } else {
-                    /* Ein Finger wurde abgehoben — Pinch beenden */
-                    this._pinchState = null;
                 }
             }
 
@@ -488,25 +490,12 @@ export default class GameScene extends Phaser.Scene {
             this.cameraDragState.lastY = pointer.y;
         });
 
-        /* ── Mausrad-Zoom: zoomt auf die Mausposition ─────────── */
-        this.input.on('wheel', (pointer, _objs, _dx, dy) => {
-            const cam  = this.cameras.main;
-            const oldZ = cam.zoom;
-            const newZ = Phaser.Math.Clamp(oldZ + (dy < 0 ? 0.12 : -0.12), 0.5, 3.0);
-            if (newZ === oldZ) return;
-
-            /* Weltpunkt unter dem Cursor fixieren */
-            const worldX = cam.scrollX + pointer.x / oldZ;
-            const worldY = cam.scrollY + pointer.y / oldZ;
-            cam.setZoom(newZ);
-            this.cameraTargetX  = worldX - pointer.x / newZ;
-            this.cameraTargetY  = worldY - pointer.y / newZ;
-            cam.scrollX         = this.cameraTargetX;
-            cam.scrollY         = this.cameraTargetY;
-            this.clampCameraTarget();
-            cam.scrollX = this.cameraTargetX;
-            cam.scrollY = this.cameraTargetY;
-            this.cameraDefaultZoom = newZ;
+        /* ── Mausrad-Zoom: zoomt und zentriert auf Spieler ─────── */
+        this.input.on('wheel', (_pointer, _objs, _dx, dy) => {
+            if (!this.player?.active) return;
+            const cam = this.cameras.main;
+            const newZ = Phaser.Math.Clamp(cam.zoom + (dy < 0 ? 0.12 : -0.12), 0.5, 2.5);
+            this.setCameraZoom(newZ);
         });
 
         /* ── Pointer-Up: Kamera-Drag auswerten + Pinch zurücksetzen ─ */
@@ -1742,50 +1731,6 @@ handleResize(gameSize) {
         });
     }
 
-    /* ══════════════════════════════════════════════════════════
-       PINCH-ZOOM — Baseline-Ansatz (kein Frame-Drift)
-       Beim Start werden Referenzwerte gespeichert und NIE geändert.
-       Jeder Frame berechnet Zoom relativ zu diesen Referenzwerten.
-       Der Mittelpunkt der beiden Finger bleibt im Weltkoordinaten-
-       raum fixiert (kein Kamera-Drift beim Pinchen).
-    ════════════════════════════════════════════════════════════ */
-    _startPinch(p1, p2) {
-        const cam       = this.cameras.main;
-        const startDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        const midScrX   = (p1.x + p2.x) * 0.5;
-        const midScrY   = (p1.y + p2.y) * 0.5;
-        const startZoom = cam.zoom;
-
-        /* Weltposition des Finger-Mittelpunkts fixieren */
-        const worldMidX = cam.scrollX + midScrX / startZoom;
-        const worldMidY = cam.scrollY + midScrY / startZoom;
-
-        this._pinchState = { startDist, startZoom, worldMidX, worldMidY, midScrX, midScrY };
-        this.cameraDragState = null; /* Drag während Pinch deaktivieren */
-    }
-
-    _applyPinch(p1, p2) {
-        if (!this._pinchState) return;
-        const cam     = this.cameras.main;
-        const { startDist, startZoom, worldMidX, worldMidY } = this._pinchState;
-
-        const curDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        if (curDist < 10) return; /* Finger liegen zu nah zusammen — ignorieren */
-
-        const newZ = Phaser.Math.Clamp(startZoom * (curDist / startDist), 0.5, 3.0);
-        cam.setZoom(newZ);
-        this.cameraDefaultZoom = newZ;
-
-        /* Kamera so anpassen dass worldMid weiterhin im Bildschirm-Mittelpunkt bleibt */
-        const midScrX = (p1.x + p2.x) * 0.5;
-        const midScrY = (p1.y + p2.y) * 0.5;
-        this.cameraTargetX = worldMidX - midScrX / newZ;
-        this.cameraTargetY = worldMidY - midScrY / newZ;
-        this.clampCameraTarget();
-        cam.scrollX = this.cameraTargetX;
-        cam.scrollY = this.cameraTargetY;
-    }
-
     /* ── Koordinaten: Karten-Sektor + Feld innerhalb der Karte ──
        Karten-Sektor: 2×5 Atlas-Grid → "A1" bis "E2"
            Spalte A–E (west→ost), Zeile 1–2 (nord→süd)
@@ -2047,14 +1992,19 @@ handleResize(gameSize) {
 
         this.isReturnToShipVisible = true;
         this.cameraDragState = null;
+        this._pinchState = null;
         if (this.cameraReturnTween) {
             this.cameraReturnTween.stop();
             this.cameraReturnTween = null;
         }
 
+        /* Zoom auf Standard zurücksetzen und auf Spieler zentrieren */
+        const RESET_ZOOM = 1.6;
         const cam = this.cameras.main;
-        this.cameraTargetX = this.player.x - (cam.width / (2 * cam.zoom));
-        this.cameraTargetY = this.player.y - (cam.height / (2 * cam.zoom));
+        cam.setZoom(RESET_ZOOM);
+        this.cameraDefaultZoom = RESET_ZOOM;
+        this.cameraTargetX = this.player.x - (cam.width / (2 * RESET_ZOOM));
+        this.cameraTargetY = this.player.y - (cam.height / (2 * RESET_ZOOM));
         this.clampCameraTarget();
         cam.scrollX = this.cameraTargetX;
         cam.scrollY = this.cameraTargetY;
