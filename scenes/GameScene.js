@@ -405,19 +405,6 @@ export default class GameScene extends Phaser.Scene {
 
             const worldPoint = pointer.positionToCamera(this.cameras.main);
 
-            /* ── Tap-to-collect gifts: tap must be near the egg AND ship must be close ── */
-            const GIFT_TAP_R  = 62;   /* max world-px between tap and egg centre */
-            const SHIP_NEAR_R = 115;  /* max world-px between ship and egg centre */
-            const tappedGift  = this.gifts?.getChildren().find(g =>
-                g.active &&
-                Phaser.Math.Distance.Between(worldPoint.x, worldPoint.y, g.x, g.y) < GIFT_TAP_R &&
-                Phaser.Math.Distance.Between(this.player.x, this.player.y, g.x, g.y) < SHIP_NEAR_R
-            );
-            if (tappedGift) {
-                this.collectGift(this.player, tappedGift);
-                return;
-            }
-
             const clickedTarget = this.getTargetAtWorldPoint(worldPoint.x, worldPoint.y);
 
             if (clickedTarget) {
@@ -432,7 +419,7 @@ export default class GameScene extends Phaser.Scene {
             this.player.moveTo(worldPoint.x, worldPoint.y);
         });
 
-        /* Gift collection is tap-based — no auto-overlap */
+        this.physics.add.overlap(this.player, this.gifts, this.collectGift, null, this);
 
         this.createUI();
         this.minimap = new Minimap(this, width - 238, 92, 220, worldWidth, worldHeight);

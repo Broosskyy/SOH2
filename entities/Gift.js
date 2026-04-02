@@ -53,9 +53,12 @@ export default class Gift extends Phaser.GameObjects.Container {
 
         this.add([this._ring, this._core, this._txt]);
         scene.add.existing(this);
-
-        /* Tap input — tight hit circle so player must be very close */
-        this.setInteractive(new Phaser.Geom.Circle(0, 0, 20), Phaser.Geom.Circle.Contains);
+        scene.physics.add.existing(this);
+        /* Center a small circle body on the container position */
+        if (this.body) {
+            this.body.setCircle(18, -18, -18);
+            this.body.setImmovable(true);
+        }
 
         /* Float animation */
         this.spawnY = y;
