@@ -73,6 +73,11 @@ export default class NPCShip extends Ship {
         this.healthBarOffsetY = healthBarOffY;
         this.updateHealthBar();
 
+        /* ── Rotations-Modus ──────────────────────────────────────
+           AI-Sprites (npc-ship-tier*) sind Overhead-Ansicht → rotieren mit dem Kurs.
+           Alle anderen Sprites sind Seitenansicht → nur links/rechts spiegeln (Seafight-Stil). */
+        this.useSpriteRotation = AI_SPRITES.has(type);
+
         /* Tier-Farben: klare visuelle Abgrenzung zwischen Kleinen, Mittleren und Großen.
            AI-Sprites (npc-ship-tier*) behalten ihre natürlichen Farben — kein Tint.
            Chart-Level überlagert die Tier-Farbe mit einem rötlichen Ton bei Chart ≥ 5/8. */

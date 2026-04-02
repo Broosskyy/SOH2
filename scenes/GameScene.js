@@ -115,7 +115,7 @@ export default class GameScene extends Phaser.Scene {
         this.panelDragState = null;
         this.uiPanelPositions = {};
         this.cameraReturnTween = null;
-        this.cameraDefaultZoom = 1.0;
+        this.cameraDefaultZoom = 1.6;
         this.isMinimapMinimized = true;
         this.isNavBarVisible = true;
         this.isSeaGateVisible = false;
@@ -516,6 +516,37 @@ export default class GameScene extends Phaser.Scene {
 
             this.clearTargetAndAttackState();
             this.player.moveTo(worldPoint.x, worldPoint.y);
+        });
+
+        /* ── Mausrad-Zoom ─────────────────────────────────────── */
+        this.input.on('wheel', (pointer, _objs, _dx, dy) => {
+            const cam  = this.cameras.main;
+            const step = dy > 0 ? -0.1 : 0.1;
+            const newZ  = Phaser.Math.Clamp(cam.zoom + step, 0.7, 2.8);
+            cam.setZoom(newZ);
+            this.cameraDefaultZoom = newZ;
+        });
+
+        /* ── Pinch-Zoom (Mobil) ───────────────────────────────── */
+        this.input.on('pointermove', (pointer) => {
+            if (!pointer.isDown) return;
+            const pointers = this.input.manager.pointers.filter(p => p.isDown && p.id !== pointer.id);
+            if (pointers.length === 0) return;
+            const other = pointers[0];
+            const curDist = Phaser.Math.Distance.Between(pointer.x, pointer.y, other.x, other.y);
+            if (this._pinchStartDist && this._pinchStartZoom) {
+                const scale  = curDist / this._pinchStartDist;
+                const newZ   = Phaser.Math.Clamp(this._pinchStartZoom * scale, 0.7, 2.8);
+                this.cameras.main.setZoom(newZ);
+                this.cameraDefaultZoom = newZ;
+            } else {
+                this._pinchStartDist = curDist;
+                this._pinchStartZoom = this.cameras.main.zoom;
+            }
+        });
+        this.input.on('pointerup', () => {
+            this._pinchStartDist = null;
+            this._pinchStartZoom = null;
         });
 
         /* Gift collection checked in update() by ship-centre distance */
@@ -1687,13 +1718,10 @@ handleResize(gameSize) {
     }
 
     createPlayerVisualEffects() {
-        this.playerGlowOuter = this.add.circle(this.player.x, this.player.y, 42, 0x4bc8ff, 0.08)
-            .setDepth(18)
-            .setBlendMode(Phaser.BlendModes.ADD);
-        this.playerGlowInner = this.add.circle(this.player.x, this.player.y, 28, 0x94f2ff, 0.14)
-            .setDepth(19)
-            .setBlendMode(Phaser.BlendModes.ADD);
-        this.playerUpgradeRing = this.add.graphics().setDepth(20);
+        /* Glow-Effekte deaktiviert — Schiff soll clean aussehen (Seafight-Stil) */
+        this.playerGlowOuter   = this.add.circle(0, 0, 10, 0x000000, 0).setDepth(18).setVisible(false);
+        this.playerGlowInner   = this.add.circle(0, 0, 10, 0x000000, 0).setDepth(19).setVisible(false);
+        this.playerUpgradeRing = this.add.graphics().setDepth(20).setVisible(false);
     }
 
     playUpgradeBurst(type) {
@@ -5760,16 +5788,18 @@ handleResize(gameSize) {
 
         this.handleSeaBorderTravel();
 
-        /* ── Kamera folgt dem Schiff automatisch ────────────
-           Nur überschrieben wenn der Nutzer aktiv am Draggen ist */
+        /* ── Kamera folgt dem Schiff NUR wenn es sich bewegt ────
+           Wenn das Schiff steht, kann die Karte frei gezogen werden */
         const cam = this.cameras.main;
-        if (!this.cameraDragState && this.player?.active) {
+        const shipIsMoving = this.player?.active && this.player?.moveTarget;
+        if (shipIsMoving && !this.cameraDragState) {
             this.cameraTargetX = this.player.x - cam.width  / (2 * cam.zoom);
             this.cameraTargetY = this.player.y - cam.height / (2 * cam.zoom);
         }
         this.clampCameraTarget();
-        cam.scrollX = Phaser.Math.Linear(cam.scrollX, this.cameraTargetX, 0.12);
-        cam.scrollY = Phaser.Math.Linear(cam.scrollY, this.cameraTargetY, 0.12);
+        const lerpSpeed = shipIsMoving ? 0.10 : 0.18;
+        cam.scrollX = Phaser.Math.Linear(cam.scrollX, this.cameraTargetX, lerpSpeed);
+        cam.scrollY = Phaser.Math.Linear(cam.scrollY, this.cameraTargetY, lerpSpeed);
 
         if (this.minimap) {
             this.minimap.setDepth(2050);

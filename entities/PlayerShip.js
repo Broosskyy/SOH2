@@ -886,8 +886,17 @@ export default class PlayerShip extends Ship {
                 const wMult = this._windSpeedMult ?? 1.0;
                 const effSpd = spd * wMult;
 
-                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(angle) * effSpd, STEER));
-                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(angle) * effSpd, STEER));
+                /* ── Seafight Zick-Zack Sinus-Wobble ─────────────────
+                   Kleiner Sinus-Winkelversatz senkrecht zur Fahrtrichtung.
+                   Amplitude 0.18 rad (~10°), Periode ~1.8 Sekunden.
+                   Abklingen auf 0 kurz vor dem Ziel (letzten 80px). */
+                const t = (this.scene?.time?.now ?? Date.now()) / 1800;
+                const fade  = Math.min(1, (distance - 22) / 80);
+                const wobble = Math.sin(t) * 0.18 * fade;
+                const wAngle = angle + wobble;
+
+                this.body.setVelocityX(Phaser.Math.Linear(vx, Math.cos(wAngle) * effSpd, STEER));
+                this.body.setVelocityY(Phaser.Math.Linear(vy, Math.sin(wAngle) * effSpd, STEER));
                 this.setWakeVisible(true);
 
                 /* Rotation follows ACTUAL velocity direction — same as NPCs */
