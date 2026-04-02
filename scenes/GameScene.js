@@ -490,13 +490,6 @@ export default class GameScene extends Phaser.Scene {
             this.cameraDragState.lastY = pointer.y;
         });
 
-        /* ── Mausrad-Zoom: zoomt und zentriert auf Spieler ─────── */
-        this.input.on('wheel', (_pointer, _objs, _dx, dy) => {
-            if (!this.player?.active) return;
-            const cam = this.cameras.main;
-            const newZ = Phaser.Math.Clamp(cam.zoom + (dy < 0 ? 0.12 : -0.12), 0.5, 2.5);
-            this.setCameraZoom(newZ);
-        });
 
         /* ── Pointer-Up: Kamera-Drag auswerten + Pinch zurücksetzen ─ */
         this.input.on('pointerup', (pointer) => {
