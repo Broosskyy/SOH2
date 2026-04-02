@@ -436,10 +436,31 @@ export default class GameScene extends Phaser.Scene {
             };
         });
 
+        /* ── Kamera-Drag + Pinch-Zoom (ein einziger Handler) ─────── */
         this.input.on('pointermove', (pointer) => {
             if (pointer.isDown && this.panelDragState) {
                 this.updatePanelDrag(pointer);
                 return;
+            }
+
+            /* Pinch-Zoom mit zwei Fingern */
+            if (pointer.isDown) {
+                const activePointers = this.input.manager.pointers.filter(p => p.isDown && p.id !== pointer.id);
+                if (activePointers.length > 0) {
+                    const other   = activePointers[0];
+                    const curDist = Phaser.Math.Distance.Between(pointer.x, pointer.y, other.x, other.y);
+                    if (this._pinchStartDist && this._pinchStartZoom) {
+                        const scale = curDist / this._pinchStartDist;
+                        const newZ  = Phaser.Math.Clamp(this._pinchStartZoom * scale, 0.7, 2.8);
+                        this.cameras.main.setZoom(newZ);
+                        this.cameraDefaultZoom = newZ;
+                    } else {
+                        this._pinchStartDist = curDist;
+                        this._pinchStartZoom = this.cameras.main.zoom;
+                        this.cameraDragState  = null; /* Drag während Pinch abbrechen */
+                    }
+                    return;
+                }
             }
 
             if (!pointer.isDown || !this.cameraDragState) return;
@@ -451,9 +472,8 @@ export default class GameScene extends Phaser.Scene {
 
             const dragX = pointer.x - this.cameraDragState.startX;
             const dragY = pointer.y - this.cameraDragState.startY;
-            const dragDistance = Math.hypot(dragX, dragY);
 
-            if (dragDistance > this.cameraDragThreshold) {
+            if (Math.hypot(dragX, dragY) > this.cameraDragThreshold) {
                 this.cameraDragState.dragged = true;
             }
 
@@ -466,7 +486,20 @@ export default class GameScene extends Phaser.Scene {
             this.cameraDragState.lastY = pointer.y;
         });
 
+        /* ── Mausrad-Zoom ─────────────────────────────────────── */
+        this.input.on('wheel', (_pointer, _objs, _dx, dy) => {
+            const cam = this.cameras.main;
+            const newZ = Phaser.Math.Clamp(cam.zoom + (dy < 0 ? 0.1 : -0.1), 0.7, 2.8);
+            cam.setZoom(newZ);
+            this.cameraDefaultZoom = newZ;
+        });
+
+        /* ── Pointer-Up: Kamera-Drag auswerten + Pinch zurücksetzen ─ */
         this.input.on('pointerup', (pointer) => {
+            /* Pinch-Zoom immer zurücksetzen */
+            this._pinchStartDist = null;
+            this._pinchStartZoom = null;
+
             if (this.panelDragState) {
                 this.endPanelDrag();
                 return;
@@ -485,15 +518,12 @@ export default class GameScene extends Phaser.Scene {
             const worldPoint = pointer.positionToCamera(this.cameras.main);
 
             const clickedTarget = this.getTargetAtWorldPoint(worldPoint.x, worldPoint.y);
-
             if (clickedTarget) {
                 this.selectTarget(clickedTarget);
                 return;
             }
 
-            /* ── Gift/Egg tap: navigate ship to the loot item ──
-               Player must intentionally tap the egg; proximity alone does NOT collect it.
-               We store the targeted gift so ONLY that one is collectible on arrival. */
+            /* Gift/Egg antippen → Schiff navigiert dorthin */
             const tappedGift = this._getGiftAtWorldPoint(worldPoint.x, worldPoint.y, 72);
             if (tappedGift) {
                 this._lootTarget = tappedGift;
@@ -501,52 +531,19 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
 
-            /* Tapping empty water or an island clears any pending loot target */
             this._lootTarget = null;
 
-            /* ── Island quick-repair: tap near any island while no combat target ── */
+            /* Insel antippen → Schnell-Reparatur */
             const nearIsland = this._getIslandNearPoint(worldPoint.x, worldPoint.y, 190);
             if (nearIsland) {
                 this._showIslandRepairPopup(nearIsland);
                 return;
             }
 
-            /* A tower pointerdown already selected a proxy — don't clear it */
             if (this._towerJustSelected) { this._towerJustSelected = false; return; }
 
             this.clearTargetAndAttackState();
             this.player.moveTo(worldPoint.x, worldPoint.y);
-        });
-
-        /* ── Mausrad-Zoom ─────────────────────────────────────── */
-        this.input.on('wheel', (pointer, _objs, _dx, dy) => {
-            const cam  = this.cameras.main;
-            const step = dy > 0 ? -0.1 : 0.1;
-            const newZ  = Phaser.Math.Clamp(cam.zoom + step, 0.7, 2.8);
-            cam.setZoom(newZ);
-            this.cameraDefaultZoom = newZ;
-        });
-
-        /* ── Pinch-Zoom (Mobil) ───────────────────────────────── */
-        this.input.on('pointermove', (pointer) => {
-            if (!pointer.isDown) return;
-            const pointers = this.input.manager.pointers.filter(p => p.isDown && p.id !== pointer.id);
-            if (pointers.length === 0) return;
-            const other = pointers[0];
-            const curDist = Phaser.Math.Distance.Between(pointer.x, pointer.y, other.x, other.y);
-            if (this._pinchStartDist && this._pinchStartZoom) {
-                const scale  = curDist / this._pinchStartDist;
-                const newZ   = Phaser.Math.Clamp(this._pinchStartZoom * scale, 0.7, 2.8);
-                this.cameras.main.setZoom(newZ);
-                this.cameraDefaultZoom = newZ;
-            } else {
-                this._pinchStartDist = curDist;
-                this._pinchStartZoom = this.cameras.main.zoom;
-            }
-        });
-        this.input.on('pointerup', () => {
-            this._pinchStartDist = null;
-            this._pinchStartZoom = null;
         });
 
         /* Gift collection checked in update() by ship-centre distance */
@@ -5629,25 +5626,8 @@ handleResize(gameSize) {
         } catch (_e) {}
     }
 
-    updatePlayerVisualEffects(time) {
-        if (!this.player || !this.player.active || !this.playerGlowOuter || !this.playerGlowInner || !this.playerUpgradeRing) return;
-        const strength = this.player.getUpgradeVisualStrength();
-        const pulse = 0.5 + (Math.sin(time * 0.004) * 0.5);
-        const auraRadius = 36 + (strength.total * 1.5) + (pulse * 8);
-        const ammo = this.player.getAmmoConfig(this.currentAmmoType);
-
-        this.playerGlowOuter.setPosition(this.player.x, this.player.y);
-        this.playerGlowInner.setPosition(this.player.x, this.player.y);
-        this.playerGlowOuter.setRadius(auraRadius + 6);
-        this.playerGlowInner.setRadius(20 + (strength.cannons * 2.2) + (pulse * 4));
-        this.playerGlowOuter.setFillStyle(ammo.uiColor, 0.06 + (strength.ammo * 0.01));
-        this.playerGlowInner.setFillStyle(0x9bf6ff, 0.1 + (strength.hull * 0.01));
-
-        this.playerUpgradeRing.clear();
-        this.playerUpgradeRing.lineStyle(2, ammo.uiColor, 0.65);
-        this.playerUpgradeRing.strokeCircle(this.player.x, this.player.y, auraRadius);
-        this.playerUpgradeRing.lineStyle(3, 0xcdf6ff, 0.28 + (strength.sails * 0.03));
-        this.playerUpgradeRing.strokeCircle(this.player.x, this.player.y, auraRadius - 10);
+    updatePlayerVisualEffects(_time) {
+        /* Glow-Effekte deaktiviert — kein Overhead mehr */
     }
 
     update(time, delta) {

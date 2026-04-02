@@ -444,14 +444,14 @@ export default class NetworkManager {
        UPDATE (aus GameScene.update() aufrufen)
     ═══════════════════════════════════════════════════════ */
     update() {
-        /* Position aller Online-Spieler auf ihre aktuellen Koordinaten setzen */
+        /* Erst alle veralteten Einträge sammeln, dann entfernen —
+           niemals aus einer Map löschen während man sie iteriert. */
+        const stale = [];
         for (const [username, entry] of this.online) {
-            if (!entry.sprite?.active) {
-                this.online.delete(username);
-                continue;
-            }
-            this._updateNameTag(username);
+            if (!entry.sprite?.active) stale.push(username);
+            else this._updateNameTag(username);
         }
+        for (const u of stale) this._removePlayer(u);
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -485,7 +485,8 @@ export default class NetworkManager {
     ═══════════════════════════════════════════════════════ */
     destroy() {
         this._stopPositionBroadcast();
-        for (const [username] of this.online) this._removePlayer(username);
+        /* Snapshot der Keys, damit _removePlayer die Map während des Loops nicht verändert */
+        for (const username of [...this.online.keys()]) this._removePlayer(username);
         this.socket?.disconnect();
         this.socket = null;
         this.online.clear();

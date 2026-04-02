@@ -769,11 +769,13 @@ io.on('connection', async (socket) => {
 /* Spieler die länger als 5min keine Positionsupdate geschickt haben als offline markieren */
 setInterval(() => {
     const cutoff = Date.now() - 5 * 60 * 1000;
+    const timedOut = [];
     for (const [username, entry] of onlinePlayers) {
-        if (entry.lastSeen < cutoff) {
-            onlinePlayers.delete(username);
-            io.emit('player:left', { username });
-        }
+        if (entry.lastSeen < cutoff) timedOut.push(username);
+    }
+    for (const username of timedOut) {
+        onlinePlayers.delete(username);
+        io.emit('player:left', { username });
     }
 }, 60 * 1000);
 
