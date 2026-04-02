@@ -131,6 +131,7 @@ export default class GameScene extends Phaser.Scene {
         this.currentAmmoType = 'cannonball';
         this.topMenuButtons = [];
         this.statusFeedMessages = [];
+        this._feedMessages = [];     /* recent activity feed shown in Logbook */
         this.chatMessages = [];
         this.chatInputValue = '';
         this.chatInputPlaceholder = 'Nachricht oder Befehl eingeben…';
@@ -467,6 +468,13 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
 
+            /* ── Island quick-repair: tap near any island while no combat target ── */
+            const nearIsland = this._getIslandNearPoint(worldPoint.x, worldPoint.y, 190);
+            if (nearIsland) {
+                this._showIslandRepairPopup(nearIsland);
+                return;
+            }
+
             /* A tower pointerdown already selected a proxy — don't clear it */
             if (this._towerJustSelected) { this._towerJustSelected = false; return; }
 
@@ -569,13 +577,29 @@ export default class GameScene extends Phaser.Scene {
                 if (npc._easterEventType && this._easterEventActive) {
                     const etype = npc._easterEventType;
                     const ecfg  = EASTER_CFG.npcs[etype];
-                    if (Math.random() < (ecfg?.eggDropChance ?? 0)) {
+
+                    /* Direct gold reward from Easter NPC config */
+                    const bonusGold = Phaser.Math.Between(ecfg?.goldDrop?.[0] ?? 80, ecfg?.goldDrop?.[1] ?? 160);
+                    if (this.player) {
+                        this.player.gold = (this.player.gold ?? 0) + bonusGold;
+                        this._logbookAdd('gold_total', bonusGold);
+                        this.dailyQuestPanel?.addProgress('gold_collected', bonusGold);
+                        this.events.emit('gold-collected', bonusGold);
+                    }
+
+                    /* Easter egg drop chance */
+                    const droppedEgg = Math.random() < (ecfg?.eggDropChance ?? 0);
+                    if (droppedEgg) {
                         const egg = this.createLootDrop(npc.x, npc.y, {
                             type: 'gold-bag', goldValue: 0, xpValue: 0, hpValue: 0, materialValue: 0
                         });
                         egg._isEasterEgg = true;
                     }
+
+                    /* Ship design drop for boss */
+                    let designDropped = false;
                     if (ecfg?.shipDesignDrop) {
+                        designDropped = true;
                         try {
                             const designs = JSON.parse(localStorage.getItem('ahc_ship_blueprints') || '[]');
                             if (!designs.includes('easter')) {
@@ -583,8 +607,16 @@ export default class GameScene extends Phaser.Scene {
                                 localStorage.setItem('ahc_ship_blueprints', JSON.stringify(designs));
                             }
                         } catch {}
-                        this.showStatusMsg('👑 Oster-König besiegt! +Schiffsplan: Oster-Galeone!', 0xffd700);
                     }
+
+                    /* Status message + feed entry */
+                    const npcLabel = ecfg?.label ?? npc.npcName ?? 'Oster-NPC';
+                    const eggStr   = droppedEgg    ? ' 🥚 Osterei erscheint!' : '';
+                    const planStr  = designDropped  ? ' 📜 Oster-Galeone freigeschaltet!' : '';
+                    const killMsg  = `🌸 ${npcLabel} besiegt! +${bonusGold}🪙 +${npc.xpValue}XP${eggStr}${planStr}`;
+                    this.showStatusMsg(killMsg, designDropped ? 0xffd700 : 0xff88cc);
+                    this._feedAdd(killMsg);
+
                     this.time.delayedCall(ecfg?.respawnDelay ?? 30000, () => this._spawnEasterNPC(etype));
                 } else {
                     this.time.delayedCall(10000, () => this.spawnNPC());
@@ -851,52 +883,52 @@ export default class GameScene extends Phaser.Scene {
     /* ═══════════════════ LEVEL-UP REWARDS ═══════════════════ */
 
     _getLevelUpRewards(level) {
-        const hpBonus = 28 + Math.floor(level / 4) * 8;
-        const labels = [`Max HP +${hpBonus}`];
-        const items  = {};
-        let gold = 80 + level * 16;
-        let gems = 0;
-        let mats = 15 + level * 4;
+        const hpBonus = 30 + Math.floor(level / 3) * 6;
+        const labels  = [`❤ Max HP +${hpBonus}`];
+        const items   = {};
+        let gold      = 120 + level * 22;
+        let gems      = 0;
+        let mats      = 20 + level * 5;
 
         /* Every 5 levels — Meilenstein */
         if (level % 5 === 0) {
-            const bonusGold = 200 + level * 12;
+            const bonusGold = 250 + level * 15;
             gold += bonusGold;
-            mats += level * 3;
+            mats += level * 4;
             labels.push(`🎖 Meilenstein Lv.${level}: +${bonusGold} Gold`);
             const milestoneItems = {
-                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk',   qty: 3 }, { id: 'repair_kit', qty: 2 }],
-                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',        qty: 3 }, { id: 'lucky_charm', qty: 1 }, { id: 'repair_kit', qty: 3 }],
-                15: [{ id: 'heiltrunk',   qty: 5 }, { id: 'rum',         qty: 3 }, { id: 'repair_kit', qty: 3 }],
-                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver', qty: 3 }, { id: 'lucky_charm', qty: 2 }, { id: 'repair_kit', qty: 4 }],
-                25: [{ id: 'rum',         qty: 4 }, { id: 'heiltrunk',   qty: 4 }, { id: 'lucky_charm', qty: 2 }, { id: 'repair_kit', qty: 3 }],
-                30: [{ id: 'grog',        qty: 5 }, { id: 'fernrohr',    qty: 3 }, { id: 'lucky_charm', qty: 3 }, { id: 'repair_kit', qty: 5 }],
+                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk',    qty: 3 }, { id: 'repair_kit', qty: 2 }],
+                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',         qty: 3 }, { id: 'lucky_charm', qty: 2 }, { id: 'repair_kit', qty: 3 }],
+                15: [{ id: 'heiltrunk',   qty: 5 }, { id: 'rum',          qty: 3 }, { id: 'repair_kit',  qty: 4 }, { id: 'fernrohr', qty: 2 }],
+                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver',  qty: 4 }, { id: 'lucky_charm', qty: 3 }, { id: 'repair_kit', qty: 5 }],
+                25: [{ id: 'rum',         qty: 4 }, { id: 'heiltrunk',    qty: 5 }, { id: 'lucky_charm', qty: 3 }, { id: 'repair_kit', qty: 4 }],
+                30: [{ id: 'grog',        qty: 6 }, { id: 'fernrohr',     qty: 4 }, { id: 'lucky_charm', qty: 4 }, { id: 'repair_kit', qty: 6 }],
             };
-            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 3 }, { id: 'grog', qty: 2 }, { id: 'repair_kit', qty: 2 }];
+            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 4 }, { id: 'grog', qty: 3 }, { id: 'repair_kit', qty: 3 }];
             mList.forEach(mi => {
                 items[mi.id] = (items[mi.id] ?? 0) + mi.qty;
                 labels.push(`🎁 ${this._itemLabel(mi.id)} ×${mi.qty}`);
             });
         }
 
-        /* Every 10 levels — Perlen-Bonus */
-        if (level % 10 === 0) {
-            gems = Math.floor(level / 4);
+        /* Every 5 levels — Perlen-Bonus (used to be every 10) */
+        if (level % 5 === 0) {
+            gems = Math.max(2, Math.floor(level / 3));
             labels.push(`💎 ${gems} Perlen`);
         }
 
-        /* Every 3 levels — bonus item */
-        if (level % 3 === 0 && level % 5 !== 0) {
-            const opts  = ['heiltrunk','grog','blitzpulver','rum','fernrohr','heiltrunk','lucky_charm'];
-            const roll  = opts[Math.floor(level / 3) % opts.length];
-            const qty   = level >= 12 ? 2 : 1;
+        /* Every 2 levels (non-milestone) — bonus item */
+        if (level % 2 === 0 && level % 5 !== 0) {
+            const opts  = ['heiltrunk','heiltrunk','grog','blitzpulver','rum','fernrohr','lucky_charm','repair_kit'];
+            const roll  = opts[Math.floor(level / 2) % opts.length];
+            const qty   = level >= 10 ? 2 : 1;
             items[roll] = (items[roll] ?? 0) + qty;
             labels.push(`+${qty} ${this._itemLabel(roll)}`);
         }
 
-        /* Every 2 levels — kleine Gold-Prämie */
-        if (level % 2 === 0) {
-            gold += level * 5;
+        /* Every 3 levels (non-milestone) — extra gold */
+        if (level % 3 === 0 && level % 5 !== 0) {
+            gold += level * 8;
         }
 
         labels.push(`+${gold} Gold`);
@@ -2713,6 +2745,7 @@ handleResize(gameSize) {
             : `${gift.giftType.replace('-', ' ').toUpperCase()} collected`);
 
         this.showStatusMsg(label, gift._isEasterEgg ? 0xff88cc : 0x00ff99);
+        this._feedAdd(label);
         this.playSound('collect');
         gift.destroy();
 
@@ -5923,6 +5956,31 @@ handleResize(gameSize) {
             }
 
             /* ── attack label chip (shown below PNG, not blocking image) ── */
+            /* ── reload bar ── */
+            #ahc-combat-cluster .cc-reload-bar {
+                position: absolute;
+                bottom: 52px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 76px;
+                height: 5px;
+                background: rgba(0,0,0,0.55);
+                border-radius: 4px;
+                overflow: hidden;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s;
+            }
+            #ahc-combat-cluster .cc-reload-bar.visible {
+                opacity: 1;
+            }
+            #ahc-combat-cluster .cc-reload-fill {
+                height: 100%;
+                width: 0%;
+                background: linear-gradient(90deg, #ff8c1a, #ffe033);
+                border-radius: 4px;
+            }
+
             #ahc-combat-cluster .cc-label {
                 position: absolute;
                 bottom: 42px;
@@ -5955,9 +6013,22 @@ handleResize(gameSize) {
         attack.className = 'cc-attack';
         attack.innerHTML = '<span class="cc-label">ANGRIFF</span>';
 
+        /* reload bar — fills left-to-right over the cannon cooldown period */
+        const reloadBar  = document.createElement('div');
+        reloadBar.className = 'cc-reload-bar';
+        const reloadFill = document.createElement('div');
+        reloadFill.className = 'cc-reload-fill';
+        reloadBar.appendChild(reloadFill);
+        attack.appendChild(reloadBar);
+
         /* small hit zone — covers only the visible cannon, not the transparent left area */
         const ccHit = document.createElement('div');
         ccHit.className = 'cc-hit';
+
+        /* ── fix: stop pointerup so Phaser cannot re-select a different NPC ── */
+        ccHit.addEventListener('pointerup',  (e) => { e.stopPropagation(); e.preventDefault(); });
+        ccHit.addEventListener('touchend',   (e) => { e.stopPropagation(); }, { passive: true });
+
         ccHit.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             /* punch animation on the parent */
@@ -5969,14 +6040,29 @@ handleResize(gameSize) {
             const prevAttackTime = this.lastAttackTime ?? -1;
             this.handleAttackButtonPressed?.();
 
-            /* cooldown overlay + muzzle ring — only when a shot actually fired */
+            /* cooldown overlay + reload bar — only when a shot actually fired */
             if ((this.lastAttackTime ?? -1) !== prevAttackTime) {
                 const reloadMs = Math.max(400, this.player?.reloadTime ?? 1500);
+
+                /* CSS cooldown fade */
                 attack.style.setProperty('--cc-reload-dur', `${reloadMs}ms`);
                 attack.classList.remove('cc-cooldown');
                 void attack.offsetWidth;
                 attack.classList.add('cc-cooldown');
                 setTimeout(() => attack.classList.remove('cc-cooldown'), reloadMs);
+
+                /* reload bar sweep */
+                reloadFill.style.transition = 'none';
+                reloadFill.style.width = '0%';
+                void reloadFill.offsetWidth;
+                reloadBar.classList.add('visible');
+                reloadFill.style.transition = `width ${reloadMs}ms linear`;
+                reloadFill.style.width = '100%';
+                setTimeout(() => {
+                    reloadBar.classList.remove('visible');
+                    reloadFill.style.width = '0%';
+                }, reloadMs + 80);
+
                 /* muzzle ring from player position */
                 try {
                     if (this.player?.active) {
@@ -6041,15 +6127,26 @@ handleResize(gameSize) {
         this.achievementPanel?.check?.(this._logbook);
     }
 
+    /* Add a timestamped entry to the recent activity feed (max 30 entries) */
+    _feedAdd(msg) {
+        if (!msg) return;
+        const now = new Date();
+        const ts  = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        this._feedMessages.unshift({ ts, msg: String(msg) });
+        if (this._feedMessages.length > 30) this._feedMessages.length = 30;
+        this.logbookPanel?.refreshFeed?.(this._feedMessages);
+    }
+
     addItem(type, count = 1) {
         if (!this.player?.inventory) return;
         this.player.inventory[type] = Math.min(99, (this.player.inventory[type] ?? 0) + count);
         this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
+        /* Debounced save so dropped items are never lost on reload */
+        clearTimeout(this._itemSaveTimer);
+        this._itemSaveTimer = setTimeout(() => this._saveProgress(), 2500);
         this.itemBar?.showPickupFlash(type);
         const names = { heiltrunk:'Heiltrunk', grog:'Grog', blitzpulver:'Blitzpulver', rum:'Rum-Fass', fernrohr:'Fernrohr' };
         this.showStatusMsg(`📦 +${count}× ${names[type] ?? type} erhalten!`, 0xd4af37);
-        /* Persist immediately so mobile reloads don't lose picked-up items */
-        this._saveProgress();
     }
 
     useItem(type) {
@@ -6077,10 +6174,11 @@ handleResize(gameSize) {
             this._recalcPlayerSpeed();
             this.showStatusMsg('🍺 Grog wirkt! +50% Geschwindigkeit für 30s', 0xffa040);
             this.time.delayedCall(30000, () => {
-                if (this._grogActive) {
+                /* Guard: only clear if this timer's expiry hasn't been extended by another dose */
+                if (this._grogActive && (this._grogExpiry ?? 0) <= this.time.now + 100) {
                     this._grogActive = false;
-                    delete this.player.activeEffects?.grog;
-                    this._recalcPlayerSpeed();
+                    delete this.player?.activeEffects?.grog;
+                    this._recalcPlayerSpeed?.();
                     this.showStatusMsg('🍺 Grog-Effekt abgelaufen.', 0x888888);
                 }
             });
@@ -6237,13 +6335,15 @@ handleResize(gameSize) {
         if (Math.random() > chance) return;
         /* Weighted drop pool — common items appear more often */
         const pool = [
-            'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', // 5× — Heilung
-            'repair_kit', 'repair_kit', 'repair_kit',                        // 3× — Notfall-Reparatur
-            'grog', 'grog', 'grog',                                          // 3× — Speed
-            'blitzpulver', 'blitzpulver', 'blitzpulver',                     // 3× — Schaden
-            'rum', 'rum',                                                     // 2× — XP-Boost
-            'fernrohr', 'fernrohr',                                           // 2× — Truhen-Radar
-            'lucky_charm', 'lucky_charm',                                    // 2× — Crit-Glück
+            'heiltrunk',  'heiltrunk',  'heiltrunk',  'heiltrunk',  'heiltrunk',  // 5× — Heilung
+            'repair_kit', 'repair_kit', 'repair_kit',                             // 3× — Notfall-Reparatur
+            'grog',       'grog',       'grog',                                   // 3× — Speed
+            'blitzpulver','blitzpulver','blitzpulver',                            // 3× — Schaden
+            'rum',        'rum',                                                  // 2× — XP-Boost
+            'fernrohr',   'fernrohr',                                             // 2× — Truhen-Radar
+            'lucky_charm','lucky_charm',                                          // 2× — Crit-Glück
+            'sea_chart',                                                          // 1× — Seekarte (200 Gold)
+            'repair_kit',                                                         // 1× — extra Reparatur
         ];
         const type = pool[Math.floor(Math.random() * pool.length)];
         const qty  = (type === 'heiltrunk' && Math.random() < 0.20) ? 2 : 1;
@@ -6368,7 +6468,7 @@ handleResize(gameSize) {
         this._stormOverlay = this.add.rectangle(0, 0, 20000, 20000, 0x000044, 0.28)
             .setScrollFactor(0).setDepth(10).setOrigin(0);
         this._stormRain = [];
-        const rainCount = Math.max(80, Math.round(this.scale.width / 6));
+        const rainCount = Math.max(150, Math.round(this.scale.width / 4.5));
         for (let i = 0; i < rainCount; i++) {
             const w = Phaser.Math.Between(1, 3);
             const h = Phaser.Math.Between(18, 42);
@@ -6412,6 +6512,95 @@ handleResize(gameSize) {
         }
         this.spawnGift();
         this._scheduleNextStorm();
+    }
+
+    /* ═══════════════════ ISLAND QUICK-REPAIR ═══════════════════ */
+
+    _getIslandNearPoint(worldX, worldY, radius = 190) {
+        if (!this.islands) return null;
+        const kids = this.islands.getChildren ? this.islands.getChildren() : [];
+        let best = null, bestDist = Infinity;
+        for (const isl of kids) {
+            if (!isl?.active) continue;
+            const d = Phaser.Math.Distance.Between(worldX, worldY, isl.x, isl.y);
+            if (d < radius && d < bestDist) { bestDist = d; best = isl; }
+        }
+        return best;
+    }
+
+    _showIslandRepairPopup(island) {
+        /* Only show if player is also near the island (world distance) */
+        if (!this.player?.active) return;
+        const playerDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, island.x, island.y);
+        if (playerDist > 380) {
+            this.showStatusMsg('⚓ Näher an die Insel heranfahren!', 0xffaa22);
+            return;
+        }
+
+        /* Remove any old popup */
+        document.getElementById('island-repair-popup')?.remove();
+
+        const el = document.createElement('div');
+        el.id = 'island-repair-popup';
+        el.style.cssText = `
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            z-index:18000;background:linear-gradient(180deg,rgba(6,18,42,0.97),rgba(3,10,26,0.97));
+            border:2px solid rgba(74,200,255,0.5);border-radius:16px;padding:20px 24px;
+            font-family:Arial,sans-serif;min-width:260px;text-align:center;
+            box-shadow:0 8px 40px rgba(0,0,0,0.8),0 0 30px rgba(74,200,255,0.12);
+        `;
+
+        const pct  = Math.round(((this.player.hp ?? 0) / (this.player.maxHP || 200)) * 100);
+        const miss = (this.player.maxHP || 200) - (this.player.hp ?? 0);
+        /* Cost: 1 gold per 2 HP missing, minimum 20 */
+        const cost = Math.max(20, Math.round(miss / 2));
+        const canAfford = (this.player.gold ?? 0) >= cost;
+
+        el.innerHTML = `
+            <div style="font-size:11px;letter-spacing:2px;color:#4ac8ff;margin-bottom:6px;">⚓ INSEL-WERFT</div>
+            <div style="font-size:18px;margin-bottom:4px;">🏝 Notfallreparatur</div>
+            <div style="font-size:13px;color:#8fd8ff;margin-bottom:12px;">Schiff: ${pct}% Rumpf · ${miss} HP fehlen</div>
+            <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;margin-bottom:14px;">
+                <div style="font-size:12px;color:#aaa;">Reparaturkosten</div>
+                <div style="font-size:22px;font-weight:bold;color:${canAfford?'#ffd700':'#ff5555'};">${cost} 🪙</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button id="isl-repair-confirm" style="
+                    flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer;
+                    background:${canAfford?'linear-gradient(135deg,#1a6a2a,#0d3a18)':'rgba(60,60,60,0.8)'};
+                    color:${canAfford?'#7fff7f':'#888'};font-weight:bold;font-size:13px;
+                    ${canAfford?'box-shadow:0 0 10px rgba(60,200,80,0.3);':''}
+                    pointer-events:${canAfford?'auto':'none'};
+                " ${canAfford?'':'disabled'}>✅ Reparieren</button>
+                <button id="isl-repair-cancel" style="
+                    flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer;
+                    background:rgba(120,30,30,0.7);color:#ff9999;font-weight:bold;font-size:13px;
+                ">✕ Abbrechen</button>
+            </div>
+            ${!canAfford ? '<div style="font-size:11px;color:#ff5555;margin-top:8px;">Nicht genug Gold!</div>' : ''}
+        `;
+
+        document.body.appendChild(el);
+
+        document.getElementById('isl-repair-cancel').addEventListener('click', () => el.remove());
+        document.getElementById('isl-repair-confirm')?.addEventListener('click', () => {
+            if ((this.player.gold ?? 0) < cost) return;
+            this.player.gold -= cost;
+            const healed = miss;
+            this.player.hp = this.player.maxHP;
+            this.player.updateHealthBar?.();
+            this.dailyQuestPanel?.addProgress('hp_healed', healed);
+            this._logbookAdd('hp_healed', healed);
+            this._logbookAdd('gold_total', 0);    /* trigger panel refresh */
+            this.events.emit('heal-popup', this.player.x, this.player.y - 30, healed);
+            this.showStatusMsg(`⚓ Reparatur abgeschlossen! +${healed} HP (−${cost}🪙)`, 0x7fff7f);
+            this._feedAdd(`⚓ Insel-Reparatur: +${healed} HP für ${cost} Gold`);
+            this._saveProgress();
+            el.remove();
+        });
+
+        /* Auto-close after 10s */
+        setTimeout(() => { if (document.getElementById('island-repair-popup') === el) el.remove(); }, 10000);
     }
 
     /* ═══════════════════ ITEM BAR UPDATE ═══════════════════ */

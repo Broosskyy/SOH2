@@ -2,6 +2,7 @@ export default class LogbookPanel {
     constructor(scene) {
         this.scene = scene;
         this._el = null;
+        this._feedMessages = [];
         this._build();
     }
 
@@ -25,12 +26,38 @@ export default class LogbookPanel {
                 </div>
                 <button id="lb-close" style="background:none;border:none;color:#9fdcff;font-size:20px;cursor:pointer;padding:4px 6px;line-height:1;">✕</button>
             </div>
+
+            <!-- Tab bar -->
+            <div style="display:flex;border-bottom:1px solid rgba(74,200,255,0.2);flex-shrink:0;">
+                <button id="lb-tab-feed"  class="lb-tab lb-tab-active" style="flex:1;padding:8px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;border:none;background:rgba(74,200,255,0.12);color:#4ac8ff;border-bottom:2px solid #4ac8ff;">📋 AKTIVITÄT</button>
+                <button id="lb-tab-stats" class="lb-tab"               style="flex:1;padding:8px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;border:none;background:none;color:#5a7a9a;border-bottom:2px solid transparent;">📊 STATISTIK</button>
+            </div>
+
             <div id="lb-body" style="padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;"></div>
         `;
         document.body.appendChild(el);
         this._el = el;
         this._bodyEl = document.getElementById('lb-body');
         document.getElementById('lb-close').addEventListener('click', () => this.hide());
+
+        this._activeTab = 'feed';
+        document.getElementById('lb-tab-feed').addEventListener('click',  () => this._switchTab('feed'));
+        document.getElementById('lb-tab-stats').addEventListener('click', () => this._switchTab('stats'));
+    }
+
+    _switchTab(tab) {
+        this._activeTab = tab;
+        const feedBtn  = document.getElementById('lb-tab-feed');
+        const statsBtn = document.getElementById('lb-tab-stats');
+        if (!feedBtn || !statsBtn) return;
+        if (tab === 'feed') {
+            feedBtn.style.cssText  = 'flex:1;padding:8px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;border:none;background:rgba(74,200,255,0.12);color:#4ac8ff;border-bottom:2px solid #4ac8ff;';
+            statsBtn.style.cssText = 'flex:1;padding:8px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;border:none;background:none;color:#5a7a9a;border-bottom:2px solid transparent;';
+        } else {
+            statsBtn.style.cssText = 'flex:1;padding:8px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;border:none;background:rgba(74,200,255,0.12);color:#4ac8ff;border-bottom:2px solid #4ac8ff;';
+            feedBtn.style.cssText  = 'flex:1;padding:8px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;border:none;background:none;color:#5a7a9a;border-bottom:2px solid transparent;';
+        }
+        this._render();
     }
 
     refresh() {
@@ -38,7 +65,55 @@ export default class LogbookPanel {
         this._render();
     }
 
+    refreshFeed(msgs) {
+        this._feedMessages = msgs ?? [];
+        if (this._el?.style.display !== 'none' && this._activeTab === 'feed') {
+            this._render();
+        }
+    }
+
     _render() {
+        if (!this._bodyEl) return;
+        if (this._activeTab === 'feed') {
+            this._renderFeed();
+        } else {
+            this._renderStats();
+        }
+    }
+
+    _renderFeed() {
+        if (!this._bodyEl) return;
+        const msgs = this._feedMessages.length > 0
+            ? this._feedMessages
+            : (this.scene._feedMessages ?? []);
+
+        this._bodyEl.innerHTML = '';
+
+        if (!msgs.length) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'text-align:center;color:#3a5a7a;font-size:12px;padding:24px 0;';
+            empty.textContent = 'Noch keine Aktivität in dieser Sitzung.';
+            this._bodyEl.appendChild(empty);
+            return;
+        }
+
+        msgs.forEach(({ ts, msg }) => {
+            const row = document.createElement('div');
+            row.style.cssText = `
+                display:flex;align-items:flex-start;gap:8px;
+                padding:7px 10px;border-radius:7px;
+                background:rgba(255,255,255,0.03);
+                border-left:2px solid rgba(74,200,255,0.2);
+            `;
+            row.innerHTML = `
+                <span style="font-size:10px;color:#3a6a8a;flex-shrink:0;padding-top:1px;">${ts}</span>
+                <span style="font-size:11px;color:#c0dff0;line-height:1.4;">${msg}</span>
+            `;
+            this._bodyEl.appendChild(row);
+        });
+    }
+
+    _renderStats() {
         if (!this._bodyEl) return;
         const lb = this.scene._logbook ?? {};
         const p  = this.scene.player;
@@ -97,7 +172,7 @@ export default class LogbookPanel {
     }
 
     toggle() { this._el.style.display === 'none' ? this.show() : this.hide(); }
-    show()   { this._render(); this._el.style.display = 'flex'; }
+    show()   { this._feedMessages = this.scene._feedMessages ?? []; this._render(); this._el.style.display = 'flex'; }
     hide()   { this._el.style.display = 'none'; }
     destroy(){ this._el?.remove(); }
 }
