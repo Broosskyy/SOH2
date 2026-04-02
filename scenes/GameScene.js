@@ -1767,8 +1767,8 @@ handleResize(gameSize) {
                 /* Server informieren — nutzt vorhandenen player:setMode Event */
                 this.network?.socket?.emit('player:setMode', { pvpMode: this.player.pvpMode });
                 /* Kurzfeedback als kleiner DOM-Toast */
-                const msg   = this.player.pvpMode ? '⚔ PvP-Modus aktiviert!' : '🛡 PvP-Modus deaktiviert';
-                const color = this.player.pvpMode ? '#ff4444' : '#44ff88';
+                const msg   = this.player.pvpMode ? '[ PvP AN ] — Du kannst angegriffen werden!' : '[ PvP AUS ] — Geschuetzt';
+                const color = this.player.pvpMode ? '#ff6b6b' : '#6bff9f';
                 this._showPvpToast(msg, color);
             });
         };
@@ -1803,7 +1803,7 @@ handleResize(gameSize) {
         const el = document.getElementById('nav-pvp-badge');
         if (!el || !this.player) return;
         const on = !!this.player.pvpMode;
-        el.textContent  = on ? '⚔ PvP AN' : '🛡 PvP AUS';
+        el.textContent  = on ? '[ PvP AN ]' : '[ PvP AUS ]';
         el.style.color  = on ? '#ff6b6b' : '#6bff9f';
         el.style.border = `1px solid ${on ? 'rgba(255,80,80,0.5)' : 'rgba(80,255,130,0.35)'}`;
         el.style.background = on ? 'rgba(120,20,20,0.6)' : 'rgba(10,60,30,0.5)';

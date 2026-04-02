@@ -699,7 +699,7 @@ export default class PlayerShip extends Ship {
     refreshShipInfoPanel(force = false) {
         if (!this.shipInfoPanel) return;
 
-        const hpText = `${Math.ceil(this.hp)}/${this.maxHP}`;
+        const hpText = `${Math.min(Math.ceil(this.hp), this.maxHP)}/${this.maxHP}`;
         const vdPct  = Math.round((this.voodooPoints ?? 0) / (this.voodooMax ?? 1) * 100);
         const stateKey = [
             this.captainTag, this.captainName, hpText, vdPct,
@@ -745,7 +745,7 @@ export default class PlayerShip extends Ship {
         this.hpBar.fillStyle(hpColor, 1);
         this.hpBar.fillRoundedRect(BX + 1, 9, Math.max(2, (BW - 2) * hpPercent), 7, 3);
 
-        this.hpNumText.setText(`${Math.ceil(this.hp ?? 0)} / ${this.maxHP ?? 0}`);
+        this.hpNumText.setText(`${Math.min(Math.ceil(this.hp ?? 0), this.maxHP ?? 0)} / ${this.maxHP ?? 0}`);
         this.hpNumText.setY(14);
 
         const vdPercent = Phaser.Math.Clamp((this.voodooPoints ?? 0) / (this.voodooMax ?? 1), 0, 1);

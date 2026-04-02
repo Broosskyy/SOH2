@@ -241,7 +241,7 @@ export default class DomNavBar {
                     user-select:none;
                     -webkit-user-select:none;
                     transition:all 0.15s;
-                ">🛡 PvP AUS</span>
+                ">[ PvP AUS ]</span>
             </div>
         `;
         document.body.appendChild(stats);
@@ -358,7 +358,7 @@ export default class DomNavBar {
                 ? '0 0 12px #ff0000cc'
                 : `0 0 5px ${hpPct > 50 ? '#45ff8566' : hpPct > 25 ? '#ffdc5966' : '#ff5f5f66'}`;
         }
-        if (hpText) hpText.textContent = `${Math.ceil(hp)}/${maxHp}`;
+        if (hpText) hpText.textContent = `${Math.min(Math.ceil(hp), maxHp)}/${maxHp}`;
 
         const gEl = document.getElementById('nav-gold-deck');
         if (gEl && goldSlots !== undefined)
