@@ -469,12 +469,17 @@ export default class GameScene extends Phaser.Scene {
             }
 
             /* ── Gift/Egg tap: navigate ship to the loot item ──
-               Player must intentionally tap the egg; proximity alone does NOT collect it */
+               Player must intentionally tap the egg; proximity alone does NOT collect it.
+               We store the targeted gift so ONLY that one is collectible on arrival. */
             const tappedGift = this._getGiftAtWorldPoint(worldPoint.x, worldPoint.y, 72);
             if (tappedGift) {
+                this._lootTarget = tappedGift;
                 this.player.moveTo(tappedGift.x, tappedGift.spawnY ?? tappedGift.y);
                 return;
             }
+
+            /* Tapping empty water or an island clears any pending loot target */
+            this._lootTarget = null;
 
             /* ── Island quick-repair: tap near any island while no combat target ── */
             const nearIsland = this._getIslandNearPoint(worldPoint.x, worldPoint.y, 190);
@@ -5321,19 +5326,20 @@ handleResize(gameSize) {
 
         this.player.update();
 
-        /* ── Gift collection: ship centre must be on the egg ── */
-        if (this.player?.active && this.gifts) {
-            const px  = this.player.x, py = this.player.y;
-            const rad = (this._easterEventActive && EASTER_CFG.active)
-                ? EASTER_CFG.eggPickupRadius   // 28 px during Easter event
-                : 28;                           // same default otherwise
-            this.gifts.getChildren().forEach(g => {
-                if (!g.active) return;
-                /* g.spawnY is the stable base y (float tween only moves children) */
-                if (Phaser.Math.Distance.Between(px, py, g.x, g.spawnY ?? g.y) <= rad) {
-                    this.collectGift(this.player, g);
-                }
-            });
+        /* ── Gift collection: ONLY collect the egg the player explicitly tapped ──
+           Sailing near eggs without tapping does nothing. When the ship arrives
+           within 48 px of _lootTarget the gift is collected and the target cleared. */
+        if (this.player?.active && this._lootTarget?.active) {
+            const g  = this._lootTarget;
+            const gy = g.spawnY ?? g.y;
+            const d  = Phaser.Math.Distance.Between(this.player.x, this.player.y, g.x, gy);
+            if (d <= 48) {
+                this._lootTarget = null;
+                this.collectGift(this.player, g);
+            }
+        } else if (this._lootTarget && !this._lootTarget.active) {
+            /* Target was destroyed externally (e.g. despawn) — clear it */
+            this._lootTarget = null;
         }
 
         /* --- Island towers shoot at the player --- */
