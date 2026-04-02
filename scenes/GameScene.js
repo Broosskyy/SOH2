@@ -786,14 +786,14 @@ export default class GameScene extends Phaser.Scene {
             mats += level * 3;
             labels.push(`🎖 Meilenstein Lv.${level}: +${bonusGold} Gold`);
             const milestoneItems = {
-                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk',   qty: 3 }],
-                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',        qty: 3 }, { id: 'lucky_charm', qty: 1 }],
-                15: [{ id: 'heiltrunk',   qty: 5 }, { id: 'rum',         qty: 3 }],
-                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver', qty: 3 }, { id: 'lucky_charm', qty: 2 }],
-                25: [{ id: 'rum',         qty: 4 }, { id: 'heiltrunk',   qty: 4 }],
-                30: [{ id: 'grog',        qty: 5 }, { id: 'fernrohr',    qty: 3 }, { id: 'lucky_charm', qty: 2 }],
+                5:  [{ id: 'grog',        qty: 3 }, { id: 'heiltrunk',   qty: 3 }, { id: 'repair_kit', qty: 2 }],
+                10: [{ id: 'blitzpulver', qty: 3 }, { id: 'grog',        qty: 3 }, { id: 'lucky_charm', qty: 1 }, { id: 'repair_kit', qty: 3 }],
+                15: [{ id: 'heiltrunk',   qty: 5 }, { id: 'rum',         qty: 3 }, { id: 'repair_kit', qty: 3 }],
+                20: [{ id: 'fernrohr',    qty: 3 }, { id: 'blitzpulver', qty: 3 }, { id: 'lucky_charm', qty: 2 }, { id: 'repair_kit', qty: 4 }],
+                25: [{ id: 'rum',         qty: 4 }, { id: 'heiltrunk',   qty: 4 }, { id: 'lucky_charm', qty: 2 }, { id: 'repair_kit', qty: 3 }],
+                30: [{ id: 'grog',        qty: 5 }, { id: 'fernrohr',    qty: 3 }, { id: 'lucky_charm', qty: 3 }, { id: 'repair_kit', qty: 5 }],
             };
-            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 3 }, { id: 'grog', qty: 2 }];
+            const mList = milestoneItems[level] ?? [{ id: 'heiltrunk', qty: 3 }, { id: 'grog', qty: 2 }, { id: 'repair_kit', qty: 2 }];
             mList.forEach(mi => {
                 items[mi.id] = (items[mi.id] ?? 0) + mi.qty;
                 labels.push(`🎁 ${this._itemLabel(mi.id)} ×${mi.qty}`);
@@ -4500,6 +4500,10 @@ handleResize(gameSize) {
                 appliedDamage = Math.round(appliedDamage * 0.7);
             }
         }
+        /* Apply marked bonus: +10% damage to marked targets (from any ammo) */
+        if (target._markedUntil && Date.now() < target._markedUntil) {
+            appliedDamage = Math.round(appliedDamage * 1.10);
+        }
         /* Apply lucky charm crit bonus */
         let _isCrit = false;
         const charm = this.player.activeEffects?.luckyCharm;
@@ -4611,6 +4615,22 @@ handleResize(gameSize) {
                     }
                 });
             }
+        }
+
+        /* ── Flare mark: tag target for 3 s → all sources deal +10% ── */
+        if (!isHarpoon && ammoConfig?.key === 'flare' && target.active) {
+            target._markedUntil = Date.now() + 3000;
+            /* "MARKED" float */
+            try {
+                const ft = this.add.text(
+                    target.x + Phaser.Math.Between(-10, 10), target.y - 32,
+                    'MARKED', { fontSize: '13px', fontFamily: 'Arial Black, Arial', fontStyle: 'bold',
+                                fill: '#ffee66', stroke: '#664400', strokeThickness: 3 }
+                ).setOrigin(0.5).setDepth(1700);
+                this.tweens.add({ targets: ft, y: ft.y - 38, alpha: 0, duration: 900, ease: 'Cubic.Out', onComplete: () => ft.destroy() });
+            } catch {}
+            /* auto-clear after duration */
+            this.time.delayedCall(3000, () => { if (target._markedUntil && Date.now() >= target._markedUntil) target._markedUntil = 0; });
         }
 
         /* --- Island tower destroyed → check conquest --- */
@@ -5169,8 +5189,8 @@ handleResize(gameSize) {
         let s = base;
         /* Storm applied FIRST to base — grog cannot negate storm penalty */
         if (this._stormActive && !bonus.stormImmune)  s = Math.round(base * 0.68);
-        /* Grog: +40% speed boost applied on top of current; capped at base×1.0 during storm */
-        if (this._grogActive)                         s = Math.round(Math.min(s * 1.40, this._stormActive ? base : base * 1.50));
+        /* Grog: +40% speed boost, capped at base×0.80 during storm (still slower) or base×1.50 normally */
+        if (this._grogActive)                         s = Math.round(Math.min(s * 1.40, this._stormActive ? Math.round(base * 0.80) : base * 1.50));
         if (bonus.speedMult && bonus.speedMult !== 1) s = Math.round(s * bonus.speedMult);
         this.player.speed = s;
     }
@@ -5826,6 +5846,13 @@ handleResize(gameSize) {
                 delete this.player?.activeEffects?.luckyCharm;
                 this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
             });
+        } else if (type === 'repair_kit') {
+            const repairAmt = 80;
+            this.player.hp = Math.min(this.player.maxHP, (this.player.hp ?? 0) + repairAmt);
+            this.player.updateHealthBar?.();
+            this.dailyQuestPanel?.addProgress('hp_healed', repairAmt);
+            this._logbookAdd('hp_healed', repairAmt);
+            this.showStatusMsg(`🔧 Reparaturset! +${repairAmt} HP`, 0x7fffb0);
         }
 
         this.itemBar?.update(this.player.inventory, this.player.activeEffects ?? {});
@@ -5942,12 +5969,13 @@ handleResize(gameSize) {
         if (Math.random() > chance) return;
         /* Weighted drop pool — common items appear more often */
         const pool = [
-            'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', // 5× — häufigste Heilung
+            'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', 'heiltrunk', // 5× — Heilung
+            'repair_kit', 'repair_kit', 'repair_kit',                        // 3× — Notfall-Reparatur
             'grog', 'grog', 'grog',                                          // 3× — Speed
-            'blitzpulver', 'blitzpulver',                                    // 2× — Schaden
+            'blitzpulver', 'blitzpulver', 'blitzpulver',                     // 3× — Schaden
             'rum', 'rum',                                                     // 2× — XP-Boost
             'fernrohr', 'fernrohr',                                           // 2× — Truhen-Radar
-            'lucky_charm',                                                    // 1× — Crit-Glück
+            'lucky_charm', 'lucky_charm',                                    // 2× — Crit-Glück
         ];
         const type = pool[Math.floor(Math.random() * pool.length)];
         const qty  = (type === 'heiltrunk' && Math.random() < 0.20) ? 2 : 1;

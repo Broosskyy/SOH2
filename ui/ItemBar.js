@@ -1,12 +1,14 @@
 const ITEM_DEFS = {
-    heiltrunk:  { name: 'Heiltrank', icon: '🧪', desc: 'Heilt 30% HP sofort',        color: '#ff6b6b', key: '1' },
-    grog:       { name: 'Grog',      icon: '🍺', desc: '+50% Speed 30 Sek.',         color: '#ffa040', key: '2' },
-    blitzpulver:{ name: 'Blitz',     icon: '⚡', desc: 'Nächster Schuss: 3× Schaden', color: '#ffe84a', key: '3' },
-    rum:        { name: 'Rum',       icon: '🛢', desc: '+100% XP 60 Sek.',           color: '#c88040', key: '4' },
-    fernrohr:   { name: 'Fernrohr',  icon: '🔭', desc: 'Nächste Schatztruhe',        color: '#9370db', key: '5' },
+    heiltrunk:  { name: 'Heiltrank',  icon: '🧪', desc: 'Heilt 30% HP sofort',         color: '#ff6b6b', key: '1' },
+    repair_kit: { name: 'Reparatur',  icon: '🔧', desc: '+80 HP sofort',                color: '#7fffb0', key: '2' },
+    grog:       { name: 'Grog',       icon: '🍺', desc: '+50% Speed 30 Sek.',          color: '#ffa040', key: '3' },
+    blitzpulver:{ name: 'Blitz',      icon: '⚡', desc: 'Nächster Schuss: 3× Schaden', color: '#ffe84a', key: '4' },
+    rum:        { name: 'Rum',        icon: '🛢', desc: '+100% XP 60 Sek.',            color: '#c88040', key: '5' },
+    fernrohr:   { name: 'Fernrohr',   icon: '🔭', desc: 'Nächste Schatztruhe',         color: '#9370db', key: '6' },
+    lucky_charm:{ name: 'Glücksbr.',  icon: '🍀', desc: 'Crit +15% für 30 Sek.',      color: '#88ffcc', key: '7' },
 };
 
-const ITEM_ORDER = ['heiltrunk', 'grog', 'blitzpulver', 'rum', 'fernrohr'];
+const ITEM_ORDER = ['heiltrunk', 'repair_kit', 'grog', 'blitzpulver', 'rum', 'fernrohr', 'lucky_charm'];
 
 export default class ItemBar {
     constructor(scene) {
