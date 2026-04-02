@@ -5350,14 +5350,25 @@ handleResize(gameSize) {
                 width: 280px;
                 height: 280px;
                 position: relative;
-                cursor: pointer;
-                touch-action: manipulation;
-                -webkit-tap-highlight-color: transparent;
+                pointer-events: none;
                 background: url('/assets/attack_btn_cannon_nobg.png') center/contain no-repeat;
                 border: none;
                 box-shadow: none;
                 border-radius: 0;
                 filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8));
+            }
+            /* real hit zone — right 160×180px only, no bleed into item buttons */
+            #ahc-combat-cluster .cc-hit {
+                position: absolute;
+                right: 0;
+                bottom: 0;
+                width: 160px;
+                height: 180px;
+                border-radius: 50%;
+                pointer-events: auto;
+                cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
             }
             /* ── punch animation ── */
             @keyframes cc-punch {
@@ -5473,9 +5484,13 @@ handleResize(gameSize) {
         const attack = document.createElement('div');
         attack.className = 'cc-attack';
         attack.innerHTML = '<span class="cc-label">ANGRIFF</span>';
-        attack.addEventListener('pointerdown', (e) => {
+
+        /* small hit zone — covers only the visible cannon, not the transparent left area */
+        const ccHit = document.createElement('div');
+        ccHit.className = 'cc-hit';
+        ccHit.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
-            /* punch animation */
+            /* punch animation on the parent */
             attack.classList.remove('cc-punching');
             void attack.offsetWidth;
             attack.classList.add('cc-punching');
@@ -5494,6 +5509,7 @@ handleResize(gameSize) {
                 setTimeout(() => attack.classList.remove('cc-cooldown'), reloadMs);
             }
         });
+        attack.appendChild(ccHit);
 
         const cancel = document.createElement('div');
         cancel.className = 'cc-cancel';
