@@ -4173,11 +4173,13 @@ handleResize(gameSize) {
                     : 'Target locked — press FEUER to open fire'
         );
 
-        /* DOM combat cluster: firing state + abort overlay */
+        /* DOM combat cluster: apply visual state */
         const attackEl = document.querySelector('#ahc-combat-cluster .cc-attack');
         const cancelEl = this._cancelCombatBtnEl;
         if (attackEl) {
-            attackEl.classList.toggle('is-firing', !!cannonActive);
+            attackEl.classList.toggle('cc-no-target', !hasTarget);
+            attackEl.classList.toggle('cc-ready',     hasTarget && !cannonActive);
+            attackEl.classList.toggle('is-firing',    !!cannonActive);
         }
         if (cancelEl) {
             cancelEl.classList.toggle('visible', !!cannonActive);
@@ -5357,6 +5359,7 @@ handleResize(gameSize) {
                 border-radius: 0;
                 filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8));
             }
+            /* ── punch animation ── */
             @keyframes cc-punch {
                 0%   { transform: scale(1);    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)); }
                 20%  { transform: scale(0.85); filter: brightness(1.6) drop-shadow(0 0 18px rgba(255,160,40,0.9)); }
@@ -5366,8 +5369,45 @@ handleResize(gameSize) {
             #ahc-combat-cluster .cc-attack.cc-punching {
                 animation: cc-punch 180ms ease-out forwards;
             }
+
+            /* ── state 1: no target — visually inactive ── */
+            #ahc-combat-cluster .cc-attack.cc-no-target {
+                opacity: 0.38;
+                filter: grayscale(0.7) drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+            }
+
+            /* ── state 2: target ready — bright and waiting ── */
+            @keyframes cc-ready-pulse {
+                0%, 100% { filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)) brightness(1); }
+                50%      { filter: drop-shadow(0 0 20px rgba(255,200,80,0.55)) brightness(1.12); }
+            }
+            #ahc-combat-cluster .cc-attack.cc-ready {
+                opacity: 1;
+                animation: cc-ready-pulse 1.4s ease-in-out infinite;
+            }
+
+            /* ── state 3: auto-fire active — green glow ── */
             #ahc-combat-cluster .cc-attack.is-firing {
+                opacity: 1;
+                animation: none;
                 filter: drop-shadow(0 0 18px rgba(100,255,180,0.9)) brightness(1.15);
+            }
+
+            /* ── state 4: cooldown/reload — blocked ── */
+            @keyframes cc-cooldown-fade {
+                0%   { opacity: 0.28; filter: grayscale(0.8) brightness(0.55) drop-shadow(0 2px 6px rgba(0,0,0,0.8)); }
+                80%  { opacity: 0.38; filter: grayscale(0.4) brightness(0.75) drop-shadow(0 2px 8px rgba(0,0,0,0.6)); }
+                100% { opacity: 1;    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)); }
+            }
+            #ahc-combat-cluster .cc-attack.cc-cooldown {
+                animation: cc-cooldown-fade var(--cc-reload-dur, 1.5s) ease-out forwards;
+            }
+
+            /* ── cancel button: bolder when firing ── */
+            #ahc-combat-cluster .cc-cancel.visible {
+                display: flex;
+                border-color: rgba(255,80,40,0.95);
+                box-shadow: 0 0 10px rgba(255,80,40,0.55);
             }
             @media (max-height: 420px) {
                 #ahc-combat-cluster .cc-attack { width: 200px; height: 200px; }
@@ -5408,10 +5448,22 @@ handleResize(gameSize) {
             e.stopPropagation();
             /* punch animation */
             attack.classList.remove('cc-punching');
-            void attack.offsetWidth; /* reflow to restart animation */
+            void attack.offsetWidth;
             attack.classList.add('cc-punching');
             attack.addEventListener('animationend', () => attack.classList.remove('cc-punching'), { once: true });
+
+            const prevAttackTime = this.lastAttackTime ?? -1;
             this.handleAttackButtonPressed?.();
+
+            /* cooldown overlay — only when a shot actually fired */
+            if ((this.lastAttackTime ?? -1) !== prevAttackTime) {
+                const reloadMs = Math.max(400, this.player?.reloadTime ?? 1500);
+                attack.style.setProperty('--cc-reload-dur', `${reloadMs}ms`);
+                attack.classList.remove('cc-cooldown');
+                void attack.offsetWidth;
+                attack.classList.add('cc-cooldown');
+                setTimeout(() => attack.classList.remove('cc-cooldown'), reloadMs);
+            }
         });
 
         const cancel = document.createElement('div');
