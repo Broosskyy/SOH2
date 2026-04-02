@@ -15,6 +15,17 @@ export default class ShipEventPanel {
         const now = Date.now();
         const base = [
             {
+                id: 'easter',
+                icon: '🥚',
+                name: '🌸 Oster-Event',
+                desc: 'Oster-Hasen, Wächter und der mächtige Oster-König durchstreifen die Meere. Besiege sie für Ostereier und exklusive Belohnungen – sammle die Eier durch genaues Anfahren!',
+                ships: 9,
+                reward: 'Ostereier • XP & Gold • Oster-Galeone Schiffsplan (Boss)',
+                accent: '#ff88cc',
+                active: true,
+                endsAt: now + 72 * 60 * 60 * 1000,
+            },
+            {
                 id: 'konvoi',
                 icon: '⚓',
                 name: 'Schiffsdesign-Konvoi',
@@ -138,7 +149,11 @@ export default class ShipEventPanel {
 
     _joinEvent(ev) {
         this.hide();
-        this.scene?.startShipEvent?.(ev.id);
+        if (ev.id === 'easter') {
+            this.scene?.startEasterEvent?.();
+        } else {
+            this.scene?.startShipEvent?.(ev.id);
+        }
     }
 
     _scheduleRefresh() {

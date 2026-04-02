@@ -14,6 +14,16 @@ export default class EventsPanel {
         const elapsed = Math.floor((Date.now() - this._startTime) / 1000);
         return [
             {
+                id: 'easter_event',
+                icon: '🥚', title: '🌸 Oster-Event',
+                desc: 'Besiege Oster-Hasen, Wächter & den Oster-König. Sammle Eier, erhalte Gold, XP und den Oster-Galeone Schiffsplan!',
+                status: 'Aktiv', timeLeft: 72 * 3600,
+                accent: '#ff88cc',
+                reward: 'Ostereier • Schiffsplan • Gold & XP',
+                bonusDesc: 'Start über Events → Jetzt teilnehmen (Schiffs-Events Panel)',
+                type: 'easter', active: true,
+            },
+            {
                 id: 'monster_hunt',
                 icon: '🦑', title: 'Kraken-Jagd',
                 desc: 'Versenke See-Monster für doppelte XP-Belohnungen',
@@ -263,7 +273,11 @@ export default class EventsPanel {
         this._joinedEvents.add(ev.id);
         localStorage.setItem('az_joined_events', JSON.stringify([...this._joinedEvents]));
 
-        if (ev.type === 'gold' && p) {
+        if (ev.type === 'easter') {
+            this.hide();
+            this.scene?.startEasterEvent?.();
+            return;
+        } else if (ev.type === 'gold' && p) {
             p.gold += 200;
             this.scene.showStatusMsg(`⚓ Konvoi-Angriff beigetreten! +200 Gold Sofort-Bonus`, 0x63d6ff);
         } else if (ev.type === 'xp') {

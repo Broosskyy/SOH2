@@ -19,7 +19,6 @@ export default class DomNavBar {
             { label: 'Werft',   icon: '⚓', action: () => this.scene.handleMenuAction('shipyard') },
             { label: 'Hafen',   icon: '🏴', action: () => this.scene.handleMenuAction('hafen') },
             { label: 'Events',  icon: '⚔', action: () => this.scene.handleMenuAction('shipevents') },
-            { label: 'Ostern',  icon: '🥚', action: () => this.scene.handleMenuAction('easter') },
             { label: 'Quests',  icon: '📋', action: () => this.scene.handleMenuAction('quests') },
             { label: 'Shop',    icon: '🛒', action: () => this.scene.handleMenuAction('shop') },
             { label: 'Gilde',   icon: '⚑',  action: () => this.scene.handleMenuAction('guild') },
