@@ -468,6 +468,14 @@ export default class GameScene extends Phaser.Scene {
                 return;
             }
 
+            /* ── Gift/Egg tap: navigate ship to the loot item ──
+               Player must intentionally tap the egg; proximity alone does NOT collect it */
+            const tappedGift = this._getGiftAtWorldPoint(worldPoint.x, worldPoint.y, 72);
+            if (tappedGift) {
+                this.player.moveTo(tappedGift.x, tappedGift.spawnY ?? tappedGift.y);
+                return;
+            }
+
             /* ── Island quick-repair: tap near any island while no combat target ── */
             const nearIsland = this._getIslandNearPoint(worldPoint.x, worldPoint.y, 190);
             if (nearIsland) {
@@ -2699,6 +2707,7 @@ handleResize(gameSize) {
         if (goldGained > 0) {
             this.dailyQuestPanel?.addProgress('gold_collected', goldGained);
             this._updateTrialProgress('gold_collected', goldGained);
+            this._logbookAdd('gold_total', goldGained);   /* triggers achievement check */
         }
         if ((gift.materialValue ?? 0) > 0) {
             this.dailyQuestPanel?.addProgress('mats_collected', gift.materialValue);
@@ -6525,6 +6534,20 @@ handleResize(gameSize) {
             const d = Phaser.Math.Distance.Between(worldX, worldY, isl.x, isl.y);
             if (d < radius && d < bestDist) { bestDist = d; best = isl; }
         }
+        return best;
+    }
+
+    /* Returns the nearest active gift/egg within tapRadius world-px of (worldX, worldY).
+       Used by the tap handler so the player must deliberately tap the egg to collect it. */
+    _getGiftAtWorldPoint(worldX, worldY, tapRadius = 72) {
+        if (!this.gifts) return null;
+        let best = null, bestDist = Infinity;
+        this.gifts.getChildren().forEach(g => {
+            if (!g?.active) return;
+            const gy = g.spawnY ?? g.y;
+            const d  = Phaser.Math.Distance.Between(worldX, worldY, g.x, gy);
+            if (d < tapRadius && d < bestDist) { bestDist = d; best = g; }
+        });
         return best;
     }
 
