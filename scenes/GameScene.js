@@ -977,29 +977,28 @@ export default class GameScene extends Phaser.Scene {
 
     showEnemyDamageFloat(x, y, damage, isCrit) {
         const wx = x; const wy = y - 30;
-        const cam = this.cameras.main;
-        const sx = (wx - cam.scrollX) * cam.zoom;
-        const sy = (wy - cam.scrollY) * cam.zoom;
-        const color = isCrit ? '#ff4444' : '#ffffff';
-        const size  = isCrit ? '30px' : '24px';
+        const color = isCrit ? '#ffe033' : '#ffffff';
+        const strokeCol = isCrit ? '#992200' : '#111111';
+        const size  = isCrit ? '38px' : '27px';
         const text = this.add.text(wx, wy, `${damage}`, {
-            fontSize: size, fontFamily: 'Arial', fontStyle: 'bold',
-            fill: color, stroke: '#000', strokeThickness: 4,
-        }).setOrigin(0.5).setDepth(1700);
+            fontSize: size, fontFamily: 'Arial Black, Arial', fontStyle: 'bold',
+            fill: color, stroke: strokeCol, strokeThickness: isCrit ? 6 : 4,
+        }).setOrigin(0.5).setDepth(1700).setScale(isCrit ? 1.7 : 1.35);
         if (isCrit) {
-            const badge = this.add.text(wx + 36, wy - 8, 'KRIT!', {
-                fontSize: '14px', fontFamily: 'Arial', fontStyle: 'bold',
-                fill: '#ff2200', stroke: '#000', strokeThickness: 3,
-            }).setOrigin(0.5).setDepth(1700);
-            this.tweens.add({ targets: badge, y: wy - 50, alpha: 0, duration: 900, ease: 'Cubic.Out', onComplete: () => badge.destroy() });
+            const badge = this.add.text(wx + 44, wy - 10, 'KRIT!', {
+                fontSize: '15px', fontFamily: 'Arial Black, Arial', fontStyle: 'bold',
+                fill: '#ff3300', stroke: '#000', strokeThickness: 3,
+            }).setOrigin(0.5).setDepth(1700).setScale(1.3);
+            this.tweens.add({ targets: badge, y: wy - 60, scaleX: 1, scaleY: 1, alpha: 0, duration: 950, ease: 'Cubic.Out', onComplete: () => badge.destroy() });
         }
+        /* pop: shrink to 1.0 while rising and fading */
         this.tweens.add({
             targets: text,
-            y: wy - 55,
-            scaleX: isCrit ? 1.3 : 1,
-            scaleY: isCrit ? 1.3 : 1,
+            y: wy - 65,
+            scaleX: 1,
+            scaleY: 1,
             alpha: 0,
-            duration: 950,
+            duration: isCrit ? 1100 : 950,
             ease: 'Cubic.Out',
             onComplete: () => text.destroy()
         });
@@ -4493,9 +4492,11 @@ handleResize(gameSize) {
             appliedDamage = Math.round(appliedDamage * this.playerShipBonus.damageMult);
         }
         /* Apply lucky charm crit bonus */
+        let _isCrit = false;
         const charm = this.player.activeEffects?.luckyCharm;
         if (charm && Date.now() < charm.endTime && Math.random() < (charm.critBonus ?? 0)) {
             appliedDamage = Math.round(appliedDamage * 2);
+            _isCrit = true;
             this.showEnemyDamageFloat(target.x, target.y, appliedDamage, true);
         } else {
             this.showEnemyDamageFloat(target.x, target.y, appliedDamage, false);
@@ -4503,6 +4504,13 @@ handleResize(gameSize) {
 
         target.takeDamage(appliedDamage);
         this.events.emit('damage-dealt', appliedDamage);
+
+        /* ── Impact feedback: screen shake + expanding hit-flash ── */
+        this.cameras.main.shake(_isCrit ? 170 : 80, _isCrit ? 0.004 : 0.0018);
+        try {
+            const _hf = this.add.circle(target.x, target.y, 26, _isCrit ? 0xffcc22 : 0xffffff, 0.65).setDepth(1750);
+            this.tweens.add({ targets: _hf, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 210, ease: 'Cubic.Out', onComplete: () => _hf.destroy() });
+        } catch {}
 
         /* --- Island tower destroyed → check conquest --- */
         if (target.isIslandTower && !target.active) {
@@ -5446,12 +5454,12 @@ handleResize(gameSize) {
             /* ── punch animation ── */
             @keyframes cc-punch {
                 0%   { transform: scale(1);    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)); }
-                20%  { transform: scale(0.85); filter: brightness(1.6) drop-shadow(0 0 18px rgba(255,160,40,0.9)); }
-                60%  { transform: scale(1.09); filter: brightness(1.2) drop-shadow(0 0 22px rgba(255,200,80,0.7)); }
+                15%  { transform: scale(0.78); filter: brightness(2.2) drop-shadow(0 0 28px rgba(255,140,20,1.0)); }
+                55%  { transform: scale(1.13); filter: brightness(1.3) drop-shadow(0 0 30px rgba(255,200,60,0.85)); }
                 100% { transform: scale(1);    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.8)); }
             }
             #ahc-combat-cluster .cc-attack.cc-punching {
-                animation: cc-punch 180ms ease-out forwards;
+                animation: cc-punch 160ms ease-out forwards;
             }
 
             /* ── state 1: no target — visually inactive ── */
@@ -5572,7 +5580,7 @@ handleResize(gameSize) {
             const prevAttackTime = this.lastAttackTime ?? -1;
             this.handleAttackButtonPressed?.();
 
-            /* cooldown overlay — only when a shot actually fired */
+            /* cooldown overlay + muzzle ring — only when a shot actually fired */
             if ((this.lastAttackTime ?? -1) !== prevAttackTime) {
                 const reloadMs = Math.max(400, this.player?.reloadTime ?? 1500);
                 attack.style.setProperty('--cc-reload-dur', `${reloadMs}ms`);
@@ -5580,6 +5588,13 @@ handleResize(gameSize) {
                 void attack.offsetWidth;
                 attack.classList.add('cc-cooldown');
                 setTimeout(() => attack.classList.remove('cc-cooldown'), reloadMs);
+                /* muzzle ring from player position */
+                try {
+                    if (this.player?.active) {
+                        const ring = this.add.circle(this.player.x, this.player.y, 20, 0xffcc44, 0.7).setDepth(1800);
+                        this.tweens.add({ targets: ring, scaleX: 4.5, scaleY: 4.5, alpha: 0, duration: 180, ease: 'Cubic.Out', onComplete: () => ring.destroy() });
+                    }
+                } catch {}
             }
         });
         attack.appendChild(ccHit);
