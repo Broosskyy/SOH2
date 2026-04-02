@@ -5534,8 +5534,25 @@ handleResize(gameSize) {
         if (this.skillBar)  this.skillBar.setVisible(false);
         if (this.ammoRack)  this.ammoRack.setVisible(false);
 
+        /* ── transparent shield: absorbs taps in the bottom-right button zone ── */
+        /* prevents water/sea clicks behind the button row from reaching Phaser  */
+        const shield = document.createElement('div');
+        shield.id = 'ahc-btn-shield';
+        shield.style.cssText = [
+            'position:fixed',
+            'right:0',
+            'bottom:0',
+            'width:430px',      /* covers REP+SKL+IB+Items buttons row */
+            'height:90px',      /* just the button strip height         */
+            'z-index:7500',     /* above canvas, below DOM buttons      */
+            'pointer-events:auto',
+            'background:transparent',
+        ].join(';');
+        document.body.appendChild(shield);
+
         this.events.once('shutdown', () => {
             root.remove();
+            shield.remove();
             document.getElementById('ahc-combat-css')?.remove();
         });
     }
