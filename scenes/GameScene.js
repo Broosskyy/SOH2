@@ -419,7 +419,7 @@ export default class GameScene extends Phaser.Scene {
             this.player.moveTo(worldPoint.x, worldPoint.y);
         });
 
-        this.physics.add.overlap(this.player, this.gifts, this.collectGift, null, this);
+        /* Gift collection checked in update() by ship-centre distance */
 
         this.createUI();
         this.minimap = new Minimap(this, width - 238, 92, 220, worldWidth, worldHeight);
@@ -5109,6 +5109,17 @@ handleResize(gameSize) {
         }
 
         this.player.update();
+
+        /* ── Gift collection: ship centre must be exactly on the egg (≤22 px) ── */
+        if (this.player?.active && this.gifts) {
+            const px = this.player.x, py = this.player.y;
+            this.gifts.getChildren().forEach(g => {
+                if (!g.active) return;
+                if (Phaser.Math.Distance.Between(px, py, g.x, g.y) <= 22) {
+                    this.collectGift(this.player, g);
+                }
+            });
+        }
 
         /* --- Island towers shoot at the player --- */
         this._towerShootAccum = (this._towerShootAccum ?? 0) + delta;

@@ -53,12 +53,6 @@ export default class Gift extends Phaser.GameObjects.Container {
 
         this.add([this._ring, this._core, this._txt]);
         scene.add.existing(this);
-        scene.physics.add.existing(this);
-        /* Center a small circle body on the container position */
-        if (this.body) {
-            this.body.setCircle(6, -6, -6);
-            this.body.setImmovable(true);
-        }
 
         /* Float animation */
         this.spawnY = y;
