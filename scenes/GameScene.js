@@ -4491,6 +4491,15 @@ handleResize(gameSize) {
         if (this.playerShipBonus?.damageMult && this.playerShipBonus.damageMult !== 1) {
             appliedDamage = Math.round(appliedDamage * this.playerShipBonus.damageMult);
         }
+        /* Apply antiCrewRatio: bonus at close range, penalty at long range */
+        const antiCrewRatio = ammoConfig?.antiCrewRatio ?? 0;
+        if (!isHarpoon && antiCrewRatio > 0) {
+            if (distance <= 150) {
+                appliedDamage = Math.round(appliedDamage * (1 + antiCrewRatio));
+            } else if (distance > 300) {
+                appliedDamage = Math.round(appliedDamage * 0.7);
+            }
+        }
         /* Apply lucky charm crit bonus */
         let _isCrit = false;
         const charm = this.player.activeEffects?.luckyCharm;
