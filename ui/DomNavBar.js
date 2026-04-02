@@ -254,7 +254,7 @@ export default class DomNavBar {
         el.style.cssText = `
             position: fixed;
             top: 58px;
-            right: -320px;
+            left: -320px;
             z-index: 18000;
             display: flex;
             flex-direction: column;
@@ -263,11 +263,11 @@ export default class DomNavBar {
             background: linear-gradient(135deg,rgba(10,28,60,0.97) 0%,rgba(4,12,28,0.99) 100%);
             border: 1.5px solid rgba(212,175,55,0.75);
             border-radius: 12px;
-            box-shadow: 0 0 24px rgba(212,175,55,0.25), -4px 0 20px rgba(0,0,0,0.5);
+            box-shadow: 0 0 24px rgba(212,175,55,0.25), 4px 0 20px rgba(0,0,0,0.5);
             pointer-events: auto;
             font-family: Arial, sans-serif;
             opacity: 0;
-            transition: right 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.3s ease;
+            transition: left 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.3s ease;
             width: 200px;
             max-width: min(200px, 60vw);
         `;
@@ -304,10 +304,10 @@ export default class DomNavBar {
         if (trialNotice) { trialEl.textContent = `⚔ ${trialNotice}`; trialEl.style.display = 'block'; }
         else { trialEl.style.display = 'none'; }
         el.style.display = 'flex';
-        /* Slide in from right */
+        /* Slide in from left */
         requestAnimationFrame(() => {
             el.style.opacity = '1';
-            el.style.right = '8px';
+            el.style.left = '8px';
         });
         if (this._levelUpTimer) clearTimeout(this._levelUpTimer);
         this._levelUpTimer = setTimeout(() => this.hideLevelUp(), 5000);
@@ -317,7 +317,7 @@ export default class DomNavBar {
         const el = this._levelUpEl;
         if (!el) return;
         el.style.opacity = '0';
-        el.style.right = '-320px';
+        el.style.left = '-320px';
         setTimeout(() => { el.style.display = 'none'; }, 420);
     }
 

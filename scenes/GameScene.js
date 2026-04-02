@@ -552,6 +552,8 @@ export default class GameScene extends Phaser.Scene {
         this.minimap.setWorldMetrics(worldWidth, worldHeight);
         this.minimap.setChartInfo(this.currentChartIndex, this.currentChartConfig.displayName ?? this.currentChartConfig.name);
         this.minimap.setMinimized(this.isMinimapMinimized);
+        /* Position minimap correctly after creation (createUI's updateUIBars ran before minimap existed) */
+        this.updateUIBars();
 
         this.input.once('pointerdown', async () => {
             if (!this.soundInitialized) {
@@ -6077,7 +6079,7 @@ handleResize(gameSize) {
         const el = document.createElement('div');
         el.id = 'wanted-hud';
         el.style.cssText = `
-            position:fixed; top:72px; right:8px; z-index:10500;
+            position:fixed; top:58px; left:50%; transform:translateX(-50%); z-index:10500;
             background:rgba(8,14,28,0.88);
             border:1px solid rgba(255,60,60,0.45);
             border-radius:6px; padding:5px 10px;
