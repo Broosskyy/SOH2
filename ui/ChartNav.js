@@ -15,7 +15,7 @@ export default class ChartNav {
             right: 18px;
             left: auto;
             transform: none;
-            z-index: 8000;
+            z-index: 8500;
             display: flex;
             align-items: center;
             gap: 5px;
