@@ -52,8 +52,8 @@ export default class PlayerShip extends Ship {
 
         this.moveTarget = null;
         this.useSpriteRotation = true;
-        this.navigationRotationSpeed = 0.045; /* Smooth, nautical turn rate */
-        this.combatRotationSpeed     = 0.045; /* Same — no wild combat spin */
+        this.navigationRotationSpeed = 0.070; /* Responsive nautical turn */
+        this.combatRotationSpeed     = 0.070; /* Same in combat */
         this.rotationSpeed = this.navigationRotationSpeed;
         this.combatFacingTarget = null;
 
@@ -855,9 +855,9 @@ export default class PlayerShip extends Ship {
         const vy = this.body.velocity.y;
         const spd = this.speed ?? 160;
 
-        /* Steering lerp: 0.04 = smooth like NPCs but ~4× more responsive */
-        const STEER = 0.04;
-        const DRAG  = 0.06;
+        /* Steering lerp — 0.06 gives snappy nautical feel without jitter */
+        const STEER = 0.06;
+        const DRAG  = 0.07;
 
         if (this.moveTarget) {
             const distance = Phaser.Math.Distance.Between(

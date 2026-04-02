@@ -41,7 +41,7 @@ import * as Tone from 'tone';
    ═══════════════════════════════════════════════════════════ */
 const EASTER_CFG = {
     active: true,
-    eggPickupRadius: 28,   // world-px — ship centre must land within this of egg centre
+    eggPickupRadius: 80,   // world-px — generous radius like Seafight loot collection
     npcs: {
         easter_scout: {
             label:         '[🥚 SCOUT] Osterhase',
@@ -554,7 +554,8 @@ export default class GameScene extends Phaser.Scene {
         this.events.on('heal-popup', this.showHealPopup, this);
         this.events.on('npc-selected', this.selectTarget, this);
         this.events.on('npc-died', (npc) => {
-            if (this.TargetEnemy === npc || this.selectedTarget === npc) {
+            const wasMyTarget = (this.TargetEnemy === npc || this.selectedTarget === npc);
+            if (wasMyTarget) {
                 this.clearTargetAndAttackState();
             }
             this.player.addXP(npc.xpValue);
@@ -562,6 +563,15 @@ export default class GameScene extends Phaser.Scene {
             this.spawnLootFromDefeat(npc);
             this.missionPanel?.trackKill();
             this._onEnemyKilled(npc);
+
+            /* ── Seafight: auto-select nearest living NPC after kill ── */
+            if (wasMyTarget) {
+                this.time.delayedCall(350, () => {
+                    if (!this.player?.active || this.selectedTarget?.active) return;
+                    const next = this._findNearestLivingNPC(this.player.x, this.player.y, 700);
+                    if (next) this.selectTarget(next);
+                });
+            }
             if (npc instanceof NPCShip) {
                 this._addWanted(npc.npcTier === 3 ? 0.6 : npc.npcTier === 2 ? 0.5 : 0.4);
                 this.dailyQuestPanel?.addProgress('npc_kills', 1);
@@ -4156,8 +4166,13 @@ handleResize(gameSize) {
         this.attackBtn?.setVisible(false);
         this.attackLabel?.setVisible(false);
         this.cancelAttackText?.setVisible(true);
-        /* Button always visible — nothing to toggle here */
-        /* Manual fire only — player must press FEUER to start shooting */
+
+        /* ── Seafight behaviour: tap enemy = auto-engage immediately ──
+           Enable auto-attack and auto-approach right away so the player
+           ship sails in and opens fire without needing to press FEUER */
+        this.autoAttackEnabled = true;
+        this.beginAutoApproachToCurrentTarget?.();
+
         this.refreshActionButtonStates();
     }
 
@@ -4331,6 +4346,21 @@ handleResize(gameSize) {
         }
         this.setAutoApproachActive(false);
         this.refreshActionButtonStates();
+    }
+
+    /* Find the nearest living NPC/Monster within maxDist world-px of (x,y) */
+    _findNearestLivingNPC(x, y, maxDist = 800) {
+        let best = null, bestD = maxDist;
+        const check = (group) => {
+            group?.getChildren().forEach(e => {
+                if (!e?.active || e.isDead) return;
+                const d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
+                if (d < bestD) { bestD = d; best = e; }
+            });
+        };
+        check(this.npcGroup);
+        check(this.monsterGroup);
+        return best;
     }
 
     setAutoApproachActive(isActive) {
@@ -5312,16 +5342,28 @@ handleResize(gameSize) {
 
         this.player.update();
 
-        /* ── Gift collection: ship centre must be on the egg ── */
+        /* ── Gift collection: Seafight-style generous pickup + loot magnet ── */
         if (this.player?.active && this.gifts) {
             const px  = this.player.x, py = this.player.y;
-            const rad = (this._easterEventActive && EASTER_CFG.active)
-                ? EASTER_CFG.eggPickupRadius   // 28 px during Easter event
-                : 28;                           // same default otherwise
+            const PICKUP_RADIUS = 80;   /* Collect on entry — generous like Seafight */
+            const MAGNET_RADIUS = 140;  /* Loot drifts toward ship when this close */
+
             this.gifts.getChildren().forEach(g => {
                 if (!g.active) return;
-                /* g.spawnY is the stable base y (float tween only moves children) */
-                if (Phaser.Math.Distance.Between(px, py, g.x, g.spawnY ?? g.y) <= rad) {
+                const gy = g.spawnY ?? g.y;
+                const d  = Phaser.Math.Distance.Between(px, py, g.x, gy);
+
+                /* Magnet: drift loot toward ship, container moves but float tween plays on children */
+                if (d > PICKUP_RADIUS && d < MAGNET_RADIUS) {
+                    const angle = Phaser.Math.Angle.Between(g.x, g.y, px, py);
+                    const pull  = 1 - (d - PICKUP_RADIUS) / (MAGNET_RADIUS - PICKUP_RADIUS);
+                    const step  = pull * 3.5;
+                    g.x       += Math.cos(angle) * step;
+                    g.y       += Math.sin(angle) * step;
+                    g.spawnY   = g.y;   /* keep pickup reference in sync with container */
+                }
+
+                if (d <= PICKUP_RADIUS) {
                     this.collectGift(this.player, g);
                 }
             });
