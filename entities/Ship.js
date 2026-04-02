@@ -215,7 +215,7 @@ export default class Ship extends Phaser.GameObjects.Container {
                 Math.cos(this.targetAngle + Math.PI) * behindDist,
                 Math.sin(this.targetAngle + Math.PI) * behindDist
             );
-            this.wake.rotation = this.targetAngle + Math.PI + SPRITE_OFFSET;
+            this.wake.rotation = this.targetAngle + Math.PI + Math.PI / 2;
         }
 
         /* Foam trail — nur für Spielerschiff (this._isPlayer); NPCs erzeugen keinen Schaum
