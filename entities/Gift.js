@@ -56,7 +56,7 @@ export default class Gift extends Phaser.GameObjects.Container {
         scene.physics.add.existing(this);
         /* Center a small circle body on the container position */
         if (this.body) {
-            this.body.setCircle(18, -18, -18);
+            this.body.setCircle(6, -6, -6);
             this.body.setImmovable(true);
         }
 
