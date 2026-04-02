@@ -157,6 +157,17 @@ export default class Ship extends Phaser.GameObjects.Container {
             this.scene.events.emit('damage-popup', this.x, this.y - 20, amount);
         }
 
+        /* Seafight-Treffer-Blitz: Sprite kurz weiß aufleuchten lassen */
+        if (this.sprite && !this._flashActive && this.scene?.time) {
+            this._flashActive = true;
+            const prevTint = this.sprite.tintTopLeft ?? 0xffffff;
+            this.sprite.setTint(0xffffff);
+            this.scene.time.delayedCall(85, () => {
+                if (this.sprite?.active) this.sprite.setTint(prevTint);
+                this._flashActive = false;
+            });
+        }
+
         if (this.hp <= 0) {
             this.onDeath();
         }

@@ -188,9 +188,71 @@ export default class NPCShip extends Ship {
     }
 
     onDeath() {
+        if (this._sinking) return;
+        this._sinking = true;
         this.isUnderAttack = false;
+
+        /* XP + Loot sofort vergeben (Seafight-Stil: Belohnung bei Zerstörung) */
         this.scene.events.emit('npc-died', this);
-        this.destroy();
+
+        /* Physik und Interaktion deaktivieren */
+        if (this.body) { this.body.setVelocity(0, 0); this.body.setEnable(false); }
+        this.sprite?.disableInteractive?.();
+        if (this.healthBar) { this.healthBar.destroy(); this.healthBar = null; }
+        if (this.barFill)   { this.barFill.destroy();   this.barFill   = null; }
+        if (this.nameText)  { this.nameText.destroy();  this.nameText  = null; }
+
+        const sc  = this.scene;
+        const sx  = this.x, sy = this.y;
+        const rot = this.sprite?.rotation ?? 0;
+        const dir = Math.random() > 0.5 ? 1 : -1;
+
+        /* Ölpfütze / Wracküberreste erscheinen sofort */
+        const slick = sc.add.circle(sx, sy, 38, 0x1a1a2e, 0.55).setDepth(700);
+        sc.tweens.add({ targets: slick, scaleX: 2.2, scaleY: 0.35, alpha: 0, duration: 5000,
+            onComplete: () => slick.destroy() });
+
+        /* Schiff kippt und sinkt */
+        if (this.sprite) {
+            sc.tweens.add({
+                targets : this.sprite,
+                rotation: rot + dir * (Math.PI / 2.4),
+                scaleX  : 0,
+                scaleY  : 0,
+                alpha   : 0,
+                duration: 1700,
+                ease    : 'Quad.In',
+                onComplete: () => { if (this.scene) this.destroy(); }
+            });
+        } else {
+            sc.time.delayedCall(1700, () => this.destroy());
+        }
+
+        /* Rauchsalven während des Sinkens */
+        for (let i = 0; i < 6; i++) {
+            sc.time.delayedCall(i * 230, () => {
+                if (!sc?.sys?.isActive?.() && !sc?.add) return;
+                const ox = sx + Phaser.Math.Between(-22, 22);
+                const oy = sy + Phaser.Math.Between(-22, 22);
+                const puff = sc.add.circle(ox, oy, Phaser.Math.Between(8, 18), 0x333333, 0.72)
+                    .setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(1250);
+                sc.tweens.add({ targets: puff, scaleX: 3, scaleY: 3, alpha: 0, y: oy - 40,
+                    duration: 900, ease: 'Quad.Out', onComplete: () => puff.destroy() });
+            });
+        }
+
+        /* Wasser-Fontäne zum Einschlag */
+        for (let i = 0; i < 8; i++) {
+            const ang = (i / 8) * Math.PI * 2;
+            const dist = Phaser.Math.Between(15, 45);
+            const wx = sx + Math.cos(ang) * dist;
+            const wy = sy + Math.sin(ang) * dist;
+            const drop = sc.add.circle(wx, wy, Phaser.Math.Between(3, 7), 0x88ccff, 0.8)
+                .setBlendMode(Phaser.BlendModes.ADD).setDepth(1200);
+            sc.tweens.add({ targets: drop, x: wx + Math.cos(ang) * 25, y: wy - 28 + Math.sin(ang) * 12,
+                alpha: 0, scaleX: 0.3, scaleY: 0.3, duration: 700 + i * 40,
+                ease: 'Quad.Out', onComplete: () => drop.destroy() });
+        }
     }
 
     update() {

@@ -298,6 +298,11 @@ export default class GameScene extends Phaser.Scene {
             .setScrollFactor(0);
         this.syncOceanBackground();
 
+        /* Tag/Nacht-Zyklus: Ambient-Overlay über dem Ozean, unter den Schiffen */
+        this._dayT = Math.random(); /* Zufällige Startzeit */
+        this._dayOverlay = this.add.rectangle(0, 0, width + 64, height + 64, 0x000000, 0)
+            .setOrigin(0, 0).setDepth(-90).setScrollFactor(0);
+
         this.islands = this.add.group({ runChildUpdate: false });
         this.islandTowerGroup = this.add.group({ runChildUpdate: false });
         this.buildIslandSpawnPoints(this.currentChartConfig.islandCount, worldWidth, worldHeight);
@@ -1959,6 +1964,22 @@ handleResize(gameSize) {
                 const d = this._islandDownPtr ? Math.hypot(ptr.x - this._islandDownPtr.x, ptr.y - this._islandDownPtr.y) : 99;
                 if (d < 10) this._tryIslandRepair(island);
                 this._islandDownPtr = null;
+            });
+
+            /* Küsten-Schaum: brechende Wellen rund um die Insel (Seafight-Look) */
+            const iRadius = ISLAND_RADII[point.texture] ?? 100;
+            const foam = this.add.circle(point.x, point.y, iRadius + 10, 0xaaddff, 0.0)
+                .setStrokeStyle(4, 0xffffff, 0.25)
+                .setDepth(13);
+            this.tweens.add({
+                targets: foam,
+                scaleX: 1.18, scaleY: 1.18,
+                alpha: 0.18,
+                duration: 1400,
+                ease: 'Sine.InOut',
+                yoyo: true,
+                repeat: -1,
+                delay: Phaser.Math.Between(0, 800)
             });
         });
     }
@@ -5097,9 +5118,24 @@ handleResize(gameSize) {
             }
         }
 
+        /* Rauchspur: kleine Puffs alle ~90ms entlang der Flugbahn */
+        let _trailTick = 0;
         this.tweens.add({
             targets: [projectile, trail], x: target.x, y: target.y, duration: vis.duration, ease: 'Sine.Out',
-            onUpdate: () => { trail.setPosition(projectile.x, projectile.y); trail.alpha = projectile.alpha * 0.5; },
+            onUpdate: (tw) => {
+                trail.setPosition(projectile.x, projectile.y);
+                trail.alpha = projectile.alpha * 0.5;
+                /* Rauchpuff-Spur für alle Ammo-Typen */
+                _trailTick += tw.delta ?? 16;
+                if (_trailTick >= 88) {
+                    _trailTick = 0;
+                    const puffColor = ammoKey === 'fire' ? 0xff3300 : ammoKey === 'chain' ? 0x886600 : 0xaaaaaa;
+                    const puff = this.add.circle(projectile.x, projectile.y, vis.trailSize + 2, puffColor, 0.45)
+                        .setBlendMode(Phaser.BlendModes.ADD).setDepth(1195);
+                    this.tweens.add({ targets: puff, scaleX: 2.2, scaleY: 2.2, alpha: 0,
+                        duration: 380, ease: 'Quad.Out', onComplete: () => puff.destroy() });
+                }
+            },
             onComplete: () => {
                 trail.destroy(); projectile.destroy();
                 this._spawnImpact(target.x, target.y, vis, ammoKey !== 'cannonball');
@@ -5571,6 +5607,7 @@ handleResize(gameSize) {
         /* ── Rang-3: Wind + Festung ── */
         this._updateWindSystem(delta);
         this._updateFortressAttack(delta);
+        this._updateDayNight(delta);
 
         /* TilePosition 1:1 mit Kamera → Wasser scrollt mit Welt, UI bleibt fixiert */
         /* +Wellenanimation: langsame Sinus-Drift simuliert lebendige See */
@@ -6801,6 +6838,28 @@ handleResize(gameSize) {
         `;
         document.body.appendChild(el);
         this.events.once('shutdown', () => el.remove());
+
+        /* Tageszeit-Pill direkt rechts neben dem Kompass */
+        if (!document.getElementById('ahc-dayphase-wrap')) {
+            const dp = document.createElement('div');
+            dp.id = 'ahc-dayphase-wrap';
+            dp.style.cssText = `
+                position:fixed;
+                left: calc(166px + env(safe-area-inset-left,0px));
+                bottom: calc(26px + env(safe-area-inset-bottom,0px));
+                z-index:8061;
+                background:rgba(8,18,38,0.82);
+                border:1px solid rgba(80,160,255,0.35);
+                border-radius:10px;
+                padding:3px 8px;
+                font-family:Arial,sans-serif;font-size:11px;
+                color:#aaccff;pointer-events:none;user-select:none;
+                white-space:nowrap;
+            `;
+            dp.innerHTML = `<span id="ahc-dayphase">☀️ Tag</span>`;
+            document.body.appendChild(dp);
+            this.events.once('shutdown', () => dp.remove());
+        }
     }
 
     _updateWindSystem(delta) {
@@ -6837,6 +6896,65 @@ handleResize(gameSize) {
             const dirs = ['N','NO','O','SO','S','SW','W','NW'];
             const idx  = Math.round(((this._windAngle * 180 / Math.PI + 90 + 360) % 360) / 45) % 8;
             lbl.textContent = dirs[idx];
+        }
+    }
+
+    /* ── Tag/Nacht-Zyklus ── */
+    _updateDayNight(delta) {
+        if (!this._dayOverlay) return;
+
+        /* Zyklusdauer: ~8 Minuten (480 000 ms). _dayT geht von 0 → 1 */
+        this._dayT = ((this._dayT ?? 0) + delta / 480000) % 1;
+        const t = this._dayT;
+
+        /* Phasen-Farbe und Intensität:
+           0.00–0.15  Nacht        → dunkelblauer Schleier
+           0.15–0.25  Morgendämmerung → orangerosa, verblasst
+           0.25–0.55  Tag          → kein Overlay (0 Alpha)
+           0.55–0.70  Sonnenuntergang → orangerot
+           0.70–1.00  Nacht        → dunkelblauer Schleier zurück           */
+        let r = 0, g = 0, b = 0, a = 0;
+
+        if (t < 0.15) {
+            /* Tiefe Nacht */
+            r = 0; g = 0; b = 40;
+            a = 0.38 - t / 0.15 * 0.10; /* 0.38 → 0.28 */
+        } else if (t < 0.25) {
+            /* Morgendämmerung */
+            const p = (t - 0.15) / 0.10;
+            r = Math.round(180 * p); g = Math.round(60 * p); b = Math.round(40 - 40 * p);
+            a = (0.28 - 0.28 * p);   /* ausblenden zum Tag */
+        } else if (t < 0.55) {
+            /* Voller Tag — kein Tint */
+            a = 0;
+        } else if (t < 0.70) {
+            /* Sonnenuntergang */
+            const p = (t - 0.55) / 0.15;
+            r = Math.round(220 * p); g = Math.round(80 * p); b = 0;
+            a = 0.22 * p;
+        } else {
+            /* Nacht einbrechend */
+            const p = (t - 0.70) / 0.30;
+            r = Math.round(220 - 220 * p); g = Math.round(80 - 80 * p); b = Math.round(40 * p);
+            a = 0.22 + 0.16 * p; /* 0.22 → 0.38 */
+        }
+
+        const color = Phaser.Display.Color.GetColor(r, g, b);
+        this._dayOverlay.setFillStyle(color, Math.min(a, 0.42));
+
+        /* Tageszeit-Indikator in Statusbar aktualisieren (optional) */
+        if (!this._dayPhaseLastUpdate || this.time.now - this._dayPhaseLastUpdate > 4000) {
+            this._dayPhaseLastUpdate = this.time.now;
+            const phases = [
+                { max: 0.15, label: '🌙 Nacht' },
+                { max: 0.25, label: '🌅 Morgenrot' },
+                { max: 0.55, label: '☀️ Tag' },
+                { max: 0.70, label: '🌇 Sonnenuntergang' },
+                { max: 1.01, label: '🌙 Nacht' },
+            ];
+            const phase = phases.find(p => t < p.max)?.label ?? '☀️ Tag';
+            const el = document.getElementById('ahc-dayphase');
+            if (el) el.textContent = phase;
         }
     }
 
