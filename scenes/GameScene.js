@@ -5342,7 +5342,7 @@ handleResize(gameSize) {
                 flex-direction: row;
                 align-items: flex-end;
                 gap: 0;
-                pointer-events: auto;
+                pointer-events: none;
                 user-select: none;
                 -webkit-user-select: none;
             }
@@ -5369,6 +5369,10 @@ handleResize(gameSize) {
                 cursor: pointer;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
+            }
+            /* cancel must re-enable pointer events (parent is none) */
+            #ahc-combat-cluster .cc-cancel {
+                pointer-events: auto;
             }
             /* ── punch animation ── */
             @keyframes cc-punch {
