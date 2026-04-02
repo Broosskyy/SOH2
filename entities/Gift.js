@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 
 /* Easter-egg variants per gift type */
 const EGG_MAP = {
-    'gift-chest': { emoji: '🥚', ringColor: 0xffd700, coreColor: 0xffaa00, label: 'Goldenes Ei' },
-    'gold-bag':   { emoji: '🥚', ringColor: 0xff88cc, coreColor: 0xff4499, label: 'Rosa Ei'     },
-    'xp-orb':     { emoji: '🥚', ringColor: 0x66ff88, coreColor: 0x00cc44, label: 'Grünes Ei'   },
+    'gift-chest':    { emoji: '🥚', ringColor: 0xffd700, coreColor: 0xffaa00, label: 'Goldenes Ei' },
+    'gold-bag':      { emoji: '🥚', ringColor: 0xff88cc, coreColor: 0xff4499, label: 'Rosa Ei'     },
+    'xp-orb':        { emoji: '🥚', ringColor: 0x66ff88, coreColor: 0x00cc44, label: 'Grünes Ei'   },
+    'treasure-map':  { emoji: '🗺️', ringColor: 0xffcc44, coreColor: 0xff8800, label: 'Schatzkarte' },
 };
 
 export default class Gift extends Phaser.GameObjects.Container {

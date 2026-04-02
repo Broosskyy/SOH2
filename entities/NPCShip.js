@@ -19,9 +19,11 @@ const FACTIONS = {
 export default class NPCShip extends Ship {
     /* chartLevel: 1 = easy (Karte 1), up to 10 = brutal (Karte 10) */
     constructor(scene, x, y, chartLevel = 1) {
-        const smallShips  = ['ship-small-1','ship-small-2','ship-small-3','ship-small-4','ship-small-5'];
-        const mediumShips = ['ship-medium-1','ship-medium-2','ship-medium-3'];
-        const largeShips  = ['ship-large-1','ship-large-2'];
+        const smallShips  = ['ship-small-1','ship-small-2','ship-small-3','ship-small-4','ship-small-5','npc-ship-tier1'];
+        const mediumShips = ['ship-medium-1','ship-medium-2','ship-medium-3','npc-ship-tier2'];
+        const largeShips  = ['ship-large-1','ship-large-2','npc-ship-tier3'];
+        /* AI-generated sprites have natural color — no tint applied */
+        const AI_SPRITES  = new Set(['npc-ship-tier1','npc-ship-tier2','npc-ship-tier3']);
 
         const rand = Math.random();
         let type, scale, maxHP, speed, xpValue, colliderRadius, tier, factionPool, healthBarW, healthBarOffY;
@@ -72,11 +74,14 @@ export default class NPCShip extends Ship {
         this.updateHealthBar();
 
         /* Tier-Farben: klare visuelle Abgrenzung zwischen Kleinen, Mittleren und Großen.
+           AI-Sprites (npc-ship-tier*) behalten ihre natürlichen Farben — kein Tint.
            Chart-Level überlagert die Tier-Farbe mit einem rötlichen Ton bei Chart ≥ 5/8. */
-        const tierTints = { 1: 0xffdd88, 2: 0x88ccff, 3: 0xff4444 };
-        this.sprite?.setTint(tierTints[tier] ?? 0xffffff);
-        if      (chartLevel >= 8) this.sprite?.setTint(Phaser.Display.Color.IntegerToColor(tierTints[tier] ?? 0xffffff).darken(30).color);
-        else if (chartLevel >= 5) this.sprite?.setTint(Phaser.Display.Color.IntegerToColor(tierTints[tier] ?? 0xffffff).darken(12).color);
+        if (!AI_SPRITES.has(type)) {
+            const tierTints = { 1: 0xffdd88, 2: 0x88ccff, 3: 0xff4444 };
+            this.sprite?.setTint(tierTints[tier] ?? 0xffffff);
+            if      (chartLevel >= 8) this.sprite?.setTint(Phaser.Display.Color.IntegerToColor(tierTints[tier] ?? 0xffffff).darken(30).color);
+            else if (chartLevel >= 5) this.sprite?.setTint(Phaser.Display.Color.IntegerToColor(tierTints[tier] ?? 0xffffff).darken(12).color);
+        }
 
         this._buildNameLabel();
 
@@ -128,14 +133,16 @@ export default class NPCShip extends Ship {
                 { type: 'xp-orb',      weight: 10, gold: [0, 0],       mats: [0, 0],   xp: [40, 80] }
             ],
             2: [
-                { type: 'gold-bag',    weight: 40, gold: g(80, 200),   mats: [2, 6],   xp: [30, 80] },
-                { type: 'gift-chest',  weight: 40, gold: g(40, 100),   mats: [4, 10],  xp: [50, 120] },
-                { type: 'xp-orb',      weight: 20, gold: [0, 10],      mats: [0, 2],   xp: [100, 200] }
+                { type: 'gold-bag',      weight: 38, gold: g(80, 200),   mats: [2, 6],   xp: [30, 80] },
+                { type: 'gift-chest',    weight: 38, gold: g(40, 100),   mats: [4, 10],  xp: [50, 120] },
+                { type: 'xp-orb',        weight: 18, gold: [0, 10],      mats: [0, 2],   xp: [100, 200] },
+                { type: 'treasure-map',  weight: 6,  gold: [0, 0],       mats: [0, 0],   xp: [0, 0] }
             ],
             3: [
-                { type: 'gold-bag',    weight: 30, gold: g(200, 500),  mats: [5, 15],  xp: [80, 200] },
-                { type: 'gift-chest',  weight: 50, gold: g(100, 300),  mats: [10, 25], xp: [150, 350] },
-                { type: 'xp-orb',      weight: 20, gold: g(0, 50),     mats: [2, 8],   xp: [250, 500] }
+                { type: 'gold-bag',      weight: 27, gold: g(200, 500),  mats: [5, 15],  xp: [80, 200] },
+                { type: 'gift-chest',    weight: 45, gold: g(100, 300),  mats: [10, 25], xp: [150, 350] },
+                { type: 'xp-orb',        weight: 18, gold: g(0, 50),     mats: [2, 8],   xp: [250, 500] },
+                { type: 'treasure-map',  weight: 10, gold: [0, 0],       mats: [0, 0],   xp: [0, 0] }
             ]
         };
         return tables[t] ?? tables[1];

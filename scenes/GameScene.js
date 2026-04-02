@@ -203,6 +203,12 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('player-ship-dark-galleon', 'assets/ship_dark_galleon.png');
         this.load.image('player-ship-neon-galleon',  'assets/ship_neon_galleon.png');
 
+        /* KI-generierte NPC-Schiff-Sprites (Rang 1/2/3) */
+        this.load.image('npc-ship-tier1', 'assets/npc_ship_tier1.png');
+        this.load.image('npc-ship-tier2', 'assets/npc_ship_tier2.png');
+        this.load.image('npc-ship-tier3', 'assets/npc_ship_tier3.png');
+        this.load.image('item-treasure-map', 'assets/item_treasure_map.png');
+
         this.load.image('ship-small-1', 'assets/ship_cutter_1.png');
         this.load.image('ship-small-2', 'assets/ship_cutter_2.png');
         this.load.image('ship-small-3', 'assets/ship_cutter_3.png');
@@ -676,8 +682,72 @@ export default class GameScene extends Phaser.Scene {
             });
         });
         this.events.on('player-died', () => {
-            this.showStatusMsg('Ship Sunk!', 0xff0000);
-            this.time.delayedCall(2000, () => this.scene.restart({ chartIndex: this.currentChartIndex, entryDirection: 'center', travelRatioY: 0.5 }));
+            /* Verhindert Doppel-Auslösung */
+            if (this._playerDeadHandled) return;
+            this._playerDeadHandled = true;
+
+            /* ── Spielerschiff-Untergangsanimation ── */
+            if (this.player?.sprite) {
+                const rot = this.player.sprite.rotation;
+                const dir = Math.random() > 0.5 ? 1 : -1;
+                this.tweens.add({
+                    targets: this.player.sprite,
+                    rotation: rot + dir * (Math.PI / 2),
+                    scaleX: 0, scaleY: 0, alpha: 0,
+                    duration: 2000, ease: 'Quad.In'
+                });
+                /* Kamera zoomt raus beim Untergang */
+                this.cameras.main.zoomTo(0.55, 2000, 'Sine.In');
+                /* Rauchsalven */
+                for (let i = 0; i < 8; i++) {
+                    this.time.delayedCall(i * 200, () => {
+                        if (!this.player) return;
+                        const ox = this.player.x + Phaser.Math.Between(-35, 35);
+                        const oy = this.player.y + Phaser.Math.Between(-35, 35);
+                        const puff = this.add.circle(ox, oy, Phaser.Math.Between(10, 24), 0x222222, 0.75)
+                            .setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(9999);
+                        this.tweens.add({ targets: puff, scaleX: 4, scaleY: 4, alpha: 0, y: oy - 55,
+                            duration: 1200, ease: 'Quad.Out', onComplete: () => puff.destroy() });
+                    });
+                }
+            }
+
+            /* ── Gold-Strafe: 10% verloren ── */
+            const penalty = Math.round((this.player?.gold ?? 0) * 0.10);
+            if (this.player) this.player.gold = Math.max(0, this.player.gold - penalty);
+
+            /* ── Death-Screen Overlay (erscheint nach 1,8s) ── */
+            this.time.delayedCall(1800, () => {
+                const overlay = document.createElement('div');
+                overlay.id = 'ahc-death-overlay';
+                overlay.style.cssText = `
+                    position:fixed;inset:0;z-index:99999;
+                    background:rgba(0,0,0,0.82);
+                    display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    font-family:Georgia,serif;animation:ahcDeathFadeIn 0.6s ease;
+                `;
+                const penaltyLine = penalty > 0 ? `<div style="color:#ff8844;font-size:16px;margin-top:8px;">-${penalty} ⚜️ Gold verloren</div>` : '';
+                overlay.innerHTML = `
+                    <style>@keyframes ahcDeathFadeIn{from{opacity:0}to{opacity:1}}</style>
+                    <div style="font-size:80px;line-height:1;filter:drop-shadow(0 0 18px #ff0000);">💀</div>
+                    <div style="color:#ff2222;font-size:28px;font-weight:bold;margin-top:12px;text-shadow:0 0 20px #ff0000,0 0 40px #ff4400;letter-spacing:2px;">SCHIFF VERSENKT!</div>
+                    ${penaltyLine}
+                    <div style="color:#888;font-size:13px;margin-top:18px;">Wird respawnt…</div>
+                    <div style="width:180px;height:3px;background:#333;border-radius:2px;margin-top:10px;overflow:hidden;">
+                        <div id="ahc-death-bar" style="height:100%;background:linear-gradient(90deg,#ff4400,#ffaa00);width:0%;transition:width 1.5s linear;"></div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                /* Starte Progress-Bar */
+                requestAnimationFrame(() => { const b = document.getElementById('ahc-death-bar'); if(b) b.style.width='100%'; });
+                this.events.once('shutdown', () => overlay.remove());
+            });
+
+            /* ── Restart nach 3,8s ── */
+            this.time.delayedCall(3800, () => {
+                document.getElementById('ahc-death-overlay')?.remove();
+                this.scene.restart({ chartIndex: this.currentChartIndex, entryDirection: 'center', travelRatioY: 0.5 });
+            });
         });
         this.events.on('xp-gain', (amount) => {
             this.updateUIBars();
@@ -2750,6 +2820,9 @@ handleResize(gameSize) {
             player.addAmmoCharges('fire', Phaser.Math.Between(1, 2));
         } else if (gift.giftType === 'xp-orb') {
             player.addAmmoCharges('storm', Phaser.Math.Between(1, 2));
+        } else if (gift.giftType === 'treasure-map') {
+            this._activateTreasureHunt();
+            return; /* Keine Standard-Reward-Benachrichtigung */
         }
 
         const rewards = [];
@@ -5608,6 +5681,7 @@ handleResize(gameSize) {
         this._updateWindSystem(delta);
         this._updateFortressAttack(delta);
         this._updateDayNight(delta);
+        if (this._treasureHuntActive) this._updateTreasureHunt();
 
         /* TilePosition 1:1 mit Kamera → Wasser scrollt mit Welt, UI bleibt fixiert */
         /* +Wellenanimation: langsame Sinus-Drift simuliert lebendige See */
@@ -6897,6 +6971,151 @@ handleResize(gameSize) {
             const idx  = Math.round(((this._windAngle * 180 / Math.PI + 90 + 360) % 360) / 45) % 8;
             lbl.textContent = dirs[idx];
         }
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       SCHATZKARTEN-SYSTEM — Seafight-Feature
+       ════════════════════════════════════════════════════════════════════ */
+
+    _activateTreasureHunt() {
+        if (this._treasureHuntActive) {
+            this.showStatusMsg('⚒️ Schatzkarte bereits aktiv!', 0xffaa44);
+            return;
+        }
+        this._treasureHuntActive = true;
+
+        /* Zufälligen Schatz-Ort finden — mindestens 500px vom Spieler entfernt */
+        const ww = this.physics.world.bounds.width;
+        const wh = this.physics.world.bounds.height;
+        let tx, ty;
+        do {
+            tx = Phaser.Math.Between(200, ww - 200);
+            ty = Phaser.Math.Between(200, wh - 200);
+        } while (this.player && Phaser.Math.Distance.Between(this.player.x, this.player.y, tx, ty) < 500);
+
+        this._treasureHuntX = tx;
+        this._treasureHuntY = ty;
+
+        /* ── Goldenes X-Zeichen im Spielfeld ── */
+        const marker = this.add.container(tx, ty).setDepth(3000);
+        /* Kreuz aus zwei Linien mit Phaser.Graphics */
+        const g = this.add.graphics().setDepth(3001);
+        const drawMarker = () => {
+            g.clear();
+            g.lineStyle(4, 0xffcc00, 0.9);
+            g.strokeRect(tx - 22, ty - 22, 44, 44);
+            g.lineStyle(3, 0xffcc00, 0.85);
+            g.lineBetween(tx - 18, ty - 18, tx + 18, ty + 18);
+            g.lineBetween(tx + 18, ty - 18, tx - 18, ty + 18);
+        };
+        drawMarker();
+
+        /* Pulsierender Glow-Ring */
+        const ring = this.add.circle(tx, ty, 28, 0xffcc00, 0.15).setDepth(2999);
+        this.tweens.add({ targets: ring, scaleX: 1.6, scaleY: 1.6, alpha: 0,
+            duration: 1200, yoyo: false, repeat: -1, ease: 'Quad.Out' });
+
+        this._treasureMarker = { container: marker, graphics: g, ring };
+
+        /* ── Kompass-Hinweis: Richtungspfeil in der HUD ── */
+        if (!document.getElementById('ahc-treasure-hud')) {
+            const thud = document.createElement('div');
+            thud.id = 'ahc-treasure-hud';
+            thud.style.cssText = `
+                position:fixed;top:calc(60px + env(safe-area-inset-top,0px));left:50%;
+                transform:translateX(-50%);z-index:9200;
+                background:rgba(10,8,2,0.88);border:2px solid #ffcc00;border-radius:12px;
+                padding:6px 16px;font-family:Georgia,serif;color:#ffcc44;font-size:13px;
+                pointer-events:none;user-select:none;text-align:center;
+                animation:ahcTreasurePulse 1.5s ease-in-out infinite;
+            `;
+            thud.innerHTML = `
+                <style>@keyframes ahcTreasurePulse{0%,100%{opacity:1}50%{opacity:0.55}}</style>
+                🗺️ <span id="ahc-treasure-dist">Schatz: ??? m</span> <span id="ahc-treasure-dir">→</span>
+            `;
+            document.body.appendChild(thud);
+            this.events.once('shutdown', () => thud.remove());
+        }
+
+        this.showStatusMsg('🗺️ SCHATZKARTE! Finde den markierten Ort!', 0xffcc00);
+        this._logbookAdd?.('treasures_opened');
+    }
+
+    _updateTreasureHunt() {
+        if (!this._treasureHuntActive || !this.player) return;
+        const px = this.player.x, py = this.player.y;
+        const tx = this._treasureHuntX, ty = this._treasureHuntY;
+        const dist = Phaser.Math.Distance.Between(px, py, tx, ty);
+
+        /* HUD-Anzeige aktualisieren */
+        const distEl = document.getElementById('ahc-treasure-dist');
+        const dirEl  = document.getElementById('ahc-treasure-dir');
+        if (distEl) distEl.textContent = `Schatz: ${Math.round(dist)} m`;
+        if (dirEl) {
+            const angle = Math.atan2(ty - py, tx - px);
+            const deg   = (angle * 180 / Math.PI + 360) % 360;
+            const dirs  = ['→','↘','↓','↙','←','↖','↑','↗'];
+            dirEl.textContent = dirs[Math.round(deg / 45) % 8];
+        }
+
+        /* Spieler nah genug → Schatz graben! */
+        if (dist < 130) {
+            this._digTreasure(tx, ty);
+        }
+    }
+
+    _digTreasure(tx, ty) {
+        this._treasureHuntActive = false;
+
+        /* Marker entfernen */
+        this._treasureMarker?.graphics?.destroy();
+        this._treasureMarker?.ring?.destroy();
+        this._treasureMarker?.container?.destroy();
+        this._treasureMarker = null;
+        document.getElementById('ahc-treasure-hud')?.remove();
+
+        /* ── Grab-Animation: Erde/Sand-Partikel ── */
+        for (let i = 0; i < 14; i++) {
+            const angle = (i / 14) * Math.PI * 2;
+            const dist  = Phaser.Math.Between(20, 60);
+            const particle = this.add.circle(
+                tx + Math.cos(angle) * 8, ty + Math.sin(angle) * 8,
+                Phaser.Math.Between(4, 10), 0xcc9944, 0.9
+            ).setDepth(3100);
+            this.tweens.add({
+                targets: particle,
+                x: tx + Math.cos(angle) * dist,
+                y: ty + Math.sin(angle) * dist - Phaser.Math.Between(15, 40),
+                alpha: 0, scaleX: 0.3, scaleY: 0.3,
+                duration: Phaser.Math.Between(500, 900),
+                ease: 'Quad.Out',
+                onComplete: () => particle.destroy()
+            });
+        }
+
+        /* ── Premiumtruhe spawnen ── */
+        const jackpotGold = Phaser.Math.Between(400, 900);
+        const jackpotXP   = Phaser.Math.Between(200, 500);
+        const jackpotMats = Phaser.Math.Between(15, 35);
+
+        const chest = this.createLootDrop(tx, ty, {
+            type: 'gift-chest',
+            goldValue: jackpotGold,
+            materialValue: jackpotMats,
+            xpValue: jackpotXP,
+            hpValue: Phaser.Math.Between(30, 80),
+            scale: 0.14,
+            scatterDistance: 10
+        });
+
+        /* Goldener Ring um die Truhe */
+        const glow = this.add.circle(tx, ty, 40, 0xffaa00, 0.22).setDepth(2998);
+        this.tweens.add({ targets: glow, scaleX: 2.5, scaleY: 2.5, alpha: 0, duration: 1500,
+            onComplete: () => glow.destroy() });
+
+        this.showStatusMsg(`💰 SCHATZ GEFUNDEN! +${jackpotGold} Gold, +${jackpotMats} Materialien!`, 0xffdd00);
+        this._logbookAdd?.('treasures_opened');
+        this.dailyQuestPanel?.addProgress('treasures', 1);
     }
 
     /* ── Tag/Nacht-Zyklus ── */
