@@ -2242,11 +2242,16 @@ handleResize(gameSize) {
             'island-volcanic':  95, 'island-frozen':   102, 'island-ruins':     80, 'island-temple': 98
         };
 
+        const ISLAND_BG_RADII = {
+            'island-atoll': 108, 'island-reef': 108, 'island-tropical': 112,
+            'island-volcanic': 98, 'island-frozen': 105, 'island-ruins': 84,
+            'island-temple': 108, 'island-guild': 128
+        };
         this.islandSpawnPoints.forEach((point) => {
-            /* Opaque ocean-coloured background for transparent-PNG islands (e.g. temple) */
-            if (point.texture === 'island-temple') {
-                this.add.circle(point.x, point.y, 105, 0x1a4a3a, 1).setDepth(11);
-            }
+            /* Opaque ocean-coloured backdrop behind ALL transparent-PNG islands */
+            const bgR = ISLAND_BG_RADII[point.texture] ?? 105;
+            this.add.circle(point.x, point.y, bgR, 0x0e2a40, 1).setDepth(11);
+            this.add.circle(point.x, point.y, bgR - 6, 0x133550, 1).setDepth(11);
 
             const island = new Island(this, point.x, point.y, point.texture);
             this.islands.add(island);
@@ -4187,11 +4192,13 @@ handleResize(gameSize) {
             this.minimapToggleHit.setPosition(-6, -6);
             this.minimapToggleHit.setSize(44, 44);
             /* Sync ChartNav DOM element to sit directly below minimap */
-            this.chartNav?.repositionUnderMinimap(
-                minimapPos.x,
-                minimapPos.y,
-                this.minimap.getRenderHeight(),
-                this.minimap.getRenderWidth()
+            const _mmH = this.minimap.getRenderHeight();
+            const _mmW = this.minimap.getRenderWidth();
+            this.chartNav?.repositionUnderMinimap(minimapPos.x, minimapPos.y, _mmH, _mmW);
+            /* CoordHUD sits flush below ChartNav (below minimap) */
+            const chartNavH = this.chartNav?._el ? (this.chartNav._el.offsetHeight || 38) : 0;
+            this.coordHUD?.repositionUnderMinimap(
+                minimapPos.x, minimapPos.y, _mmH + chartNavH, _mmW
             );
         }
 
@@ -7669,7 +7676,8 @@ handleResize(gameSize) {
                 xpValue:       Phaser.Math.Between(80, 160),
                 dropCategory:  'wreck'
             });
-            wreck.setTint(0x5599bb);
+            wreck._ring?.setFillStyle(0x3377aa, 0.40);
+            wreck._core?.setFillStyle(0x5599bb, 0.55);
             if (this.gifts) this.gifts.add(wreck);
 
             /* Gentle bobbing animation */

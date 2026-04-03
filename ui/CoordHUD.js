@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
    CoordHUD — Seafight-Stil Koordinatenanzeige
-   Zeigt: Karten-Sektor (A1–E2), Feld innerhalb der Karte,
-          und genaue Pixel-Koordinaten.
+   Positioniert sich direkt UNTER der Minimap (repositionUnderMinimap).
+   Zeigt: Karten-Sektor (A1–E2) und Feld (A1–H8) synchron zur Minimap.
    Aktualisiert ~4×/Sekunde vom GameScene update()-Loop.
 ══════════════════════════════════════════════════════════════ */
 export default class CoordHUD {
@@ -20,32 +20,46 @@ export default class CoordHUD {
         el.id = 'ahc-coord-hud';
         el.style.cssText = `
             position: fixed;
-            right: 10px;
-            bottom: 5px;
+            top: -200px;
+            right: 12px;
             z-index: 8100;
-            background: linear-gradient(160deg, rgba(6,16,34,0.95), rgba(8,22,46,0.97));
-            border: 1px solid rgba(99,214,255,0.4);
-            border-radius: 8px;
-            padding: 5px 10px 5px 9px;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            color: #9fdcff;
+            background: linear-gradient(160deg, rgba(8,18,32,0.96), rgba(6,14,26,0.98));
+            border: 1px solid rgba(180,140,50,0.55);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding: 3px 8px 4px 8px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 9px;
+            color: #c8a84a;
             pointer-events: none;
             user-select: none;
             -webkit-user-select: none;
-            line-height: 1.55;
-            box-shadow: 0 0 12px rgba(40,150,255,0.15);
-            min-width: 110px;
+            line-height: 1.45;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(180,140,50,0.04);
+            min-width: 90px;
+            text-align: center;
         `;
         el.innerHTML = `
-            <div id="ahc-coord-sector" style="font-size:12px;font-weight:bold;color:#63d6ff;letter-spacing:1px;">—</div>
-            <div id="ahc-coord-field"  style="font-size:9px;color:#5a9ab8;">Feld —</div>
-            <div id="ahc-coord-raw"    style="font-size:8px;color:#3a7090;margin-top:1px;">X: — / Y: —</div>
+            <div id="ahc-coord-sector" style="font-size:11px;font-weight:bold;color:#d4aa40;letter-spacing:1px;text-shadow:0 0 6px rgba(212,170,64,0.4);">—</div>
+            <div id="ahc-coord-field"  style="font-size:8px;color:#a08030;letter-spacing:0.5px;">Feld —</div>
         `;
         document.body.appendChild(el);
         this._el = el;
 
         this.scene.events.once('shutdown', () => { el.remove(); this._el = null; });
+    }
+
+    /* Wird von updateUIBars() aufgerufen, sobald die Minimap-Position bekannt ist */
+    repositionUnderMinimap(mmLeft, mmTop, mmHeight, mmWidth) {
+        if (!this._el) return;
+        const gap = 0;
+        this._el.style.top    = `${Math.round(mmTop + mmHeight + gap)}px`;
+        this._el.style.right  = '12px';
+        this._el.style.left   = 'auto';
+        this._el.style.bottom = 'auto';
+        this._el.style.width  = `${Math.round(mmWidth)}px`;
+        this._el.style.minWidth = 'unset';
+        this._el.style.boxSizing = 'border-box';
     }
 
     /* Wird vom Game-Loop aufgerufen (throttled).
@@ -54,18 +68,16 @@ export default class CoordHUD {
        x, y        = Rohkoordinaten in Weltpixeln */
     update(sectorLabel, field, x, y) {
         if (!this._el) return;
-        if (Math.abs(x - this._lastX) < 8 && Math.abs(y - this._lastY) < 8) return; /* skip wenn kein Move */
+        if (Math.abs(x - this._lastX) < 8 && Math.abs(y - this._lastY) < 8) return;
 
         this._lastX = x;
         this._lastY = y;
 
         const sEl = document.getElementById('ahc-coord-sector');
         const fEl = document.getElementById('ahc-coord-field');
-        const rEl = document.getElementById('ahc-coord-raw');
 
         if (sEl) sEl.textContent = sectorLabel;
         if (fEl) fEl.textContent = `Feld ${field}`;
-        if (rEl) rEl.textContent = `X: ${Math.round(x)} / Y: ${Math.round(y)}`;
     }
 
     destroy() {

@@ -12,17 +12,21 @@ export default class ChartNav {
         nav.style.cssText = `
             position: fixed;
             top: 318px;
-            right: 18px;
+            right: 12px;
             left: auto;
             transform: none;
             z-index: 8500;
             display: flex;
-            align-items: center;
-            gap: 5px;
+            align-items: stretch;
+            gap: 0;
             pointer-events: auto;
             user-select: none;
             -webkit-user-select: none;
-            font-family: Arial, sans-serif;
+            font-family: Georgia, serif;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(180,140,50,0.55);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 0 6px rgba(180,140,50,0.04);
         `;
 
         const s = this.scene;
@@ -30,61 +34,62 @@ export default class ChartNav {
         const westBtn = document.createElement('button');
         westBtn.id = 'chart-nav-west';
         westBtn.style.cssText = `
-            width: 36px; height: 36px;
-            border-radius: 50% 0 0 50%;
-            background: linear-gradient(135deg, #0a1a2e, #0d2040);
-            border: 2px solid rgba(99,214,255,0.4);
-            border-right: none;
-            color: #9fdcff;
-            font-size: 15px;
+            width: 28px; height: 32px;
+            border-radius: 0;
+            background: linear-gradient(135deg, #0d1e30, #0a1826);
+            border: none;
+            border-right: 1px solid rgba(180,140,50,0.3);
+            color: #c8a84a;
+            font-size: 12px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.15s;
             padding: 0;
+            flex-shrink: 0;
         `;
         westBtn.textContent = '◄';
 
         const center = document.createElement('div');
         center.style.cssText = `
-            min-width: 70px;
-            height: 36px;
-            background: linear-gradient(135deg, #0d2040, #0a1a2e);
-            border-top: 2px solid rgba(99,214,255,0.4);
-            border-bottom: 2px solid rgba(99,214,255,0.4);
+            flex: 1;
+            height: 32px;
+            background: linear-gradient(160deg, #0a1826, #081420);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 1px;
-            padding: 0 8px;
+            padding: 0 6px;
+            min-width: 0;
         `;
         const numEl = document.createElement('div');
         numEl.id = 'chart-nav-num';
-        numEl.style.cssText = `font-size:13px;font-weight:bold;color:#dff8ff;letter-spacing:1px;line-height:1;`;
+        numEl.style.cssText = `font-size:11px;font-weight:bold;color:#d4aa40;letter-spacing:1px;line-height:1;font-family:Georgia,serif;text-shadow:0 0 6px rgba(212,170,64,0.3);`;
         const nameEl = document.createElement('div');
         nameEl.id = 'chart-nav-name';
-        nameEl.style.cssText = `font-size:9px;color:#63d6ff;line-height:1;`;
+        nameEl.style.cssText = `font-size:8px;color:#a08030;line-height:1;font-family:Georgia,serif;`;
         center.appendChild(numEl);
         center.appendChild(nameEl);
 
         const eastBtn = document.createElement('button');
         eastBtn.id = 'chart-nav-east';
         eastBtn.style.cssText = `
-            width: 36px; height: 36px;
-            border-radius: 0 50% 50% 0;
-            background: linear-gradient(135deg, #0d2040, #0a1a2e);
-            border: 2px solid rgba(99,214,255,0.4);
-            border-left: none;
-            color: #9fdcff;
-            font-size: 15px;
+            width: 28px; height: 32px;
+            border-radius: 0;
+            background: linear-gradient(135deg, #0a1826, #0d1e30);
+            border: none;
+            border-left: 1px solid rgba(180,140,50,0.3);
+            color: #c8a84a;
+            font-size: 12px;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.15s;
             padding: 0;
+            flex-shrink: 0;
         `;
         eastBtn.textContent = '►';
 
@@ -94,8 +99,8 @@ export default class ChartNav {
             e.preventDefault();
             const idx = s.currentChartIndex ?? 1;
             if (idx <= 1) return;
-            westBtn.style.background = 'linear-gradient(135deg, #0d2040, #1a3060)';
-            setTimeout(() => { westBtn.style.background = 'linear-gradient(135deg, #0a1a2e, #0d2040)'; }, 180);
+            westBtn.style.background = 'linear-gradient(135deg, #1a2e18, #152818)';
+            setTimeout(() => { westBtn.style.background = 'linear-gradient(135deg, #0d1e30, #0a1826)'; }, 180);
             s.transitionToChart?.(idx - 1, 'west');
         };
         const doEast = (e) => {
@@ -103,8 +108,8 @@ export default class ChartNav {
             const idx = s.currentChartIndex ?? 1;
             const max = s.maxChartIndex ?? 10;
             if (idx >= max) return;
-            eastBtn.style.background = 'linear-gradient(135deg, #1a3060, #0d2040)';
-            setTimeout(() => { eastBtn.style.background = 'linear-gradient(135deg, #0d2040, #0a1a2e)'; }, 180);
+            eastBtn.style.background = 'linear-gradient(135deg, #1a2e18, #152818)';
+            setTimeout(() => { eastBtn.style.background = 'linear-gradient(135deg, #0a1826, #0d1e30)'; }, 180);
             s.transitionToChart?.(idx + 1, 'east');
         };
 
@@ -156,12 +161,13 @@ export default class ChartNav {
 
     repositionUnderMinimap(mmLeft, mmTop, mmHeight, mmWidth) {
         if (!this._el) return;
-        const gap = 6;
-        this._el.style.top   = `${Math.round(mmTop + mmHeight + gap)}px`;
-        this._el.style.right  = '18px';
+        this._el.style.top    = `${Math.round(mmTop + mmHeight)}px`;
+        this._el.style.right  = '12px';
         this._el.style.left   = 'auto';
         this._el.style.bottom = 'auto';
         this._el.style.transform = 'none';
+        this._el.style.width  = `${Math.round(mmWidth)}px`;
+        this._el.style.boxSizing = 'border-box';
     }
 
     setVisible(v) { if (this._el) this._el.style.display = v ? 'flex' : 'none'; }
