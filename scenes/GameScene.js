@@ -1738,7 +1738,7 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
-    /* ── Screen-edge vignette: darker at borders for depth ── */
+    /* ── Screen-edge vignette: very subtle border darkening for depth ── */
     _createVignette() {
         if (document.getElementById('ahc-vignette')) return;
         const el = document.createElement('div');
@@ -1748,11 +1748,11 @@ export default class GameScene extends Phaser.Scene {
             inset: 0;
             pointer-events: none;
             z-index: 50;
-            background: radial-gradient(ellipse 75% 75% at 50% 50%,
-                transparent 25%,
-                rgba(4,10,22,0.28) 58%,
-                rgba(3,8,18,0.60) 85%,
-                rgba(2,6,14,0.75) 100%);
+            background: radial-gradient(ellipse 82% 82% at 50% 50%,
+                transparent 38%,
+                rgba(4,10,22,0.08) 62%,
+                rgba(3,8,18,0.18) 82%,
+                rgba(2,6,14,0.30) 100%);
         `;
         document.body.appendChild(el);
         this.events.once('shutdown', () => el.remove());
@@ -7352,51 +7352,7 @@ handleResize(gameSize) {
     }
 
     _buildWindHUD() {
-        if (document.getElementById('ahc-wind-hud')) return;
-        const el = document.createElement('div');
-        el.id = 'ahc-wind-hud';
-        el.style.cssText = `
-            position:fixed;
-            left: calc(104px + env(safe-area-inset-left,0px));
-            bottom: calc(16px + env(safe-area-inset-bottom,0px));
-            width:54px; height:54px;
-            z-index:8060;
-            border-radius:50%;
-            background:radial-gradient(circle at 38% 30%,rgba(255,255,255,0.10) 0%,rgba(8,18,38,0.95) 65%);
-            border:2px solid rgba(80,160,255,0.55);
-            box-shadow:0 0 0 2px #050a18,0 3px 12px rgba(0,0,0,0.7);
-            display:flex;flex-direction:column;align-items:center;justify-content:center;
-            font-family:Arial,sans-serif;pointer-events:none;user-select:none;
-        `;
-        el.innerHTML = `
-            <div id="ahc-wind-arrow" style="font-size:22px;line-height:1;transition:transform 0.6s ease;">🧭</div>
-            <div style="font-size:8px;color:#88bbff;margin-top:2px;letter-spacing:0.5px;">WIND</div>
-            <div id="ahc-wind-label" style="font-size:7px;color:#aaccff;font-weight:bold;"></div>
-        `;
-        document.body.appendChild(el);
-        this.events.once('shutdown', () => el.remove());
-
-        /* Tageszeit-Pill direkt rechts neben dem Kompass */
-        if (!document.getElementById('ahc-dayphase-wrap')) {
-            const dp = document.createElement('div');
-            dp.id = 'ahc-dayphase-wrap';
-            dp.style.cssText = `
-                position:fixed;
-                left: calc(166px + env(safe-area-inset-left,0px));
-                bottom: calc(26px + env(safe-area-inset-bottom,0px));
-                z-index:8061;
-                background:rgba(8,18,38,0.82);
-                border:1px solid rgba(80,160,255,0.35);
-                border-radius:10px;
-                padding:3px 8px;
-                font-family:Arial,sans-serif;font-size:11px;
-                color:#aaccff;pointer-events:none;user-select:none;
-                white-space:nowrap;
-            `;
-            dp.innerHTML = `<span id="ahc-dayphase">☀️ Tag</span>`;
-            document.body.appendChild(dp);
-            this.events.once('shutdown', () => dp.remove());
-        }
+        /* Compass and day/night pill removed — wind gameplay still active via _windSpeedMult */
     }
 
     _updateWindSystem(delta) {
