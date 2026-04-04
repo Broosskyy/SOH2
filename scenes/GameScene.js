@@ -307,16 +307,29 @@ export default class GameScene extends Phaser.Scene {
         this.setChartSpawnPointFromEntry();
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        /* Seamless ocean: generate via Canvas 2D (each blob drawn at 9 positions → zero visible seams) */
-        this.cameras.main.setBackgroundColor(0x0e2d4a);
+        /* ── Ocean rendering: base layer + shimmer layer + vignette ── */
+        this.cameras.main.setBackgroundColor(0x0b2540);
         this._generateOceanTexture();
+        this._generateShimmerTexture();
         const _bgKey = this.textures.exists('ocean-seamless') ? 'ocean-seamless'
                      : this.textures.exists('ocean-deep-bg')  ? 'ocean-deep-bg' : 'ocean-bg';
         this.background = this.add.tileSprite(0, 0, width + 64, height + 64, _bgKey)
             .setOrigin(0, 0)
             .setDepth(-100)
             .setScrollFactor(0);
+
+        /* Shimmer layer: drifts at a different angle/speed for light-reflection feel */
+        this.shimmerLayer = null;
+        if (this.textures.exists('ocean-shimmer')) {
+            this.shimmerLayer = this.add.tileSprite(0, 0, width + 64, height + 64, 'ocean-shimmer')
+                .setOrigin(0, 0)
+                .setDepth(-99)
+                .setScrollFactor(0)
+                .setAlpha(0.40);
+        }
+
         this.syncOceanBackground();
+        this._createVignette();
 
         /* Tag/Nacht-Zyklus: Ambient-Overlay über dem Ozean, unter den Schiffen */
         this._dayT = Math.random(); /* Zufällige Startzeit */
@@ -1574,20 +1587,20 @@ export default class GameScene extends Phaser.Scene {
             canvas.width = SIZE; canvas.height = SIZE;
             const ctx = canvas.getContext('2d');
 
-            /* Deep BOS-style navy base */
-            ctx.fillStyle = '#0e2d4a';
+            /* ── Deep BOS-style navy base ── */
+            ctx.fillStyle = '#0b2540';
             ctx.fillRect(0, 0, SIZE, SIZE);
 
-            /* Seamless radial light patches — each blob is drawn at 9 positions
-               (original + 8 tiled neighbours) so left/right/top/bottom edges match perfectly */
+            /* ── Radial colour blobs (deep navy + mid-blue + cyan hints) ── */
             const blobs = [];
-            for (let i = 0; i < 28; i++) {
+            for (let i = 0; i < 36; i++) {
+                const roll = Math.random();
                 blobs.push({
                     cx: Math.random() * SIZE,
                     cy: Math.random() * SIZE,
-                    r:  55 + Math.random() * 90,
-                    a:  0.06 + Math.random() * 0.10,
-                    hue: Math.random() < 0.5 ? '#1e5a8a' : '#163c60'
+                    r:  50 + Math.random() * 110,
+                    a:  0.06 + Math.random() * 0.12,
+                    hue: roll < 0.25 ? '#1e6a9a' : roll < 0.5 ? '#174a72' : roll < 0.7 ? '#0d3050' : '#0f4460'
                 });
             }
             blobs.forEach(({ cx, cy, r, a, hue }) => {
@@ -1607,18 +1620,50 @@ export default class GameScene extends Phaser.Scene {
                 }
             });
 
-            /* Subtle dark veins — very soft horizontal bands for depth */
-            for (let b = 0; b < 8; b++) {
-                const by = (b / 8) * SIZE;
-                const bh = 18 + Math.random() * 30;
+            /* ── Diagonal wave streaks (surface water lines) ── */
+            for (let w = 0; w < 70; w++) {
+                const wx = (Math.random() * SIZE * 1.5) - SIZE * 0.25;
+                const wy = (Math.random() * SIZE * 1.5) - SIZE * 0.25;
+                const len   = 60 + Math.random() * 140;
+                const thick = 0.8 + Math.random() * 2.0;
+                const alpha = 0.025 + Math.random() * 0.045;
+                const bright = Math.random() < 0.25;
+                const angle = -0.3 + Math.random() * 0.2; /* shallow diagonal ~-15° */
+                const ex = wx + Math.cos(angle) * len;
+                const ey = wy + Math.sin(angle) * len;
+
+                for (const ox of [-SIZE, 0, SIZE]) {
+                    for (const oy of [-SIZE, 0, SIZE]) {
+                        ctx.save();
+                        ctx.globalAlpha = alpha;
+                        const lg = ctx.createLinearGradient(wx+ox, wy+oy, ex+ox, ey+oy);
+                        lg.addColorStop(0,   'transparent');
+                        lg.addColorStop(0.25, bright ? '#4ab8e8' : '#2278a8');
+                        lg.addColorStop(0.5,  bright ? '#55ccff' : '#2a88be');
+                        lg.addColorStop(0.75, bright ? '#4ab8e8' : '#2278a8');
+                        lg.addColorStop(1,   'transparent');
+                        ctx.strokeStyle = lg;
+                        ctx.lineWidth = thick;
+                        ctx.beginPath();
+                        ctx.moveTo(wx+ox, wy+oy);
+                        ctx.lineTo(ex+ox, ey+oy);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }
+
+            /* ── Soft dark depth bands (horizontal, seamless-wrapped) ── */
+            for (let b = 0; b < 12; b++) {
+                const by = (b / 12) * SIZE;
+                const bh = 12 + Math.random() * 28;
                 const bg = ctx.createLinearGradient(0, by, 0, by + bh);
-                bg.addColorStop(0,   'rgba(5,18,34,0)');
-                bg.addColorStop(0.5, `rgba(5,18,34,${(0.04 + Math.random() * 0.05).toFixed(2)})`);
-                bg.addColorStop(1,   'rgba(5,18,34,0)');
+                bg.addColorStop(0,   'rgba(4,12,24,0)');
+                bg.addColorStop(0.5, `rgba(4,12,24,${(0.05 + Math.random() * 0.08).toFixed(2)})`);
+                bg.addColorStop(1,   'rgba(4,12,24,0)');
                 ctx.fillStyle = bg;
                 ctx.fillRect(0, by, SIZE, bh);
-                /* also wrap — draw at by - SIZE so top band matches bottom */
-                ctx.fillRect(0, by - SIZE, SIZE, bh);
+                ctx.fillRect(0, by - SIZE, SIZE, bh); /* seamless wrap */
             }
 
             this.textures.addCanvas('ocean-seamless', canvas);
@@ -1627,24 +1672,117 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    /* ── Shimmer texture: bright scattered reflections for second layer ── */
+    _generateShimmerTexture() {
+        if (this.textures.exists('ocean-shimmer')) return;
+        try {
+            const SIZE = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = SIZE; canvas.height = SIZE;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, SIZE, SIZE);
+
+            /* Scattered sun-reflection spots */
+            for (let i = 0; i < 45; i++) {
+                const sx = Math.random() * SIZE;
+                const sy = Math.random() * SIZE;
+                const r  = 4 + Math.random() * 22;
+                const a  = 0.05 + Math.random() * 0.12;
+                for (const ox of [-SIZE, 0, SIZE]) {
+                    for (const oy of [-SIZE, 0, SIZE]) {
+                        ctx.save();
+                        ctx.globalAlpha = a;
+                        const gr = ctx.createRadialGradient(sx+ox, sy+oy, 0, sx+ox, sy+oy, r);
+                        gr.addColorStop(0,   '#d8f8ff');
+                        gr.addColorStop(0.3, '#88d0f0');
+                        gr.addColorStop(1,   'transparent');
+                        ctx.fillStyle = gr;
+                        ctx.beginPath();
+                        ctx.arc(sx+ox, sy+oy, r, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+            }
+
+            /* Short bright diagonal gleam lines */
+            for (let s = 0; s < 20; s++) {
+                const sx  = Math.random() * SIZE;
+                const sy  = Math.random() * SIZE;
+                const len = 25 + Math.random() * 70;
+                const angle = -0.2 + Math.random() * 0.15;
+                const ex = sx + Math.cos(angle) * len;
+                const ey = sy + Math.sin(angle) * len;
+                for (const ox of [-SIZE, 0, SIZE]) {
+                    for (const oy of [-SIZE, 0, SIZE]) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.04 + Math.random() * 0.08;
+                        const lg = ctx.createLinearGradient(sx+ox, sy+oy, ex+ox, ey+oy);
+                        lg.addColorStop(0,   'transparent');
+                        lg.addColorStop(0.5, '#bbeeff');
+                        lg.addColorStop(1,   'transparent');
+                        ctx.strokeStyle = lg;
+                        ctx.lineWidth = 1 + Math.random() * 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(sx+ox, sy+oy);
+                        ctx.lineTo(ex+ox, ey+oy);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }
+
+            this.textures.addCanvas('ocean-shimmer', canvas);
+        } catch (e) {
+            console.warn('[Shimmer] Fehler:', e);
+        }
+    }
+
+    /* ── Screen-edge vignette: darker at borders for depth ── */
+    _createVignette() {
+        if (document.getElementById('ahc-vignette')) return;
+        const el = document.createElement('div');
+        el.id = 'ahc-vignette';
+        el.style.cssText = `
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            background: radial-gradient(ellipse 75% 75% at 50% 50%,
+                transparent 25%,
+                rgba(4,10,22,0.28) 58%,
+                rgba(3,8,18,0.60) 85%,
+                rgba(2,6,14,0.75) 100%);
+        `;
+        document.body.appendChild(el);
+        this.events.once('shutdown', () => el.remove());
+    }
+
     syncOceanBackground() {
         if (!this.background) return;
         const chart = this.currentChartIndex ?? 1;
-        /* Tint the ocean tile darker per chart depth */
-        const tints = [0xffffff, 0xe0eeff, 0xc8dcf0, 0xacc8e0, 0x90b0cc, 0x7098b4];
+        /* Tint gets progressively darker/cooler in deeper charts */
+        const tints = [0xffffff, 0xe8f4ff, 0xd0e8f8, 0xb8d4ec, 0xa0c0da, 0x88a8c0];
         const idx   = Math.min(tints.length - 1, Math.floor((chart - 1) / 2));
         this.background.setTint(tints[idx]);
-        /* Natürliche Tile-Größe — kein Strecken */
         this.background.setTileScale(1.0, 1.0);
+        /* Shimmer layer gets slightly dimmer in deeper charts */
+        if (this.shimmerLayer) {
+            this.shimmerLayer.setTint(tints[idx]);
+            this.shimmerLayer.setAlpha(Math.max(0.20, 0.42 - idx * 0.04));
+        }
     }
 
 handleResize(gameSize) {
     if (!gameSize) return;
     const w = gameSize.width || this.scale.width;
     const h = gameSize.height || this.scale.height;
-    /* Resize screen-fixed TileSprite so it always covers the viewport */
+    /* Resize screen-fixed TileSprites so they always cover the viewport */
     if (this.background?.setSize) {
         this.background.setSize(w + 64, h + 64);
+    }
+    if (this.shimmerLayer?.setSize) {
+        this.shimmerLayer.setSize(w + 64, h + 64);
     }
     this.syncOceanBackground();
     this.clampCameraTarget();
@@ -2248,8 +2386,14 @@ handleResize(gameSize) {
             'island-temple': 108, 'island-guild': 128
         };
         this.islandSpawnPoints.forEach((point) => {
-            /* Opaque ocean-coloured backdrop behind ALL transparent-PNG islands */
+            /* ── Turquoise shallow-water glow (BOS-style) ── */
             const bgR = ISLAND_BG_RADII[point.texture] ?? 105;
+            this.add.circle(point.x, point.y, bgR * 3.2, 0x0a6070, 0.07).setDepth(9);
+            this.add.circle(point.x, point.y, bgR * 2.4, 0x0e8090, 0.09).setDepth(9);
+            this.add.circle(point.x, point.y, bgR * 1.7, 0x129aaa, 0.10).setDepth(9);
+            this.add.circle(point.x, point.y, bgR * 1.25, 0x14aabc, 0.08).setDepth(9);
+
+            /* Opaque ocean-coloured backdrop behind ALL transparent-PNG islands */
             this.add.circle(point.x, point.y, bgR, 0x0e2a40, 1).setDepth(11);
             this.add.circle(point.x, point.y, bgR - 6, 0x133550, 1).setDepth(11);
 
@@ -5992,14 +6136,24 @@ handleResize(gameSize) {
         this._updateDayNight(delta);
         if (this._treasureHuntActive) this._updateTreasureHunt();
 
-        /* TilePosition 1:1 mit Kamera → Wasser scrollt mit Welt, UI bleibt fixiert */
-        /* +Wellenanimation: langsame Sinus-Drift simuliert lebendige See */
+        /* Ocean animation: base layer scrolls with camera + subtle drift */
         if (this.background) {
-            this._waveT = (this._waveT || 0) + 0.012;
-            const wx = Math.sin(this._waveT * 0.7) * 5 + Math.sin(this._waveT * 1.3) * 3;
-            const wy = Math.cos(this._waveT * 0.5) * 4 + Math.cos(this._waveT * 1.1) * 2;
+            this._waveT = (this._waveT || 0) + 0.010;
+            const t = this._waveT;
+            /* Multi-frequency drift — simulates swell + chop */
+            const wx = Math.sin(t * 0.65) * 6 + Math.sin(t * 1.25) * 3 + Math.sin(t * 0.38) * 4;
+            const wy = Math.cos(t * 0.48) * 5 + Math.cos(t * 1.10) * 2 + Math.cos(t * 0.72) * 3;
             this.background.tilePositionX = this.cameras.main.scrollX + wx;
             this.background.tilePositionY = this.cameras.main.scrollY + wy;
+        }
+        /* Shimmer layer: drifts diagonally at different speed — light reflection feel */
+        if (this.shimmerLayer) {
+            const t = this._waveT || 0;
+            /* Constant diagonal drift + own swell pattern */
+            const sx = this.cameras.main.scrollX * 0.18 + t * 22 + Math.sin(t * 0.9) * 7;
+            const sy = this.cameras.main.scrollY * 0.18 + t * 8  + Math.cos(t * 1.1) * 5;
+            this.shimmerLayer.tilePositionX = sx;
+            this.shimmerLayer.tilePositionY = sy;
         }
 
         this.updateUIBars();
